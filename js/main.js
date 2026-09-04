@@ -12,8 +12,16 @@
 
   // ---- App -------------------------------------------------------------------
   const app = new Application();
-  await app.init({ width: 960, height: 540, backgroundColor: '#1a1730' });
-  document.body.appendChild(app.canvas);
+  await app.init({ width: 1280, height: 720, backgroundColor: '#1a1730' });
+  document.getElementById('stage-wrap').appendChild(app.canvas);
+  // Fixed 16:9 scene: scale the canvas with CSS to fit any window (letterboxed).
+  function fitCanvas() {
+    const s = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+    app.canvas.style.width = `${Math.floor(1280 * s)}px`;
+    app.canvas.style.height = `${Math.floor(720 * s)}px`;
+  }
+  fitCanvas();
+  window.addEventListener('resize', fitCanvas);
 
   // ---- World -------------------------------------------------------------------
   const world = new Container();

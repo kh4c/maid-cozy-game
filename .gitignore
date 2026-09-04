@@ -1,9 +1,3 @@
-# OS / editor noise
-.DS_Store
-Thumbs.db
-desktop.ini
-.vscode/
-.idea/
-
-# Node (not used, but keep clean)
 node_modules/
+dist/
+*.log

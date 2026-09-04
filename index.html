@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Maid Test — PixiJS Sprite Sheet</title>
+<title>Maid Cozy Game</title>
 <link rel="stylesheet" href="css/style.css" />
-<script src="https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.min.js"></script>
+<script src="vendor/pixi.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/assets.js"></script>
@@ -18,14 +18,17 @@
 <body>
 <div id="hud">v4 · WASD / Arrows · P = panel · <span id="bg-status">bg?</span> · <span id="fps"></span></div>
 
-<button id="gear-btn" title="Audio settings">⚙</button>
-<div id="audio-panel">
-  <div class="title"><span>🎵 AUDIO</span><span id="saved-flash-audio"></span></div>
-  <label>Master<input type="range" id="vol-master" min="0" max="100" step="1"></label>
-  <label>BGM<input type="range" id="vol-bgm" min="0" max="100" step="1"></label>
-  <label>Voice<input type="range" id="vol-voice" min="0" max="100" step="1"></label>
-  <label>Combat<input type="range" id="vol-combat" min="0" max="100" step="1"></label>
-  <label class="mute-row"><input type="checkbox" id="audio-mute"> Mute all</label>
+<!-- stage-wrap holds the canvas (appended by main.js) + scene-anchored UI -->
+<div id="stage-wrap">
+  <button id="gear-btn" title="Audio settings">⚙</button>
+  <div id="audio-panel">
+    <div class="title"><span>🎵 AUDIO</span><span id="saved-flash-audio"></span></div>
+    <label>Master<input type="range" id="vol-master" min="0" max="100" step="1"></label>
+    <label>BGM<input type="range" id="vol-bgm" min="0" max="100" step="1"></label>
+    <label>Voice<input type="range" id="vol-voice" min="0" max="100" step="1"></label>
+    <label>Combat<input type="range" id="vol-combat" min="0" max="100" step="1"></label>
+    <label class="mute-row"><input type="checkbox" id="audio-mute"> Mute all</label>
+  </div>
 </div>
 
 <div id="devpanel">

@@ -1,0 +1,13 @@
+{
+  "name": "maid-cozy-game",
+  "version": "0.1.0",
+  "description": "Chibi-maid cozy grassland game (PixiJS v8) — Electron desktop wrapper",
+  "private": true,
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^44.2.0"
+  }
+}
