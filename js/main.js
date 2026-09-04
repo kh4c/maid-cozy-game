@@ -86,6 +86,34 @@
     reportError('audio failed: ' + err.message);
   }
 
+  // ---- Edit mode (E): move/resize gear, HUD, dev panel + maid outline -----------------
+  try {
+    window.EditMode.init({
+      // live maid screen rect (canvas px) -> edit mode converts to stage px
+      maidRect: () => {
+        if (!live2d || !live2d.ready) return null;
+        const m = live2d.model;
+        if (!m || !m.visible) return null;
+        // Pixi v8: getBounds() returns a Bounds (minX/minY/maxX/maxY) — passing a
+        // Rectangle here throws "clear is not a function" (v8 wants its own Bounds).
+        const b = m.getBounds();
+        // canvas px -> viewport CSS px (canvas is CSS-scaled inside stage-wrap);
+        // edit mode's place() subtracts the stage origin itself.
+        const cr = app.canvas.getBoundingClientRect();
+        const scaleX = cr.width / app.screen.width;
+        const scaleY = cr.height / app.screen.height;
+        return {
+          left: cr.left + b.minX * scaleX,
+          top: cr.top + b.minY * scaleY,
+          width: (b.maxX - b.minX) * scaleX,
+          height: (b.maxY - b.minY) * scaleY,
+        };
+      },
+    });
+  } catch (err) {
+    reportError('edit mode failed: ' + err.message);
+  }
+
   // ---- Game loop -----------------------------------------------------------------------
   let fpsAccum = 0, fpsCount = 0, fpsTimer = 0;
   const fpsEl = document.getElementById('fps');
@@ -96,7 +124,7 @@
     const dtSec = Math.min(ticker.deltaMS / 1000, 0.05);
     const s = window.Settings.settings;
 
-    const a = window.Input.axis();
+    const a = window.EditMode.active ? { x: 0, y: 0 } : window.Input.axis();
     const view = character.view;
     view.x += a.x * s.speed * dtSec;
     view.y += a.y * s.speed * dtSec;

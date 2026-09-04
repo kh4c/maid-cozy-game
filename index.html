@@ -18,12 +18,13 @@
 <script src="js/effects.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/live2d.js"></script>
+<script src="js/editmode.js"></script>
 </head>
 <body>
-<div id="hud">v5 · WASD / Arrows · P = panel · drag maid = move · wheel on maid = size · <span id="bg-status">bg?</span> · <span id="l2d-status">l2d?</span> · <span id="fps"></span></div>
-
-<!-- stage-wrap holds the canvas (appended by main.js) + scene-anchored UI -->
+<!-- stage-wrap holds the canvas (appended by main.js) + scene-anchored UI.
+     Everything editable lives in here so edit mode shares one coordinate space. -->
 <div id="stage-wrap">
+  <div id="hud">v6 · WASD move · P panel · E edit UI · drag maid = move · wheel = size · <span id="bg-status">bg?</span> · <span id="l2d-status">l2d?</span> · <span id="fps"></span></div>
   <button id="gear-btn" title="Audio settings">⚙</button>
   <div id="audio-panel">
     <div class="title"><span>🎵 AUDIO</span><span id="saved-flash-audio"></span></div>
@@ -33,10 +34,12 @@
     <label>Combat<input type="range" id="vol-combat" min="0" max="100" step="1"></label>
     <label class="mute-row"><input type="checkbox" id="audio-mute"> Mute all</label>
   </div>
-</div>
 
-<div id="devpanel">
-  <div class="title"><span>⚙ DEV PANEL</span><span id="saved-flash"></span></div>
+  <div id="dialog-box"><span id="dialog-text">hi...</span></div>
+
+  <div id="devpanel">
+    <div class="title"><span>⚙ DEV PANEL</span><span id="saved-flash"></span></div>
+  </div>
 </div>
 
 <script src="js/main.js"></script>

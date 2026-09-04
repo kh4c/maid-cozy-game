@@ -4,6 +4,9 @@ window.Input = (() => {
 
   window.addEventListener('keydown', (e) => {
     if (e.code === 'KeyP') window.Settings.togglePanel(); // P toggles dev panel
+    if (e.code === 'KeyE' && window.EditMode.ready) window.EditMode.toggle();      // E toggles UI edit mode
+    if (e.code === 'Escape' && window.EditMode.ready && window.EditMode.active) window.EditMode.toggle(); // Esc exits
+    if (e.code === 'KeyR' && window.EditMode.ready && window.EditMode.active) window.EditMode.resetLayout(); // R resets UI layout (only while editing)
     keys[e.code] = true;
   });
   window.addEventListener('keyup', (e) => { keys[e.code] = false; });

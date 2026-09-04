@@ -2,14 +2,14 @@ html, body { margin: 0; padding: 0; background: #14121f; overflow: hidden; }
 body { display: flex; justify-content: center; align-items: flex-start; height: 100vh; } /* scene pinned to top */
 
 #hud {
-  position: fixed; top: 10px; left: 10px; z-index: 5;
+  position: absolute; top: 10px; left: 10px; z-index: 5;
   font: 12px/1.5 monospace; color: #b9b3e0;
   background: rgba(10, 8, 20, 0.55); padding: 4px 8px; border-radius: 6px;
   pointer-events: none; user-select: none;
 }
 
 #devpanel {
-  position: fixed; top: 12px; right: 12px; width: 230px;
+  position: absolute; top: 12px; right: 12px; width: 230px;
   background: rgba(20, 18, 34, 0.92); border: 1px solid #3a3560;
   border-radius: 8px; padding: 10px 12px; z-index: 10;
   font: 12px/1.4 monospace; color: #cfc9ff; user-select: none;
@@ -61,3 +61,44 @@ canvas { display: block; }
 #audio-panel label { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
 #audio-panel input[type=range] { flex: 1; accent-color: #7a6cff; }
 #audio-panel .mute-row { color: #a9a2d8; }
+
+/* ---- Dialog box: transparent black speech area near the bottom ----------------- */
+#dialog-box {
+  position: absolute; left: 50%; bottom: 7%; transform: translateX(-50%);
+  min-width: 40%; max-width: 82%; z-index: 8;
+  background: rgba(0, 0, 0, 0.45);            /* transparent black */
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px; padding: 12px 18px;
+  font: 15px/1.5 monospace; color: #f2efff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  pointer-events: none; user-select: none;
+}
+
+/* ---- Edit mode overlays ----------------------------------------------------- */
+/* Dashed outline boxes + name tags drawn over each editable component. */
+.edit-box {
+  position: absolute; z-index: 40; display: none;
+  border: 2px dashed rgba(122, 108, 255, 0.9);
+  background: rgba(122, 108, 255, 0.08);
+  border-radius: 4px; pointer-events: none;
+}
+.edit-tag {
+  position: absolute; z-index: 41; display: none;
+  transform: translateY(-100%);
+  font: bold 10px/1 monospace; color: #0e0c1c;
+  background: rgba(157, 148, 255, 0.95);
+  padding: 2px 5px; border-radius: 3px; pointer-events: none;
+  white-space: nowrap;
+}
+.edit-legend {
+  position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+  z-index: 42; pointer-events: none; user-select: none;
+  font: 12px/1.4 monospace; color: #e6e2ff;
+  background: rgba(20, 18, 34, 0.92); border: 1px solid #7a6cff;
+  border-radius: 8px; padding: 6px 12px;
+}
+.edit-legend #edit-flash { color: #7dff9a; }
+/* While editing, all editable components get a move cursor via the wrap class */
+#stage-wrap.editing #gear-btn,
+#stage-wrap.editing #devpanel { cursor: move; }
+#stage-wrap.editing #gear-btn { border-color: #7a6cff; border-style: dashed; }

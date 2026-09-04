@@ -30,6 +30,7 @@ window.CONFIG = {
     runFps: 6,      // run animation frames/sec
     scale: 2.5,     // sprite render scale (64px -> 160px on screen)
     sunray: 1,      // sunray effect master opacity 0..1
+    maxTilt: 0.45,  // run lean, radians (~26°) at full vertical input
     // Live2D companion (upper-body framing): tuned live with the drag/wheel
     // placement tool, then baked in here as the shipped default.
     l2dOn: 1,       // 0/1 show-hide

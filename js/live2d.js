@@ -59,14 +59,19 @@ window.Live2D = (() => {
     model.eventMode = 'static';
     model.cursor = 'grab';
 
+    // Placement edits are an EDIT-MODE-ONLY behavior — the maid is never
+    // draggable/resizable during normal play.
+    const editActive = () => !!(window.EditMode && window.EditMode.active);
+
     // -- drag to move --
     let drag = null; // last pointer pos in canvas coords
     model.on('pointerdown', (e) => {
+      if (!editActive()) return;
       drag = { x: e.global.x, y: e.global.y };
       model.cursor = 'grabbing';
     });
     window.addEventListener('pointermove', (e) => {
-      if (!drag) return;
+      if (!drag || !editActive()) return;
       const p = toCanvas(e);
       const s = S.settings;
       s.l2dx += (p.x - drag.x) / app.screen.width;
@@ -85,7 +90,7 @@ window.Live2D = (() => {
     // -- wheel over the model to resize --
     let saveTimer = null;
     app.canvas.addEventListener('wheel', (e) => {
-      if (!model || !model.visible) return;
+      if (!model || !model.visible || !editActive()) return;
       const p = toCanvas(e);
       const b = model.getBounds();
       if (!b.containsPoint(p.x, p.y)) return; // only when hovering the maid
@@ -113,5 +118,5 @@ window.Live2D = (() => {
 
   function destroy() { if (model) { model.destroy(); model = null; } }
 
-  return { init, apply, destroy, get ready() { return !!model; } };
+  return { init, apply, destroy, get ready() { return !!model; }, get model() { return model; } };
 })();

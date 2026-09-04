@@ -85,6 +85,7 @@ window.Settings = (() => {
     addSlider('runFps', 1, 30, 1);
     addSlider('scale', 1, 4, 0.5);
     addSlider('sunray', 0, 1, 0.05);
+    addSlider('maxTilt', 0, 1.2, 0.05);
     addSlider('l2dOn', 0, 1, 1);
     addSlider('l2dZoom', 0.1, 2, 0.05);
     addSlider('l2dx', 0, 1, 0.02);

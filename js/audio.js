@@ -107,6 +107,8 @@ window.Sound = (() => {
     });
 
     btn.addEventListener('click', (e) => {
+      // edit mode owns the button while active (drag = move) — don't open the panel
+      if (window.EditMode && window.EditMode.active) { e.stopPropagation(); return; }
       e.stopPropagation();
       panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
     });

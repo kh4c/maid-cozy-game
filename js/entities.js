@@ -34,13 +34,13 @@ window.Entities = (() => {
       currentAnim = anim;
     }
 
+    // MAX_TILT read from settings so the dev panel can tune the lean live.
     function applySettings() {
       root.scale.set(settings.scale);
       idleAnim.animationSpeed = 1 / Math.max(0.5, settings.idleFps);
       runAnim.animationSpeed = 1 / Math.max(0.5, settings.runFps);
     }
 
-    const MAX_TILT = 0.22; // radians ~12.6° lean at full vertical input
     // a: current input axis
     function update(a) {
       if (a.x < 0) body.scale.x = -Math.abs(body.scale.x);
@@ -49,7 +49,7 @@ window.Entities = (() => {
       // 8-way facing: lean toward vertical movement, flip-compensated (local-space tilt)
       if (a.x !== 0 || a.y !== 0) {
         const flipSign = body.scale.x < 0 ? -1 : 1;
-        body.rotation = Math.max(-1, Math.min(1, a.y)) * MAX_TILT * flipSign;
+        body.rotation = Math.max(-1, Math.min(1, a.y)) * settings.maxTilt * flipSign;
       } else {
         body.rotation = 0;
       }
