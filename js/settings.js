@@ -28,6 +28,22 @@ window.Settings = (() => {
     }
   }
 
+  // Debounced save for high-frequency edits (drag / wheel placement tool).
+  let saveSoonTimer = null;
+  function saveSoon() {
+    clearTimeout(saveSoonTimer);
+    saveSoonTimer = setTimeout(save, 400);
+  }
+
+  // Sync the dev-panel sliders/labels to the current settings object
+  // (called when something else — e.g. the drag tool — changes a value).
+  function refreshControls() {
+    controls.forEach(({ key, slider, val }) => {
+      slider.value = settings[key];
+      val.textContent = settings[key];
+    });
+  }
+
   // ---- Dev panel -----------------------------------------------------------
   let panelVisible = false;
   const controls = []; // { key, slider, val }
@@ -69,6 +85,10 @@ window.Settings = (() => {
     addSlider('runFps', 1, 30, 1);
     addSlider('scale', 1, 4, 0.5);
     addSlider('sunray', 0, 1, 0.05);
+    addSlider('l2dOn', 0, 1, 1);
+    addSlider('l2dZoom', 0.1, 2, 0.05);
+    addSlider('l2dx', 0, 1, 0.02);
+    addSlider('l2dy', -1, 0.5, 0.02);
 
     const btnRow = document.createElement('div');
     btnRow.className = 'btns';
@@ -90,5 +110,5 @@ window.Settings = (() => {
     document.getElementById('devpanel').appendChild(btnRow);
   }
 
-  return { settings, save, buildPanel, togglePanel };
+  return { settings, save, saveSoon, refreshControls, buildPanel, togglePanel };
 })();

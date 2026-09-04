@@ -5,6 +5,9 @@
 <title>Maid Cozy Game</title>
 <link rel="stylesheet" href="css/style.css" />
 <script src="vendor/pixi.min.js"></script>
+<!-- Cubism runtime + pixi-live2d5 (PixiJS v8 / Cubism 5 fork) — order matters -->
+<script src="vendor/live2dcubismcore.min.js"></script>
+<script src="vendor/cubism5.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/settings.js"></script>
 <script src="js/assets.js"></script>
@@ -14,9 +17,10 @@
 <script src="js/camera.js"></script>
 <script src="js/effects.js"></script>
 <script src="js/audio.js"></script>
+<script src="js/live2d.js"></script>
 </head>
 <body>
-<div id="hud">v4 · WASD / Arrows · P = panel · <span id="bg-status">bg?</span> · <span id="fps"></span></div>
+<div id="hud">v5 · WASD / Arrows · P = panel · drag maid = move · wheel on maid = size · <span id="bg-status">bg?</span> · <span id="l2d-status">l2d?</span> · <span id="fps"></span></div>
 
 <!-- stage-wrap holds the canvas (appended by main.js) + scene-anchored UI -->
 <div id="stage-wrap">

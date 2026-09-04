@@ -4,6 +4,29 @@ Chronological record of what was built and why. Newest entries at the bottom.
 
 ---
 
+## 2026-09-05 — Live2D maid companion (pixi-live2d5 + Cubism 5) with drag/wheel placement tool
+
+**Goal:** show the Cubism 5 Maid model as an upper-body companion on top of the grassland game, with a dev tool to move/resize it and persist the placement.
+
+### Done
+- **Adopted `pixi-live2d5`** (omniwaifu fork — the PixiJS v8 + Cubism 5 branch of pixi-live2d-display). The previously vendored `live2d-cubism.min.js` was an older UMD engine that never worked with v8's renderer; it has been removed.
+- **Built the fork from source** (no npm release, no GitHub releases): `git clone --recursive` (pulls the CubismWebFramework submodule), extracted `Core/live2dcubismcore.js` + `.d.ts` from the local `CubismSdkForWeb-5-r.5.zip` into `core/` (the step `bun run setup` would normally do — no bun on this machine, plain `npm install --ignore-scripts` + `node scripts/build.js` worked). Produced `dist/cubism5.min.js` (UMD → `PIXI.live2d`), copied to `vendor/`.
+- **Shaders:** Cubism R5 fetches 13 GLSL files at render time from `/cubism5/shaders/` — copied from the SDK zip to `cubism5/shaders/` at the project root so both `http://` and `maid://` resolve it. Added `.json/.moc3/.frag/.vert` MIME types to `electron-main.js`.
+- **Model check:** `Maid.moc3` header byte is `05` (true Cubism 5 moc) — ideal for this fork. Model has physics + EyeBlink groups, no motions (idle sway comes from physics).
+- **Wiring:** `index.html` loads pixi → `live2dcubismcore.min.js` → `cubism5.min.js` → `js/live2d.js` (new) before `main.js`. `Live2DModel.registerTicker(PIXI.Ticker)` + `autoUpdate: true` drive physics/blink; `autoHitTest/autoFocus` off.
+- **Upper-body framing:** anchor `(0.5, 0)` (top-center = the head), scale computed from the model's measured natural height so **zoom 1.0 = model is 2× screen height** — head + torso fill the frame, legs run below the edge. Resolution-independent: same fractions work at any window size.
+- **Placement tool:** drag the maid to move, mouse wheel over her to resize (5% steps, clamped 0.1–2). Writes into live settings → `Settings.refreshControls()` keeps the P-panel sliders in sync → `Settings.saveSoon()` debounced-save to localStorage. Required Pixi v8 event plumbing: `stage.eventMode='static'` + `stage.hitArea=app.screen` before children hit-test. Wheel is scoped to model bounds via `getBounds().containsPoint`, canvas coords converted from DOM pointer coords through the letterbox scale.
+- **Persisted settings:** `l2dOn/l2dZoom/l2dx/l2dy` join the dev-panel settings; position tuned live (zoom 1, x 0.8, y 0.12) and baked into `config.js` defaults. User's tuned speed 300 / idleFps 8 / runFps 6 / scale 2.5 also baked in.
+- Settings remain a JSON blob in `localStorage` (`maid-test-settings`); README documents the Live2D stack + tool.
+
+### Technical notes worth keeping
+- The UMD build of pixi-live2d5 attaches to `PIXI.live2d` but does **not** auto-register a render pipe under v8 like the old lib claimed — instead it uses `renderPipeId = "customRender"` and registers its WebGL context system via `extensions.add` at import time. Loading order (pixi → core → plugin) is the only requirement.
+- `Live2DModel.from()` needs `window.Live2DCubismCore` present (checked at import); the Core from the SDK zip is byte-identical to what the fork's setup script downloads (sha-verified archive).
+- Pixi v8: children are only hit-tested when the **stage** is `eventMode='static'` with a hitArea — setting it on the child alone does nothing.
+- `model.height` at scale 1 gives the natural model height in px; measure it right after load (before any scaling) and cache it.
+
+---
+
 ## 2026-09-04 — Electron desktop wrapper, offline assets, scene scaling, audio UI placement
 
 **Goal:** make the game a standalone desktop app (no browser tab), fix port conflict with llama.cpp, and anchor UI to the play screen.

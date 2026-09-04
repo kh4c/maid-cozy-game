@@ -1,3 +1,10 @@
 node_modules/
 dist/
 *.log
+
+# Cubism SDK archive + extracted SDK (Core already vendored in vendor/)
+CubismSdkForWeb*.zip
+CubismSdkForWeb-5-r.5/
+
+# VTube Studio model config (duplicate of assets/live2d/Maid; not used by the game)
+Maid_vts/

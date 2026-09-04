@@ -62,8 +62,21 @@
     reportError('effects failed: ' + err.message);
   }
 
+  // ---- Live2D companion (upper body at the right edge) ------------------------------
+  let live2d = window.Live2D;
+  try {
+    live2d && await live2d.init(app);
+    document.getElementById('l2d-status').textContent = 'l2d ✓';
+  } catch (err) {
+    live2d = null;
+    document.getElementById('l2d-status').textContent = 'l2d ✗';
+    reportError('live2d failed: ' + err.message);
+  }
+
   // ---- Dev panel --------------------------------------------------------------------
-  window.Settings.buildPanel((key) => { if (key === 'scale' || key.endsWith('Fps')) character.applySettings(); });
+  window.Settings.buildPanel((key) => {
+    if (key === 'scale' || key.endsWith('Fps')) character.applySettings();
+  });
   character.applySettings();
 
   // ---- Sound manager (BGM + gear volume panel; starts on first gesture) --------------
@@ -98,6 +111,7 @@
     }
 
     if (effects) effects.update(dtSec);
+    if (live2d) live2d.apply(s);
 
     // fps readout
     fpsAccum += dtSec; fpsCount++; fpsTimer += dtSec;

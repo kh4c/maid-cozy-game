@@ -28,8 +28,16 @@ python -m http.server 8095 --bind 127.0.0.1
 | `P` | Toggle dev panel |
 | ⚙ gear (top-right of scene) | Audio settings: Master/BGM/Voice/Combat sliders + mute |
 
-Dev panel sliders (saved to `localStorage`, key `maid-test-settings`): **speed**, **idleFps**, **runFps**, **scale**, **sunray**.
+Dev panel sliders (saved to `localStorage`, key `maid-test-settings`): **speed**, **idleFps**, **runFps**, **scale**, **sunray**, plus the Live2D placement keys **l2dOn / l2dZoom / l2dx / l2dy**.
 Audio volumes persist under `localStorage` key `maid-audio-settings`.
+
+## Live2D maid companion
+
+A Cubism 5 Live2D model (`assets/live2d/Maid/`, moc3 v5) renders as a screen-space **upper-body companion**: scaled to 2× screen height so head + torso fill the frame and the legs fall below the edge.
+
+Stack: **[pixi-live2d5](https://github.com/omniwaifu/pixi-live2d5)** (PixiJS v8 + Cubism 5 fork) — built from source with npm into `vendor/cubism5.min.js` (UMD, exposes `PIXI.live2d`). Cubism runtime is `vendor/live2dcubismcore.min.js` from the local `CubismSdkForWeb-5-r.5` SDK. R5 fetches 13 GLSL shader files at render time from `cubism5/shaders/` at the project root.
+
+**Placement tool** — drag the maid to move her, scroll the mouse wheel over her to resize. Edits write into the live settings, sync the dev-panel sliders, and **auto-save** to localStorage (debounced 400 ms). Tune it once and the browser remembers; `js/config.js` `defaults` holds the shipped position.
 
 ## Features
 
@@ -59,6 +67,8 @@ Audio volumes persist under `localStorage` key `maid-audio-settings`.
 | `js/camera.js` | Smooth clamped exponential-lerp follow |
 | `js/effects.js` | Sun glow + dust particles (beams disabled) |
 | `js/audio.js` | SoundManager: Web Audio buses, BGM loop, gear UI |
+| `js/live2d.js` | Live2D companion: pixi-live2d5 init, upper-body framing, drag/wheel placement tool |
+| `cubism5/shaders/` | 13 GLSL shaders the Cubism R5 framework fetches at render time |
 | `js/main.js` | Bootstrap: init app, wire modules, game loop |
 | `assets/` | Sprite sheets + grassland background + Cozy1.mp3 (BGM) |
 

@@ -22,6 +22,10 @@ const MIME = {
   '.css': 'text/css; charset=utf-8',
   '.png': 'image/png',
   '.mp3': 'audio/mpeg',
+  '.json': 'application/json',
+  '.moc3': 'application/octet-stream',
+  '.frag': 'text/plain; charset=utf-8',   // Cubism R5 GLSL shaders (fetched at runtime)
+  '.vert': 'text/plain; charset=utf-8',
 };
 
 function registerGameProtocol() {

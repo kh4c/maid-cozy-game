@@ -21,12 +21,20 @@ window.CONFIG = {
   camera: { lerp: 8 },           // higher = snappier follow
   camAimHeightPx: 32,            // sprite-visual-middle offset: pivot is at feet (anchor 0.5,1)
 
-  // Defaults for dev-panel-adjustable settings (persisted to localStorage)
+  // Defaults for dev-panel-adjustable settings (persisted to localStorage).
+  // Values below are the user's tuned set — tweak live with the panel (P)
+  // or the drag/wheel tool, then bake back in here.
   defaults: {
-    speed: 140,     // px per second
+    speed: 300,     // px per second
     idleFps: 8,     // idle animation frames/sec
-    runFps: 12,     // run animation frames/sec
-    scale: 2,       // sprite render scale (64px -> 128px on screen)
+    runFps: 6,      // run animation frames/sec
+    scale: 2.5,     // sprite render scale (64px -> 160px on screen)
     sunray: 1,      // sunray effect master opacity 0..1
+    // Live2D companion (upper-body framing): tuned live with the drag/wheel
+    // placement tool, then baked in here as the shipped default.
+    l2dOn: 1,       // 0/1 show-hide
+    l2dZoom: 1,     // 1.0 = model is 2x screen height (upper body fills screen)
+    l2dx: 0.8,      // horizontal position as fraction of screen width
+    l2dy: 0.12,     // vertical: top-of-head anchor; negative trims headroom
   },
 };
