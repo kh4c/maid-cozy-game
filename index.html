@@ -13,9 +13,20 @@
 <script src="js/entities.js"></script>
 <script src="js/camera.js"></script>
 <script src="js/effects.js"></script>
+<script src="js/audio.js"></script>
 </head>
 <body>
 <div id="hud">v4 · WASD / Arrows · P = panel · <span id="bg-status">bg?</span> · <span id="fps"></span></div>
+
+<button id="gear-btn" title="Audio settings">⚙</button>
+<div id="audio-panel">
+  <div class="title"><span>🎵 AUDIO</span><span id="saved-flash-audio"></span></div>
+  <label>Master<input type="range" id="vol-master" min="0" max="100" step="1"></label>
+  <label>BGM<input type="range" id="vol-bgm" min="0" max="100" step="1"></label>
+  <label>Voice<input type="range" id="vol-voice" min="0" max="100" step="1"></label>
+  <label>Combat<input type="range" id="vol-combat" min="0" max="100" step="1"></label>
+  <label class="mute-row"><input type="checkbox" id="audio-mute"> Mute all</label>
+</div>
 
 <div id="devpanel">
   <div class="title"><span>⚙ DEV PANEL</span><span id="saved-flash"></span></div>

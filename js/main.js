@@ -58,6 +58,13 @@
   window.Settings.buildPanel((key) => { if (key === 'scale' || key.endsWith('Fps')) character.applySettings(); });
   character.applySettings();
 
+  // ---- Sound manager (BGM + gear volume panel; starts on first gesture) --------------
+  try {
+    window.Sound.init();
+  } catch (err) {
+    reportError('audio failed: ' + err.message);
+  }
+
   // ---- Game loop -----------------------------------------------------------------------
   let fpsAccum = 0, fpsCount = 0, fpsTimer = 0;
   const fpsEl = document.getElementById('fps');
