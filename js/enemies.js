@@ -484,5 +484,41 @@ window.Enemies = (() => {
       `. Bigger body = rarer + tougher (3-10hp). Lone hunter ${LONER_PRICE} (red outline, always alone, always hostile, ${LONER_HP}hp).`;
   }
 
-  return { init, update, hostileCount, playerAttack, damageAt, nearest, sense, senseView, nearestView, priceListText, debugGroups: () => groups };
+  // ---- bestiary: world knowledge, one source of truth ------------------------
+  // Both the 📖 journal panel and the maid herself read from here, so player
+  // lore and her lore answers can never disagree. Stats come straight from
+  // the tuning constants above — retune there, both update.
+  const LORE = {
+    common: 'The gray grazer. Harmless, everywhere, bothering nobody — folk leave it be.',
+    uncommon: 'Green-backed forager. A placid grazer; its hide is just worth a little more.',
+    rare: 'Blue-ringed watcher. Shy and scarce; most folk never see one.',
+    epic: 'Violet wanderer of the tall grass. Big, gentle, and famously hard to fell.',
+    legendary: 'Gold-crowned wonder. Rare as eclipses; folk call seeing one good luck.',
+    hunter: 'The red-ringed invader. Harmful, aggressive, and unwelcome — folk hunt it on sight, and so does she.',
+  };
+  const PACK_HABIT = 'Harmless millers in groups of 3-5. They want nothing from anyone — but cornered or shot, the pack panics: the brave lash out, the cowardly bolt.';
+  const HUNTER_HABIT = `Harmful and invasive — this one is quarry, not wildlife. Solitary. Mills calmly until provoked (~${LONER_AGGRO}px), then hunts forever; it never calms down. Outrun it (you are faster) or put it down fast.`;
+  function bestiary() {
+    const hex = (c) => '#' + (c | 0).toString(16).padStart(6, '0');
+    const list = RARITY.map((t) => ({
+      key: t.key, name: t.key[0].toUpperCase() + t.key.slice(1) + ' critter',
+      kind: 'Pack critter', icon: 'assets/enemy.png', color: hex(t.color),
+      hp: t.hp, bounty: t.price, habit: PACK_HABIT, lore: LORE[t.key] || '',
+    }));
+    list.push({
+      key: 'hunter', name: 'Lone hunter', kind: 'Lone hunter',
+      icon: 'assets/hunter.png', color: hex(LONER_COLOR),
+      hp: LONER_HP, bounty: LONER_PRICE, habit: HUNTER_HABIT, lore: LORE.hunter,
+    });
+    return list;
+  }
+  // one breathless paragraph for the snapshot — she answers lore from this
+  function bestiaryText() {
+    const bits = RARITY.map((t) => `${t.key} (${t.hp}hp, ${t.price}c): ${LORE[t.key]}`);
+    bits.push(`lone hunter (${LONER_HP}hp, ${LONER_PRICE}c): ${LORE.hunter}`);
+    return 'Bestiary — the field guide, TRUE of this world (answer questions about monsters from this, in your own voice): ' +
+      bits.join(' ') + ` Packs: ${PACK_HABIT} Hunter: ${HUNTER_HABIT}`;
+  }
+
+  return { init, update, hostileCount, playerAttack, damageAt, nearest, sense, senseView, nearestView, priceListText, bestiary, bestiaryText, debugGroups: () => groups };
 })();

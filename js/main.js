@@ -217,6 +217,7 @@
 
   try {
     window.Inventory && window.Inventory.init();
+    window.Bestiary && window.Bestiary.init();
   } catch (err) {
     reportError('inventory failed: ' + err.message);
   }

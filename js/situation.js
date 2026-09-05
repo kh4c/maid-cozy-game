@@ -94,7 +94,7 @@ window.Situation = (() => {
       const shown = (enemies.list || []).slice(0, 4);
       shown.forEach((e, i) => {
         const rare = e.rarity && e.rarity !== 'common' ? `, ${String(e.rarity).toUpperCase()}` : '';
-        const color = { common: 'gray', uncommon: 'green', rare: 'blue', epic: 'purple', legendary: 'gold' }[e.rarity] || '';
+        const color = { common: 'gray', uncommon: 'green', rare: 'blue', epic: 'purple', legendary: 'gold', hunter: 'red' }[e.rarity] || '';
         lines.push(`  #${i + 1}: ${Math.round(e.dist)}px ${dirName(e.dx, e.dy)} (dx ${Math.round(e.dx)}, dy ${Math.round(e.dy)}) — ${e.hostile ? 'HOSTILE, will bite' : 'calm, milling around'}${e.hp !== undefined ? `, ${e.hp}hp` : ''}${rare}${color ? ` (${color} outline)` : ''} worth ~${e.price || 2} coins.`);
       });
       if (enemies.total > shown.length) lines.push(`  (+${enemies.total - shown.length} more further out)`);
@@ -103,6 +103,10 @@ window.Situation = (() => {
     try {
       if (window.Enemies && typeof window.Enemies.priceListText === 'function') lines.push(window.Enemies.priceListText());
     } catch (e) { /* she appraises from memory then */ }
+    // bestiary so she KNOWS the world's monsters (lore questions get real answers)
+    try {
+      if (window.Enemies && typeof window.Enemies.bestiaryText === 'function') lines.push(window.Enemies.bestiaryText());
+    } catch (e) { /* legends stay untold */ }
     // purse + loose coins — she collects by walking over them, and knows her total
     try {
       const st = window.Inventory && window.Inventory.state ? window.Inventory.state() : null;
