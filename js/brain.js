@@ -140,7 +140,7 @@ window.Brain = (() => {
     if (RECALL_RE.test(t)) recallLast();
     // stop FIRST — negation beats attack words ("don't kill those" = stand down)
     if (wantsStop(t)) { setAttackOrder(false, 'master said stop'); stopFollow(); stopStroll(); }
-    else if (wantsAttack(t)) { setAttackOrder(true, 'master ordered'); lastAskAt = performance.now(); } // memo wish counts as fresh intent
+    else if (wantsAttack(t) && (performance.now() > recallDeadUntil || !RECALL_RE.test(t))) { setAttackOrder(true, 'master ordered'); lastAskAt = performance.now(); } // memo wish counts as fresh intent — unless it recalls the dead
     // "not big enough, find another" while she's on a pack: dismiss THIS
     // group (ignored ~3 min) and walk AWAY to look elsewhere — she must
     // never re-find the same group. Falls through to normal handling below.
@@ -340,7 +340,7 @@ window.Brain = (() => {
         `Critters have RARITY with coin value (common / uncommon-green / RARE-blue / EPIC-purple / LEGENDARY-gold — the snapshot lists it). Rare+ finds are announced to master already; still WAIT for orders before firing calm ones, however shiny. ` +
         `Price list, KNOW it cold (coins per kill): common 2 · uncommon 5 · rare 12 · epic 25 · legendary 60. Quote values when you report or discuss a find. ` +
         `A FRESH standing order overrides HOLD: comply while grumbling. ` +
-        `KNOWN GROUPS: packs you walked away from are REMEMBERED with your opinion ("too small" / "not interested" / "saved for later" — listed in the snapshot). They stay ignored while dismissed, but if master says "actually kill those / go back / those ones", march straight back to the remembered spot and re-engage. If you arrive and the pack is gone, say so plainly. ` +
+        `KNOWN GROUPS: packs you walked away from are REMEMBERED with your opinion ("too small" / "not interested" / "saved for later" — listed in the snapshot). They stay ignored while dismissed, but if master says "actually kill those / go back / those ones", march straight back to the remembered spot and re-engage. If you arrive and the pack is gone, say so plainly. If a recall finds no live critters near the remembered spot, that pack is DEAD — say so, clear the memory, stand down, and never march to a ghost. ` +
         `COINS: kills drop coins and they are yours when you walk over them (magnet ~110px, scoop ~46px). Loose coins near you are listed in the snapshot — your feet already drift toward them when it's safe, but you may also order it. Your purse total is in the snapshot too — quote it whenever master asks about money or loot. ` +
         `ANNOYANCE LEVEL: ${annoyance()} — ${annoyanceFlavor(annoyance())}\n` +
         `${memoText()}\n` +
@@ -767,11 +767,49 @@ window.Brain = (() => {
       try { pushEvent(`dismissed a [${opinion}] pack — looking elsewhere, spot remembered`); } catch (e) {}
     } catch (e) {}
   }
-  function recallLast() {
-    // master changed their mind — march back to the freshest remembered pack
+  let recallDeadUntil = -1e9; // a recall that found only corpses blocks re-latch ~2 min
+  function liveMemory() {
+    // freshest remembered pack that still has LIVE critters near its spot.
+    // Eyes beat memory: a wiped pack is not a target, however fresh the grudge.
     pruneKnown();
-    if (!known.length) { note('master said go back, but no groups remembered'); return; }
-    const g = known.slice().sort((a, b) => b.at - a.at)[0];
+    try {
+      const sorted = known.slice().sort((a, b) => b.at - a.at);
+      for (const g of sorted) {
+        let live = null;
+        try { live = window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(g.x, g.y, 900) : null; } catch (e) {}
+        if (live) return g;
+      }
+    } catch (e) {}
+    return null;
+  }
+  function recallStatus(text) {
+    // for chat.js: 'not-recall' | 'live' | 'dead' — so chat never orders
+    // an attack on a ghost, and the persona knows before she opens her mouth.
+    if (!RECALL_RE.test(String(text || '').toLowerCase())) return 'not-recall';
+    return liveMemory() ? 'live' : 'dead';
+  }
+  function recallLast() {
+    // master changed their mind — march back, but ONLY to the living.
+    const g = liveMemory();
+    if (!g) {
+      // every group she met is dead (or long gone) — say so plainly, march
+      // nowhere, and block the attack latch so "OK, killing them" can't follow.
+      known = [];
+      recallTarget = null;
+      recallDeadUntil = performance.now() + 120000;
+      note('master recalled a pack, but every group is dead — stood down');
+      const line = `*lowers her gun, looking around* That group? Master... we already wiped them. Nothing left but grass and their coins.`;
+      // say it herself ONLY if chat is idle — mid-exchange the grounded LLM
+      // reply already refuses; don't parrot it twice via the retry queue.
+      let chatBusy = false;
+      try { chatBusy = !!(window.Chat && window.Chat.isBusy && window.Chat.isBusy()); } catch (e) {}
+      if (!chatBusy) {
+        let said = false;
+        try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
+        if (!said) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
+      }
+      return;
+    }
     recallTarget = { x: g.x, y: g.y, until: performance.now() + 90000, tag: g.tag };
     stopFollow(); stopStroll(); searchDone = false;
     note(`recalling the [${g.tag}] group — marching back`);
@@ -858,5 +896,5 @@ window.Brain = (() => {
     if (t && !t.textContent) t.textContent = 'field is quiet… press 💭 and I’ll size it up.';
   }
 
-  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, note, resetMemory, setMemo, getKnownText, get thinking() { return thinking; } };
+  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, note, resetMemory, setMemo, getKnownText, recallStatus, get thinking() { return thinking; } };
 })();

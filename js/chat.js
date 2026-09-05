@@ -152,9 +152,15 @@ window.Chat = (() => {
     // Negation-aware: "don't kill / do not shoot / stop killing" is NEVER an
     // attack order — it must not latch hunting mode on.
     const STOP_WORDS = /(stop|cease|\bdon[’']t\b|\bdo not\b|\bnot\b|\bno more\b|never mind|leave them|leave it|stand down|hold fire)/i;
+    // Recall gate: "go back and kill that group" must not latch hunting when
+    // every remembered pack is dead — check eyes-before-memory FIRST, so she
+    // never says OK to a ghost (the LLM reply comes after this, not before).
+    let recallState = 'not-recall';
+    try { if (window.Brain && typeof window.Brain.recallStatus === 'function') recallState = window.Brain.recallStatus(text); } catch (e) {}
     try {
       if (/(attack|shoot|kill|fire|fight|defend|aim|hunt|get them|take them|destroy|blast)/i.test(text) &&
           !STOP_WORDS.test(text) &&
+          recallState !== 'dead' &&
           window.Brain && typeof window.Brain.orderAttack === 'function') {
         window.Brain.orderAttack(text);
       }
@@ -183,6 +189,11 @@ window.Chat = (() => {
             '\nYou are chatting, not fighting: acknowledge danger naturally if any, but NEVER emit combat tags — the survival brain handles aim/fire/run.]';
         }
       } catch (e) { /* chat works deaf too */ }
+      // Grounding rule (every reply): the live block outranks history + promises.
+      sysText += '\n\n[Grounding rule: the [Live situation] block above is ground truth — it outranks chat history and any past promise you made. If it shows 0 enemies and no live Known groups, NEVER agree to attack, hunt, or "go back and kill" anything. Say the field is empty or that group is already dead. Never say OK to killing what is not there.]';
+      if (recallState === 'dead') {
+        sysText += '\n\n[Ground truth NOW: master is sending you back after a pack you already wiped — no live remembered pack exists. Do NOT agree. Tell them plainly they are already dead (cite your kills), refuse the hunt, offer to scoop the dropped coins instead. Your intent=[[..]] line must read: the recalled pack is already dead — stand down, no attack, report the kills.]';
+      }
       sysText += '\n\n[Movement: the game sprite walks when you emit [move:x,y:secs] — left=[-1,0] right=[1,0] up=[0,-1] down=[0,1], secs 0.5-8. When the user asks you to go/walk/move somewhere, write a *walking action* AND append the matching tag, e.g. *walks left* [move:-1,0:2]. The tag is stripped before display, so keep it exact. One tag per reply.]';
       sysText += '\n\n' + buildIntentInstr();
       const res = await fetch(s.chatUrl.replace(/\/$/, '') + '/v1/chat/completions', {
@@ -258,5 +269,5 @@ window.Chat = (() => {
     });
   }
 
-  return { init, send, say, rerender };
+  return { init, send, say, rerender, isBusy: () => busy };
 })();
