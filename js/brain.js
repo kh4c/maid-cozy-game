@@ -850,7 +850,7 @@ window.Brain = (() => {
     // the same facts plainly, so the report is never LOST — only less pretty.
     let chatBusy = false;
     try { chatBusy = !!(window.Chat && window.Chat.isBusy && window.Chat.isBusy()); } catch (e) {}
-    if (chatBusy) { queueNews({ text: fallback }); return; } // mid-exchange: template via queue, next pump generates for bigger news
+    if (chatBusy) { queueNews({ facts: Object.assign({ event }, facts), fallback }); return; } // mid-exchange: facts via queue, pump generates when free
     try {
       if (window.Chat && typeof window.Chat.announce === 'function') {
         window.Chat.announce(Object.assign({ event }, facts), fallback).catch(() => {});
