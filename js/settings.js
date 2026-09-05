@@ -38,9 +38,9 @@ window.Settings = (() => {
   // Sync the dev-panel sliders/labels to the current settings object
   // (called when something else — e.g. the drag tool — changes a value).
   function refreshControls() {
-    controls.forEach(({ key, slider, val }) => {
+    controls.forEach(({ key, slider, val, fmt }) => {
       slider.value = settings[key];
-      val.textContent = settings[key];
+      val.textContent = fmt ? fmt(settings[key]) : settings[key];
     });
   }
 
@@ -89,26 +89,27 @@ window.Settings = (() => {
     panel.style.display = panelVisible ? 'block' : 'none';
   }
 
-  function addSlider(key, min, max, step, parent) {
+  function addSlider(key, min, max, step, parent, labelText, fmt) {
     const panel = parent || tabMain || document.getElementById('devpanel');
     const row = document.createElement('div');
     row.className = 'row';
     const label = document.createElement('label');
-    label.textContent = key;
+    label.textContent = labelText || key;
     const slider = document.createElement('input');
     Object.assign(slider, { type: 'range', min, max, step });
     slider.value = settings[key];
     const val = document.createElement('span');
     val.className = 'val';
-    val.textContent = settings[key];
+    const show = (v) => { val.textContent = fmt ? fmt(v) : v; };
+    show(settings[key]);
     slider.addEventListener('input', () => {
       settings[key] = Number(slider.value);
-      val.textContent = slider.value;
+      show(slider.value);
       if (onChange) onChange(key);
     });
     row.append(label, slider, val);
     panel.appendChild(row);
-    controls.push({ key, slider, val });
+    controls.push({ key, slider, val, fmt });
   }
 
   function buildPanel(onChangeFn) {
@@ -167,7 +168,7 @@ window.Settings = (() => {
     addText('chatUrl', 'server', false, tabChat);
     addSlider('chatTokens', 50, 2000, 50, tabChat); // max tokens per reply
     addSlider('chatTemp', 0, 2, 0.05, tabChat);     // temperature
-    addSlider('chatActions', 0, 1, 1, tabChat);     // 0 = hide *actions*, 1 = show highlighted
+    addSlider('chatActions', 0, 1, 1, tabChat, 'show actions', (v) => (Number(v) === 1 ? 'show' : 'hide')); // *action* highlight on/off
     addText('chatStatus', 'situation', false, tabChat); // e.g. Location: grassland — change when she moves
     addText('chatSystem', 'persona', true, tabChat);
     // Survival brain tuning (applies to the NEXT think).
@@ -184,9 +185,9 @@ window.Settings = (() => {
     resetBtn.addEventListener('click', () => {
       settings = { ...window.CONFIG.defaults };
       applyAll();
-      controls.forEach(({ key, slider, val }) => {
+      controls.forEach(({ key, slider, val, fmt }) => {
         slider.value = settings[key];
-        val.textContent = settings[key];
+        val.textContent = fmt ? fmt(settings[key]) : settings[key];
       });
       textControls.forEach(({ key, el }) => { el.value = settings[key] ?? ''; });
       save(); // reset persists immediately so it survives reload
