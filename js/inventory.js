@@ -8,7 +8,12 @@ window.Inventory = (() => {
   let coins = 0;
   const PICKUP_R = 46;   // walk this close to scoop a coin
   const MAGNET_R = 110;  // coins inside this drift toward her
-  let drops = [];        // { spr, x, y, vx, vy, t }
+  // coin feel: big, soft shadow, hovering (not glued to the grass)
+  const COIN_SCALE = 1.6;  // was 0.9 — easy to spot mid-fight
+  const FLOAT_AMP = 6;     // hover height (px each way)
+  const FLOAT_SPEED = 3;   // hover rhythm
+  const SHADOW_W = 10, SHADOW_H = 4, SHADOW_A = 0.28;
+  let drops = [];        // { spr, sh, x, y, vx, vy, t, settled, phase }
   let tex = null;
   let open = false;
 
@@ -43,13 +48,20 @@ window.Inventory = (() => {
       for (let i = 0; i < count; i++) {
         const spr = new PIXI.Sprite(t);
         spr.anchor.set(0.5, 0.5);
-        spr.scale.set(0.9);
+        spr.scale.set(COIN_SCALE);
+        // simple ground shadow — sibling in the same layer, posed each frame
+        let sh = null;
+        try {
+          sh = new PIXI.Graphics();
+          sh.ellipse(0, 0, SHADOW_W, SHADOW_H).fill({ color: 0x000000, alpha: SHADOW_A });
+          if (window.InventoryLayer) window.InventoryLayer.addChild(sh);
+        } catch (e) { sh = null; }
         const a = Math.random() * Math.PI * 2;
         const sp = 40 + Math.random() * 90;
         const d = {
-          spr, x, y,
+          spr, sh, x, y,
           vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 50,
-          t: 0, settled: false,
+          t: 0, settled: false, phase: Math.random() * Math.PI * 2,
         };
         spr.position.set(x, y);
         if (window.InventoryLayer) window.InventoryLayer.addChild(spr);
@@ -86,11 +98,20 @@ window.Inventory = (() => {
         try { window.Sound && window.Sound.playSfx('combat', 'coin.ogg', { rate: 1 + Math.random() * 0.2, volume: 0.5 }); } catch (e) {}
         if (d.spr.parent) d.spr.parent.removeChild(d.spr);
         d.spr.destroy();
+        if (d.sh) { try { if (d.sh.parent) d.sh.parent.removeChild(d.sh); d.sh.destroy(); } catch (e2) {} }
         drops.splice(i, 1);
         if (open) render();
         continue;
       }
-      d.spr.position.set(d.x, d.y + Math.sin(d.t * 5 + i) * 1.5); // idle glint bob
+      // hover: coin floats on a slow sine, shadow breathes underneath
+      // (coin low → shadow wide; coin high → shadow tight)
+      const bob = Math.sin(d.t * FLOAT_SPEED + (d.phase || 0)) * FLOAT_AMP;
+      d.spr.position.set(d.x, d.y + bob);
+      if (d.sh) {
+        d.sh.position.set(d.x, d.y + FLOAT_AMP + 3);
+        const k = 1 + bob / (FLOAT_AMP * 10);
+        try { d.sh.scale.set(k, k); } catch (e2) {}
+      }
     }
   }
 
