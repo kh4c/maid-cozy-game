@@ -54,7 +54,10 @@ window.Situation = (() => {
       let vc = null;
       try { vc = window.__maidCamera && window.__maidCamera.viewCenter ? window.__maidCamera.viewCenter() : null; } catch (e) {}
       if (window.Enemies && vc && typeof window.Enemies.senseView === 'function') {
-        enemies = window.Enemies.senseView(p.x, p.y, vc.x, vc.y, 640, 360); // eyes = the screen
+        // NIGHT: vision is limited — she sees a smaller circle of the world (~55%)
+        const night = !!(window.Settings && Number(window.Settings.settings.worldTime) === 1);
+        const hw = night ? 352 : 640, hh = night ? 198 : 360;
+        enemies = window.Enemies.senseView(p.x, p.y, vc.x, vc.y, hw, hh); // eyes = the screen (smaller in the dark)
       } else if (window.Enemies && typeof window.Enemies.sense === 'function') {
         enemies = window.Enemies.sense(p.x, p.y, 750); // no camera (tests) — full-circle fallback
       } else if (window.Enemies && typeof window.Enemies.hostileCount === 'function') {

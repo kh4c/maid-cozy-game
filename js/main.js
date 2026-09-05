@@ -13,6 +13,7 @@
   // ---- App -------------------------------------------------------------------
   const app = new Application();
   await app.init({ width: 1280, height: 720, backgroundColor: '#1a1730' });
+  // NOTE: the canvas bg gets re-tinted for night in applyNightBg() below
   document.getElementById('stage-wrap').appendChild(app.canvas);
   // Fixed 16:9 scene: scale the canvas with CSS to fit any window (letterboxed).
   function fitCanvas() {
@@ -39,22 +40,27 @@
     const c = document.createElement('canvas');
     c.width = 640; c.height = 360;
     const g = c.getContext('2d');
-    // strong torch-circle: clear-ish only in the middle third, edges near-black
-    const grad = g.createRadialGradient(320, 180, 70, 320, 180, 430);
-    grad.addColorStop(0, 'rgba(2,4,14,0)');
-    grad.addColorStop(0.35, 'rgba(2,4,14,0.45)');
-    grad.addColorStop(0.65, 'rgba(2,4,14,0.78)');
-    grad.addColorStop(1, 'rgba(1,2,8,0.97)');
+    // SPOTLIGHT: small clear center, everything else effectively black
+    const grad = g.createRadialGradient(320, 180, 40, 320, 180, 380);
+    grad.addColorStop(0, 'rgba(1,2,8,0)');
+    grad.addColorStop(0.25, 'rgba(1,2,8,0.55)');
+    grad.addColorStop(0.5, 'rgba(1,2,8,0.88)');
+    grad.addColorStop(0.75, 'rgba(1,2,8,0.985)');
+    grad.addColorStop(1, 'rgba(0,0,4,1)');
     g.fillStyle = grad;
     g.fillRect(0, 0, 640, 360);
     return Texture.from(c);
   }
   let vignette = null;
   function nightOn() { return (window.Settings && Number(window.Settings.settings.worldTime) === 1); }
+  function applyNightBg(on) {
+    try { app.renderer.background.color = on ? 0x04040c : 0x1a1730; } catch (e) { /* cosmetic */ }
+  }
   function drawNightOverlay() {
     const on = nightOn();
+    applyNightBg(on);
     nightOverlay.clear();
-    if (on) nightOverlay.rect(0, 0, app.screen.width, app.screen.height).fill({ color: 0x050814, alpha: 0.62 });
+    if (on) nightOverlay.rect(0, 0, app.screen.width, app.screen.height).fill({ color: 0x03040a, alpha: 0.78 });
     if (on && !vignette) {
       vignette = new Sprite(makeVignetteTexture());
       app.stage.addChild(vignette); // above the flat wash
