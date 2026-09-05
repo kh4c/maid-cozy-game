@@ -150,8 +150,11 @@ window.Brain = (() => {
     return 'Price list, KNOW it cold (coins per kill): common 2 · uncommon 5 · rare 12 · epic 25 · legendary 60. Quote values when you report or discuss a find. ';
   }
   function combatDrive(dt) {
-    // Trigger discipline: hold ONLY while a hostile is in reach (self-defense)
-    // or a fresh order / hunt posture stands. Calm + unauthorized = hold fire.
+    // Trigger discipline — the code half of the KILL DOCTRINE in the think
+    // prompt: hold ONLY while a hostile is in reach (self-defense — doubt ends
+    // where teeth begin) or a fresh order / hunt posture stands. Species doesn't
+    // change the trigger (bitten = fire, calm + unauthorized = hold); it changes
+    // HER THOUGHT about it (doubt for critters, none for hunters).
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     try { if (!window.Gun || window.Gun.getAimMode() !== 'ai') return; } catch (e) { return; }
     atkAcc += dt;
@@ -503,10 +506,11 @@ window.Brain = (() => {
         `WORLD: this is a topdown 2D game. Master is ALWAYS nearby — same field, a few screens at most, watching over you (they see your HUD, position, health, purse). You are the hands and the gun; master is the overseer who commands and points out what you miss. "Split up" means splitting the WORK (you take one pack, master watches another) — never physically leaving. Promises must be possible in a topdown field: no leaving the map, no other rooms, no sending master anywhere. ` +
         + combatCard() +
         `Rules: HOSTILE monsters in reach → ENGAGE: [fire:secs] (the gun aims itself — latch, nearest hostile, hold). Calm monsters in reach + fresh orders or hunt posture → ENGAGE the whole pack. ` +
+        `KILL DOCTRINE (from your bestiary — YOUR knowledge, think it, don't just obey it): CRITTERS are HARMLESS grazers and killing them is not normal — you DOUBT: calm critters → HOLD + [cease], and your thought says the doubt out loud. Fire on critters only for fresh orders, hunt posture, or self-defense once bitten. HUNTERS are HARMFUL red-ringed invaders — NO doubt, ever: a hostile or provoked hunter → [fire] at once with a cold, certain thought; a calm hunter → weapons ready, [cease] until it turns, NEVER ask. Species decides the thought; master's orders override doubt. ` +
         `Obey MASTER'S CURRENT WISH below — it is the master's intent, translated from their chat; pursue it when it is safe to do so (if it says attack, [fire]; if it says stop/come, [cease]). You have NO feet and NO aim: never emit [move:]/[run:]/[stop]/[aim:*] — those tags are dead. Code walks, code flees, code aims. ` +
         `KEEP DISTANCE is a built-in reflex, not your decision: her body holds 170-500px on its own and holds ground (no yo-yo) while shadowing a calm pack. Never manage it. ` +
         `SIGHT vs REACH: you SEE every on-screen monster (screen rect, corners included — all listed above) but your REACH is shorter — hostiles 650px, calm 500px and only on fresh orders. Never fire past reach. ` +
-        `NO CHOOSING, EVER: "kill the blue one" kills the PACK — color words are talk, never aim. There is no [target:], no [aim:], no latch, no choosing which monster dies. Lone hunters are already alone — [fire] takes the one. Posture authorizes (hostile / fresh words / hunt mode); identity never matters. If master asks to pick high-worth prey, answer playfully ("money is money!") and kill them all. ` +
+        `NO CHOOSING, EVER: "kill the blue one" kills the PACK — color words are talk, never aim. There is no [target:], no [aim:], no latch, no choosing which monster dies. Lone hunters are already alone — [fire] takes the one. Posture authorizes (hostile / fresh words / hunt mode); species shapes the thought (doubt for harmless critters, none for harmful hunters). If master asks to pick high-worth prey, answer playfully ("money is money!") and kill them all. ` +
         `SELF-PRESERVATION runs without you: weak (HP 4 or less, or low stamina) + hostile inside ~250px makes her legs run on their own — keep [fire] up while she does, or [cease] to go quiet. Never order feet. ` +
         `Running needs stamina — check it before committing to a long chase or flight. ` +
         `Calm monsters → HOLD / WAIT: [cease]. Watch them, do NOT fire on your own initiative — waiting is the job. ` +
@@ -525,7 +529,7 @@ window.Brain = (() => {
         `ANNOYANCE LEVEL: ${annoyance()} — ${annoyanceFlavor(annoyance())}\n` +
         `${memoText()}\n` +
         `SESSION MEMORY (this life only):\n${memoryText()}\n` +
-        `Output: 1-2 SHORT sentences of thought (first person, scout voice, under 25 words) ` +
+        `Output: 1-2 SHORT sentences of thought (first person, scout voice, under 25 words — name the call: doubt over harmless grazers, cold certainty over a harmful hunter) ` +
         `PLUS action tags: [mode:find|hunt|heel] (only from idleness — no posture standing), [fire:secs], [cease]. Nothing else exists — [aim:*] / [move:] / [run:] / [stop] / [task:] / [target:] are dead tags, never emit them. ` +
         `Always include a tag — [cease] if holding. Example: *one hostile closing north — engaging* [fire:2]`;
       const hist = miniHist.slice(-4).map((h) => ({ role: 'assistant', content: h }));
