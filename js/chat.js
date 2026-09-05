@@ -359,7 +359,7 @@ window.Chat = (() => {
       } catch (e) {}
       // event-specific instruction: the facts block is shared, the ask changes
       const EV = {
-        found: `you just SPOTTED a monster in the field (the approved line below names it — a lone hunter or a critter pack — use ITS words, never swap the species). Announce it to master NOW in your own voice: 1-2 short sentences, in-character, *action* allowed.`,
+        found: `you just SPOTTED a monster in the field (the approved line below names it — a lone hunter or a critter pack — use ITS words, never swap the species). Announce it to master NOW in your own voice: 1-2 short sentences, in-character, *action* allowed. Keep it PLAIN — no counts, no rarity talk, unless the facts below flag something RARE.`,
         wiped: `the pack you were watching is now ALL DEAD (you killed them). Report it to master NOW in your own voice: 1 short sentence, in-character, *action* allowed — bones tired or proud, your pick. Never promise to remember this pack.`,
         leave: `you just WALKED AWAY from the pack in view, on master's order. Say so briefly in your own voice: 1 short sentence, in-character, *action* allowed. No pin, no promise to come back.`,
         switch: `you LEFT the pack you were shadowing for a BETTER/CLOSER one. Say so briefly in your own voice: 1 short sentence, in-character, *action* allowed.`,
@@ -375,6 +375,9 @@ window.Chat = (() => {
         'money-banter': `master just said to kill ONLY the valuable critters (pick the rich ones, skip the cheap). REFUSE playfully in your own voice: 1 short sentence, in-character, *action* allowed — money is money, every critter pays, you kill them ALL. No numbers.`,
         'which-ones': `master said "those ones / go back" but you see NO pack in reach. ASK which ones they mean in your own voice: 1 short sentence, in-character, *action* allowed — invite them to walk you closer or point you at them.`,
       };
+      // quiet-found doctrine: the counts/tiers below are TRUTH for her head —
+      // she only VOICES them when something is rare+. Commons stay plain.
+      const rarePlus = ['rare', 'epic', 'legendary'].includes((f.bestRarity || 'common'));
       let sysText = (s.chatSystem || 'You are Cosette, a tsundere maid game companion.') +
         `\n\n[EVENT — ${EV[f.event] || EV.found} ` +
         // TEMPLATE-FIRST: the fallback line below is ALREADY a correct announcement.
@@ -389,8 +392,11 @@ window.Chat = (() => {
             ? `No numbers here, ever — no kill counts, no lifetime totals, no coins. Just say how the job feels in character. `
             : (!f.event || f.event === 'found')
               ? (f.species === 'hunter'
-                ? `Facts (quote EXACTLY, never invent or round): a LONE HUNTER (red ring, always alone — tier ${f.bestRarity || 'common'}) to the ${f.dir || 'east'}, ${f.dist || 'nearby'}, worth ~${f.bestPrice || 2} COINS bounty. Say HUNTER, never critter, never pack. Keep units attached — money is coins. `
-                : `Facts (quote EXACTLY, never invent or round): CRITTER COUNT = ${f.total || 1}, to the ${f.dir || 'east'}, ${f.dist || 'nearby'}; best one ${f.bestColor || ''} ${f.bestRarity || 'common'} worth ~${f.bestPrice || 2} COINS. Keep units attached: critters are critters, money is coins — never say a bare number. `)
+                ? `Facts: a LONE HUNTER (red ring, always alone) to the ${f.dir || 'east'}, ${f.dist || 'nearby'}. Say HUNTER, never critter, never pack. ` +
+                  (rarePlus ? `It is ${f.bestRarity} tier, worth ~${f.bestPrice || 2} COINS bounty — NAME the rarity, that shiny is worth master's attention. ` : `Ordinary tier — do NOT mention rarity, tier, or bounty. `)
+                : `Facts: a critter pack to the ${f.dir || 'east'}, ${f.dist || 'nearby'}. ` +
+                  (rarePlus ? `One of them is a ${f.bestColor || ''} ${f.bestRarity} worth ~${f.bestPrice || 2} COINS — NAME the color and rarity, that shiny is worth master's attention. ` : `Nothing special about them — do NOT mention counts, colors, rarity, or prices. `) +
+                  `Never say a bare number — critters are critters, money is coins. `)
               : `No new facts — the approved line above IS the whole situation (a feeling, a state, an acknowledgement). Reword it lightly in your own voice, stay close to it, and do NOT invent critters, numbers, directions, or places. `) +
         `${(f.hostile | 0) > 0 && f.event !== 'wiped' && !(f.event || '').startsWith('posture') ? (f.species === 'hunter' ? 'It looks HOSTILE (angry) — say so and fight.' : 'Some look HOSTILE (angry).') : (f.ordered && f.event === 'found' ? 'Master ordered the engagement.' : f.event === 'found' ? (f.species === 'hunter' ? 'It is calm FOR NOW, but hunters never stay that way — say you are ready for it, NEVER ask master for permission.' : 'You will HOLD and watch — say you await orders.') : '')} ` +
         `${f.prev ? `Context: you already reported another pack (${f.prev}). ${f.compare || 'Say which pack is closer and which you would take first, and why.'} ` : ''}` +

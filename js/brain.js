@@ -878,9 +878,13 @@ window.Brain = (() => {
         : isHunter
           ? `That's a hunter, master — red ring. It won't stay calm long; weapons ready.`
           : `Holding fire, master — want them dead?`;
+    // quiet-found doctrine: no counts, no rarity — UNLESS the best is rare+,
+    // then the template itself names it so her reword keeps the shiny news.
+    const rarePlus = ['rare', 'epic', 'legendary'].includes((best && best.rarity) || 'common');
+    const rareNote = rarePlus ? ` A ${best.rarity} one — shiny!` : '';
     const line = isHunter
-      ? `*gasps, pointing ${bDir}* Found a hunter — red ring, ${distWord(n.dist)}, to the ${bDir}! ${feeling} ${stance}`
-      : `*gasps, pointing ${bDir}* Found ${en.total === 1 ? 'it' : `them — ${en.total} critters`} ${distWord(n.dist)}, to the ${bDir}! ` +
+      ? `*gasps, pointing ${bDir}* Found a hunter — red ring, ${distWord(n.dist)}, to the ${bDir}!${rareNote} ${feeling} ${stance}`
+      : `*gasps, pointing ${bDir}* Found ${en.total === 1 ? 'a critter' : 'critters'} ${distWord(n.dist)}, to the ${bDir}!${rareNote} ` +
         `${feeling} ${stance}`;
     try { pushEvent(`found ${en.total} critter(s) ${bDir} — best ${best.rarity} (~${packValue(en)} coins)`); } catch (e) {}
     // The focus beat above IS the camera move: lean in + slow-mo for a breath,
@@ -900,7 +904,7 @@ window.Brain = (() => {
     const newsStamp = performance.now(); // guard: this exact pack's queued line dies when the pack is shadowed/left
     const facts = { total: en.total, dir: bDir, dist: distWord(n.dist), distPx: n.dist | 0, species: isHunter ? 'hunter' : 'critter', bestRarity: best.rarity || 'common', bestColor: ringWord(best), bestPrice: best.price || 2, hostile: en.hostile, ordered: !!(attackOrder && freshOrder), staleKey: 'pack', staleAt: newsStamp };
     if (prev) {
-      facts.prev = `${prev.total || 1} to the ${prev.dir || '?'} (${prev.dist || 'nearby'})`;
+      facts.prev = `to the ${prev.dir || '?'} (${prev.dist || 'nearby'})`;
       facts.compare = `the new one is ${distWord(n.dist)} vs ${prev.dist || 'nearby'} before — say which is closer and which you'd take first`;
     }
     queueNews({ facts, fallback: line });
