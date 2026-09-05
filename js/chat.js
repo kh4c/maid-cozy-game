@@ -321,6 +321,8 @@ window.Chat = (() => {
         'posture-find': `master just told you to GO FIND critters. Acknowledge in your own voice: 1 short sentence, in-character, *action* allowed. Confirm you will watch and hold fire until told otherwise.`,
         'posture-heel': `master just told you to HEEL (stay close, hold position). Acknowledge in your own voice: 1 short sentence, in-character, *action* allowed. You will announce what you see but chase nothing.`,
         'posture-hunt': `master just told you to HUNT — everything in reach dies until they say stop. Acknowledge in your own voice: 1 short sentence, in-character, *action* allowed. Eager, annoyed, or dutiful — your call.`,
+        'point-out': `master just POINTED OUT a direction ("on your left", "group to the north side") and you are going to CHECK it. Acknowledge in your own voice: 1 short sentence, in-character, *action* allowed. Curious — master saw something you missed.`,
+        'point-heel': `master pointed out a direction but you are under HEEL (feet planted). Acknowledge in your own voice: 1 short sentence — you're watching that side without moving. Curious, obedient.`,
         chatter: `you have been working quietly for a while — report in to master NOW in your own voice: 1 short sentence, in-character, *action* allowed. Mention how the job feels (boring, tense, nice day for it). No new events happened — do not invent any.`,
       };
       let sysText = (s.chatSystem || 'You are Cosette, a tsundere maid game companion.') +

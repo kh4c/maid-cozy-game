@@ -256,7 +256,7 @@ window.Brain = (() => {
     if (!dir || (!mentions && !/(look|check|see|watch|careful)/.test(t))) return;
     if (objective && objective.kind === 'heel') {
       // heel holds feet, but her EYES still snap over + she says so
-      sayUnlessBusy(`*eyes snap ${dir.word}, feet planted* I see which way you mean — watching that side.`);
+      genLine('point-heel', { dir: dir.word }, `*eyes snap ${dir.word}, feet planted* I see which way you mean — watching that side.`);
       return;
     }
     pointDirVec = dir;
@@ -265,7 +265,7 @@ window.Brain = (() => {
     const leg = 1.6;
     try { window.Input.order(dir.x, dir.y, leg); } catch (e) {}
     note(`master pointed ${dir.word} — going to look`);
-    sayUnlessBusy(`*turns toward the ${dir.word}, squinting* On it — let's see what you spotted, master.`);
+    genLine('point-out', { dir: dir.word }, `*turns toward the ${dir.word}, squinting* On it — let's see what you spotted, master.`);
     searchDone = false; // a fresh look may find — allowed to announce again
   }
   // stroll/searchWatch respect an active point-out: walk THAT way until it expires
