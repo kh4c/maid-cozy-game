@@ -37,6 +37,6 @@ window.CONFIG = {
     l2dZoom: 1,     // 1.0 = model is 2x screen height (upper body fills screen)
     l2dx: 0.8,      // horizontal position as fraction of screen width
     l2dy: 0.12,     // vertical: top-of-head anchor; negative trims headroom
-    l2dExpr: 0,     // 0 = auto-cycle expressions; 1..6 = pin a specific one
+    l2dExpr: 0,     // 0 = auto-cycle expressions; 1..6 = pin happy/soft_smile/surprised/smug/pouty/sleepy
   },
 };

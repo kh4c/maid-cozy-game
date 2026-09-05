@@ -8,11 +8,30 @@
   "Physics": "Maid.physics3.json",
   "DisplayInfo": "Maid.cdi3.json",
   "Expressions": [
-   {"Name": "happy", "File": "expressions/happy.exp3.json"},
-   {"Name": "soft_smile", "File": "expressions/soft_smile.exp3.json"},
-   {"Name": "surprised", "File": "expressions/surprised.exp3.json"},
-   {"Name": "pouty", "File": "expressions/pouty.exp3.json"},
-   {"Name": "sleepy", "File": "expressions/sleepy.exp3.json"}
+   {
+    "Name": "happy",
+    "File": "expressions/happy.exp3.json?v=2"
+   },
+   {
+    "Name": "soft_smile",
+    "File": "expressions/soft_smile.exp3.json?v=2"
+   },
+   {
+    "Name": "surprised",
+    "File": "expressions/surprised.exp3.json?v=2"
+   },
+   {
+    "Name": "pouty",
+    "File": "expressions/pouty.exp3.json?v=2"
+   },
+   {
+    "Name": "sleepy",
+    "File": "expressions/sleepy.exp3.json?v=2"
+   },
+   {
+    "Name": "smug",
+    "File": "expressions/smug.exp3.json"
+   }
   ]
  },
  "Groups": [

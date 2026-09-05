@@ -7,7 +7,8 @@
 // in Maid.model3.json) applied through the framework's own ExpressionManager
 // via model.expression(name) — the same path the cursor-tracking uses, so the
 // values land at the right slot in the update order and actually deform.
-// We cycle poses on a timer; l2dExpr (P panel) pins one manually.
+// Poses cycle on a timer with a neutral rest face between each one
+// (resetExpression); l2dExpr (P panel) pins one manually.
 //
 // NATURAL MOTION: breathing + gentle head/body sway, re-applied every frame
 // AFTER the model update (ticker phase) so the framework doesn't flatten it;
@@ -17,14 +18,18 @@
 //   pixi.min.js -> live2dcubismcore.min.js -> cubism5.min.js -> js/live2d.js
 window.Live2D = (() => {
   const MODEL_URL = 'assets/live2d/Maid/Maid.model3.json';
-  const EXPR_ORDER = ['happy', 'soft_smile', 'surprised', 'pouty', 'sleepy'];
+  const EXPR_ORDER = ['happy', 'soft_smile', 'surprised', 'smug', 'pouty', 'sleepy'];
   let model = null;
   let appRef = null;
+  let exprMgr = null;    // ExpressionManager — resetExpression() gives the neutral rest face
   let naturalH = 0;      // model height in px at scale 1 — measured after load
   let pinnedExpr = 0;    // 0 = auto-cycle; 1..n = index into EXPR_ORDER
   let curName = 'happy';
+  let namedIdx = 0;      // index into EXPR_ORDER of the current/next pose
+  let onNeutral = false; // true while showing the neutral rest face between poses
   let nextAt = 0;
   const HOLD_MS = 4200;
+  const NEUTRAL_HOLD_MS = 2600; // rest face holds a little shorter than poses
 
   function applyFraming() {
     const W = appRef.screen.width, H = appRef.screen.height;
@@ -41,26 +46,77 @@ window.Live2D = (() => {
     return curName;
   }
 
-  // ---- Natural idle motion (breathing + sway) --------------------------------
-  // Applied in the ticker (AFTER model.update): we blend toward target values
-  // with a time constant, so we nudge rather than fight the framework — the
-  // same "lerp after update" pattern from the pixi-live2d-display guide.
+  // SOFTEN: scale how far each expression moves facial features (user pref:
+  // subtle). 0.5 = about half strength; tweak 0.3-0.7 to taste.
+  const EXPR_SOFTNESS = 0.5;
+  function softenExpressionManager(em) {
+    // Wrap createExpression: it receives the parsed .exp3.json exactly once
+    // per expression (then gets cached), so scaling here is idempotent —
+    // no risk of double-scaling on repeat setExpression calls.
+    const origCreate = em.createExpression.bind(em);
+    em.createExpression = function (data, definition) {
+      try {
+        const obj = typeof data === 'string' ? JSON.parse(data) : JSON.parse(JSON.stringify(data));
+        if (Array.isArray(obj.Parameters)) {
+          for (const p of obj.Parameters) {
+            if (typeof p.Value === 'number') p.Value *= EXPR_SOFTNESS;
+          }
+        }
+        return origCreate(JSON.stringify(obj), definition);
+      } catch (e) {
+        return origCreate(data, definition); // never break loading over softening
+      }
+    };
+    return em;
+  }
+
+  // ---- Natural idle motion -----------------------------------------------------
+  // Calm breathing + a gentle head sway (max 10° on any axis) so she feels
+  // alive without being twitchy. Every ~8-16s she also glances down for a
+  // few seconds (lookDown eases 0..1) — a soft "reading/shy" idle beat.
+  // Applied AFTER the model update (shared ticker) as smooth lerps so we
+  // nudge rather than fight the framework.
+  let lookDown = 0;          // eased 0..1 — how far she's looking down now
+  let lookDownTarget = 0;    // what it's easing toward
+  let nextGlanceAt = 8000;   // performance.now() ms of next glance
+
   function naturalMotionTick(deltaMS) {
     if (!model || !model.internalModel) return;
     const core = model.internalModel.coreModel;
     const t = performance.now() / 1000;
-    const k = 1 - Math.exp(-deltaMS / 120); // smoothing (~120ms time constant)
+    const k = 1 - Math.exp(-deltaMS / 150); // smoothing (~150ms time constant)
     const lerpTo = (id, target) => {
       const cur = core.getParameterValueById(id);
       core.setParameterValueById(id, cur + (target - cur) * k);
     };
-    const breath = 0.5 - 0.5 * Math.cos((t / 3.4) * Math.PI * 2); // 0..1
+
+    // breathing (~3.8s cycle) + slight body lean
+    const breath = 0.5 - 0.5 * Math.cos((t / 3.8) * Math.PI * 2); // 0..1
     lerpTo('ParamBreath', breath);
-    lerpTo('ParamAngleX', Math.sin(t * 0.53) * 7 + Math.sin(t * 0.31 + 1.7) * 4);
-    lerpTo('ParamAngleY', Math.sin(t * 0.41 + 0.8) * 5 + Math.sin(t * 0.23) * 3);
-    lerpTo('ParamAngleZ', Math.sin(t * 0.36 + 2.1) * 5);
-    lerpTo('ParamBodyAngleX', Math.sin(t * 0.43 + 1.2) * 4);
-    lerpTo('ParamBodyAngleY', breath * 3);
+    lerpTo('ParamBodyAngleX', Math.sin(t * 0.4 + 1.2) * 3);
+    lerpTo('ParamBodyAngleY', breath * 2.5);
+
+    // head sway, clamped to ±10° total: layered sines stay well under
+    const hx = Math.sin(t * 0.47) * 4 + Math.sin(t * 0.29 + 1.7) * 2.5;   // ±6.5
+    const hy = Math.sin(t * 0.38 + 0.8) * 3 + Math.sin(t * 0.21) * 2;     // ±5
+    const hz = Math.sin(t * 0.33 + 2.1) * 3.5;                            // ±3.5 tilt
+
+    // occasional look-down: ease in, hold ~2.5s, ease out
+    const now = performance.now();
+    if (now >= nextGlanceAt && lookDownTarget === 0) {
+      lookDownTarget = 0.55 + Math.random() * 0.45; // how far down
+      nextGlanceAt = now + 2200 + Math.random() * 1500; // return time
+    } else if (lookDownTarget > 0 && now >= nextGlanceAt) {
+      lookDownTarget = 0;
+      nextGlanceAt = now + 8000 + Math.random() * 8000; // next glance in 8-16s
+    }
+    const kd = 1 - Math.exp(-deltaMS / 350); // slower ease for the gaze
+    lookDown += (lookDownTarget - lookDown) * kd;
+
+    lerpTo('ParamAngleX', hx);
+    lerpTo('ParamAngleY', hy - lookDown * 22); // down = negative Y (chin toward chest)
+    lerpTo('ParamAngleZ', hz + lookDown * 2);  // tiny tilt as she lowers her head
+    lerpTo('ParamEyeBallY', -lookDown * 0.8);  // eyes follow the downward gaze
   }
 
   async function init(app) {
@@ -74,9 +130,8 @@ window.Live2D = (() => {
     model = await ns.Live2DModel.from(MODEL_URL, {
       autoUpdate: true,   // framework updates on the shared ticker
       autoHitTest: false, // game input; drag handled by our edit-mode tool
-      autoFocus: true,    // keep cursor-follow — it is what makes the head move
-      // idle motion is disabled: we drive breath/sway ourselves each tick
-      idleMotion: false,
+      autoFocus: false,   // NO cursor-follow — she idles on her own
+      idleMotion: false,  // we drive breath/sway ourselves each tick
     }).catch((e) => { throw new Error('model load failed: ' + e.message); });
 
     model.anchor.set(0.5, 0);
@@ -87,6 +142,8 @@ window.Live2D = (() => {
     // Sanity: expressions must be registered by the ExpressionManager
     const em = model.internalModel.motionManager.expressionManager;
     if (!em) throw new Error('no ExpressionManager — check Expressions in model3.json');
+    exprMgr = em;
+    softenExpressionManager(em);
 
     // kick the cycle: first expression immediately
     model.expression(EXPR_ORDER[0]);
@@ -108,21 +165,34 @@ window.Live2D = (() => {
   function tickExpressions(now) {
     if (pinnedExpr > 0) return;            // manual pin: no cycling
     if (now < nextAt) return;
-    const i = EXPR_ORDER.indexOf(curName);
-    curName = EXPR_ORDER[(i + 1) % EXPR_ORDER.length];
-    model.expression(curName);
-    nextAt = now + HOLD_MS;
+    if (!onNeutral) {
+      // rest the face to neutral between poses — resetExpression() replays
+      // the manager's empty default expression, easing params back to base
+      onNeutral = true;
+      curName = 'neutral';
+      try { exprMgr.resetExpression(); } catch (e) { /* keep last pose */ }
+      nextAt = now + NEUTRAL_HOLD_MS;
+    } else {
+      onNeutral = false;
+      namedIdx = (namedIdx + 1) % EXPR_ORDER.length;
+      curName = EXPR_ORDER[namedIdx];
+      model.expression(curName);
+      nextAt = now + HOLD_MS;
+    }
   }
 
   function setPinned(n) {
     const prev = pinnedExpr;
     pinnedExpr = n | 0;
     if (pinnedExpr > 0) {
-      curName = EXPR_ORDER[(pinnedExpr - 1) % EXPR_ORDER.length];
+      onNeutral = false;
+      namedIdx = (pinnedExpr - 1) % EXPR_ORDER.length;
+      curName = EXPR_ORDER[namedIdx];
       model.expression(curName);
       nextAt = performance.now() + HOLD_MS;
     } else if (prev > 0) {
-      // released the pin: restart the auto-cycle from the pinned pose
+      // released the pin: hold the pinned pose briefly, then rest to
+      // neutral and resume the cycle after it (tickExpressions handles it)
       nextAt = performance.now() + HOLD_MS;
     }
   }

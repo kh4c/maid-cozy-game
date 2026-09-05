@@ -3,47 +3,51 @@
  "Parameters": [
   {
    "Id": "ParamEyeLOpen",
-   "Value": -2
+   "Value": -0.4
   },
   {
    "Id": "ParamEyeROpen",
-   "Value": -2
+   "Value": -0.4
   },
   {
    "Id": "ParamEyeLSmile",
-   "Value": 0.8
+   "Value": 0.9
   },
   {
    "Id": "ParamEyeRSmile",
-   "Value": 0.8
+   "Value": 0.9
   },
   {
    "Id": "ParamBrowLY",
-   "Value": 0
+   "Value": 1.2
   },
   {
    "Id": "ParamBrowRY",
-   "Value": 0
+   "Value": 1.2
   },
   {
    "Id": "ParamBrowLForm",
-   "Value": 2
+   "Value": 2.0
   },
   {
    "Id": "ParamBrowRForm",
-   "Value": 2
+   "Value": 2.0
   },
   {
    "Id": "ParamMouthForm",
-   "Value": 0.0
+   "Value": 1.0
   },
   {
    "Id": "ParamMouthOpenY",
-   "Value": 0.0
+   "Value": 0
   },
   {
    "Id": "MouthJawOpen",
-   "Value": 0
+   "Value": 0.1
+  },
+  {
+   "Id": "ParamCheek",
+   "Value": 2.0
   }
  ]
 }

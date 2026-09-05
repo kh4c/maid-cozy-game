@@ -90,7 +90,7 @@ window.Settings = (() => {
     addSlider('l2dZoom', 0.1, 2, 0.05);
     addSlider('l2dx', 0, 1, 0.02);
     addSlider('l2dy', -1, 0.5, 0.02);
-    addSlider('l2dExpr', 0, 5, 1); // 0=auto, 1..5 pin: happy/soft_smile/surprised/pouty/sleepy
+    addSlider('l2dExpr', 0, 6, 1); // 0=auto, 1..6 pin: happy/soft_smile/surprised/smug/pouty/sleepy
 
     const btnRow = document.createElement('div');
     btnRow.className = 'btns';
