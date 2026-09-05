@@ -50,7 +50,7 @@ window.CONFIG = {
     chatActions: 1, // 0 = hide *action* text, 1 = show highlighted
     chatStatus: 'Location: open grassland, standing beside you in the field',
     // Survival brain (separate from chat): aim authority + auto-think cadence.
-    aimMode: 'mouse',   // 'mouse' = you aim/fire · 'ai' = she aims/fires, your mouse disabled
+    aimMode: 'ai',   // she owns the gun — cursor aim removed, always 'ai'
     autoDefend: 0,      // 0 = think only on 💭 · 1 = auto-think when danger nears
     brainInterval: 6,   // seconds between auto thinks while danger is near
     brainTokens: 300,   // max tokens per tactical thought (short + cheap)

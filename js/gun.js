@@ -30,7 +30,7 @@ window.Gun = (() => {
   let aiAim = null;        // { x, y, until } world point — Brain's aim order
   let aiFireUntil = 0;     // performance.now() ms — hold trigger until then
   let lastAimX = null, lastAimY = null; // held aim — gun never snaps to the cursor
-  try { if (window.CONFIG && window.CONFIG.defaults && window.CONFIG.defaults.aimMode) aimMode = window.CONFIG.defaults.aimMode; } catch (e) {}
+  try { if (window.Settings && window.Settings.settings) window.Settings.settings.aimMode = 'ai'; } catch (e) {} // migrate old 'mouse' saves
   try {
     const raw = localStorage.getItem('maid-test-settings');
     if (raw) { const p = JSON.parse(raw); } // legacy saves may hold aimMode — ignored, always 'ai'
@@ -38,7 +38,6 @@ window.Gun = (() => {
 
   function setAimMode(m) {
     aimMode = 'ai'; // cursor aim removed — she always owns the gun
-    if (aimMode === 'mouse') { aiAim = null; aiFireUntil = 0; }
     try {
       if (window.Settings && window.Settings.settings) {
         window.Settings.settings.aimMode = 'ai';
