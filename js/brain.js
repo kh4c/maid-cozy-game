@@ -143,7 +143,7 @@ window.Brain = (() => {
     parseObjective(t);
     // stop FIRST — negation beats attack words ("don't kill those" = stand down)
     if (wantsStop(t)) { setAttackOrder(false, 'master said stop'); stopFollow(); stopStroll(); clearObjective(); clearTask('master said stop'); }
-    else if (wantsAttack(t) && (performance.now() > recallDeadUntil || !RECALL_RE.test(t))) { setAttackOrder(true, 'master ordered'); lastAskAt = performance.now(); } // memo wish counts as fresh intent — unless it recalls the dead
+    else if (wantsAttack(t) && (performance.now() > recallDeadUntil || !RECALL_RE.test(t)) && !quotaSatisfied(t)) { setAttackOrder(true, 'master ordered'); lastAskAt = performance.now(); } // memo wish counts as fresh intent — unless it recalls the dead or re-orders a filled quota
     // "not big enough, find another" while she's on a pack: dismiss THIS
     // group (ignored ~3 min) and walk AWAY to look elsewhere — she must
     // never re-find the same group. Falls through to normal handling below.
@@ -437,6 +437,7 @@ window.Brain = (() => {
     coinSeek(dt);      // loose coins — hoover them up whenever it's safe
     objectiveTick(dt); // standing quota — never idle, never stale, finish it
     taskTick(dt);      // model-commanded task — circle/patrol/goto steering
+    chatterTick(dt);   // long jobs report in — she thinks out loud
     if (!auto() && !attackOrder) return;
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     let hot = false, near = false;
@@ -735,6 +736,7 @@ window.Brain = (() => {
   }
   function setObjective(o) {
     objective = o;
+    try { objective.milestone = 0; } catch (e) {} // progress chatter starts fresh
     if (!objective) return;
     setAttackOrder(true, 'standing objective');
     lastAskAt = performance.now();
@@ -750,11 +752,20 @@ window.Brain = (() => {
     objective = null;
     note('standing objective dropped — master said stop');
   }
+  function quotaSatisfied(t) {
+    // a hunt-wish phrased as a quota ("keep hunting until 300 coins") must not
+    // re-latch after the purse already covers it — this is how stale/late
+    // intent echoes kept the slaughter going past the target.
+    const m = String(t || '').toLowerCase().match(/(\d+)\s*coins?/);
+    if (!m || !/(until|earn|quota|till)/.test(String(t || '').toLowerCase())) return false;
+    return purseNow() >= parseInt(m[1], 10);
+  }
   function parseObjective(t) {
     // "keep finding and killing until we earn 200 coins" / "hunt till 50 coins"
     const m = String(t || '').toLowerCase().match(/(\d+)\s*coins?/);
     if (m && /(until|earn|quota|till|to\s+\d+\s*coins)/.test(t) && /(until|earn|make|get|reach|quota|till|keep)/.test(t)) {
       const target = Math.max(1, parseInt(m[1], 10));
+      if (purseNow() >= target) return; // already that rich — nothing to accept
       if (!objective || objective.kind !== 'coins' || objective.target !== target) setObjective({ kind: 'coins', target });
       return;
     }
@@ -768,9 +779,19 @@ window.Brain = (() => {
     try {
       if (objective.kind === 'coins') {
         const purse = purseNow();
+        // progress chatter at 25/50/75% — she thinks out loud while working
+        const marks = [0.25, 0.5, 0.75];
+        const mi = objective.milestone | 0;
+        if (mi < marks.length && purse >= objective.target * marks[mi]) {
+          objective.milestone = mi + 1;
+          sayUnlessBusy(`*wipes her brow, grinning* ${Math.round(marks[mi] * 100)}% there, master — ${purse}/${objective.target} coins!`);
+        }
         if (purse >= objective.target) {
           const done = objective.target; objective = null;
           if (currentTask && currentTask.verb === 'quota') clearTask('quota filled');
+          // neutralize the standing wish too — otherwise the old "keep killing"
+          // memo keeps the think-model emitting [fire] after the job is done.
+          memo = { text: 'Quota filled — standing down unless master orders otherwise.', from: '', at: performance.now() };
           setAttackOrder(false, 'quota filled');
           stopFollow(); stopStroll();
           note(`quota filled — purse at ${purse}, standing down`);
@@ -888,6 +909,33 @@ window.Brain = (() => {
         }
         window.Input.order(dx / len, dy / len, 0.6);
       }
+    } catch (e) {}
+  }
+
+  // ---- chatter: she thinks out loud while working --------------------------------
+  // Long jobs go quiet otherwise — every ~55s of active work she reports in:
+  // quota tally, task status, the watch. Never interrupts a fight, never cuts
+  // in line ahead of something important (pendingSay), never backlogs.
+  let chatterAcc = 0;
+  function chatterTick(dt) {
+    chatterAcc += dt;
+    if (chatterAcc < 55) return;
+    chatterAcc = 0;
+    if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
+    if (pendingSay) return; // something important waiting — don't cut in
+    try {
+      const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
+      if (!p) return;
+      if (p.enemies && p.enemies.hostile > 0) return; // busy fighting — shoot, don't chat
+      let line = null;
+      if (objective && objective.kind === 'coins') line = `*counts on her fingers* ${purseNow()}/${objective.target} coins, master — still hunting!`;
+      else if (objective) line = `*sniffing the air* Still on the hunt, master — ${memory.kills} down this life.`;
+      else if (currentTask && currentTask.verb === 'circle') line = `*still spinning* Circling, master — say when you're dizzy!`;
+      else if (currentTask && currentTask.verb === 'patrol') line = `*scanning the grass* Patrolling... all quiet so far.`;
+      else if (currentTask && currentTask.verb === 'goto') line = `*marching* On my way, master!`;
+      else if (following) line = `*crouched, watching* Still watching them... waiting on your word.`;
+      else return;
+      sayUnlessBusy(line);
     } catch (e) {}
   }
 
