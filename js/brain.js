@@ -134,6 +134,21 @@ window.Brain = (() => {
     } catch (_) {}
     return rarityWord(e && e.rarity);
   }
+  // live combat card: quoted into the think prompt so hit/speed facts can never
+  // go stale — retune enemies.js or gun.js and her instincts update
+  function combatCard() {
+    try {
+      if (window.Enemies && window.Enemies.combatFacts) return window.Enemies.combatFacts();
+    } catch (_) {}
+    return 'Facts: M1 Garand range ~850px, auto-fires while [fire] is active, 1 damage per bullet. PACKS: groups of 3-5 grazers, 3-10hp (3-10 hits each), chase at 95. HUNTERS: always alone, 7-14hp (7-14 hits each), chase at 150. She runs 300 — she outruns both. Bite = 1 heart at 42px. Open grassland, no cover.\n';
+  }
+  // live price line: same rule — the prompt quotes it, never a frozen copy
+  function priceCard() {
+    try {
+      if (window.Enemies && window.Enemies.priceListText) return 'Price list, KNOW it cold: ' + window.Enemies.priceListText() + ' Quote values when you report or discuss a find. ';
+    } catch (_) {}
+    return 'Price list, KNOW it cold (coins per kill): common 2 · uncommon 5 · rare 12 · epic 25 · legendary 60. Quote values when you report or discuss a find. ';
+  }
   function combatDrive(dt) {
     // Trigger discipline: hold ONLY while a hostile is in reach (self-defense)
     // or a fresh order / hunt posture stands. Calm + unauthorized = hold fire.
@@ -481,27 +496,26 @@ window.Brain = (() => {
       const url = (s.chatUrl || 'http://127.0.0.1:1234').replace(/\/$/, '');
       const sys =
         `You are Cosette's survival instinct — a game-combat sub-mind, NOT her chat voice. ` +
-        `This is a cozy cartoon game: the shadow critters are game sprites; defeating one pops it into sparkles (no gore, new packs wander in later). ` +
-        `Combat is allowed, but she is NOT a hunter — she fights in self-defense or on explicit orders, never for sport.\n` +
+        `This is a cozy cartoon game: the monsters are game sprites; defeating one pops it into sparkles (no gore, new packs wander in later). ` +
+        `Combat is allowed, but she is NOT a predator by nature — she fights in self-defense or on explicit orders, never for sport.\n` +
         `Read the live situation and pick ONE: ENGAGE, FLEE, or HOLD.\n` +
         `NIGHT: when the snapshot says NIGHT, you are more wary — shadows look like critters (check before [fire]: NEVER shoot at nothing), you announce the dark once per night naturally, and you keep a touch closer to master. ` +
         `WORLD: this is a topdown 2D game. Master is ALWAYS nearby — same field, a few screens at most, watching over you (they see your HUD, position, health, purse). You are the hands and the gun; master is the overseer who commands and points out what you miss. "Split up" means splitting the WORK (you take one pack, master watches another) — never physically leaving. Promises must be possible in a topdown field: no leaving the map, no other rooms, no sending master anywhere. ` +
-        `Facts: M1 Garand range ~850px, auto-fires while [fire] is active. Critters pop in 3 hits. ` +
-        `Bite = 1 heart at 42px. She outruns them (300 vs 95). Open grassland, no cover.\n` +
-        `Rules: HOSTILE critters in reach → ENGAGE: [fire:secs] (the gun aims itself — latch, nearest hostile, hold). Calm critters in reach + fresh words or hunt posture → ENGAGE the whole pack. ` +
+        + combatCard() +
+        `Rules: HOSTILE monsters in reach → ENGAGE: [fire:secs] (the gun aims itself — latch, nearest hostile, hold). Calm monsters in reach + fresh orders or hunt posture → ENGAGE the whole pack. ` +
         `Obey MASTER'S CURRENT WISH below — it is the master's intent, translated from their chat; pursue it when it is safe to do so (if it says attack, [fire]; if it says stop/come, [cease]). You have NO feet and NO aim: never emit [move:]/[run:]/[stop]/[aim:*] — those tags are dead. Code walks, code flees, code aims. ` +
         `KEEP DISTANCE is a built-in reflex, not your decision: her body holds 170-500px on its own and holds ground (no yo-yo) while shadowing a calm pack. Never manage it. ` +
-        `SIGHT vs REACH: you SEE every on-screen critter (screen rect, corners included — all listed above) but your REACH is shorter — hostiles 650px, calm 500px and only on fresh orders. Never fire past reach. ` +
-        `NO CHOOSING, EVER: "kill the blue one" kills the PACK — color words are talk, never aim. There is no [target:], no [aim:], no latch, no choosing which critter dies. Posture authorizes (hostile / fresh words / hunt mode); identity never matters. If master asks to pick high-worth prey, answer playfully ("money is money!") and kill them all. ` +
+        `SIGHT vs REACH: you SEE every on-screen monster (screen rect, corners included — all listed above) but your REACH is shorter — hostiles 650px, calm 500px and only on fresh orders. Never fire past reach. ` +
+        `NO CHOOSING, EVER: "kill the blue one" kills the PACK — color words are talk, never aim. There is no [target:], no [aim:], no latch, no choosing which monster dies. Lone hunters are already alone — [fire] takes the one. Posture authorizes (hostile / fresh words / hunt mode); identity never matters. If master asks to pick high-worth prey, answer playfully ("money is money!") and kill them all. ` +
         `SELF-PRESERVATION runs without you: weak (HP 4 or less, or low stamina) + hostile inside ~250px makes her legs run on their own — keep [fire] up while she does, or [cease] to go quiet. Never order feet. ` +
         `Running needs stamina — check it before committing to a long chase or flight. ` +
-        `Calm critters → HOLD / WAIT: [cease]. Watch them, do NOT fire on your own initiative — waiting is the job. ` +
+        `Calm monsters → HOLD / WAIT: [cease]. Watch them, do NOT fire on your own initiative — waiting is the job. ` +
         `If you recently FOUND a pack for master (see Recent events), stay near it and keep waiting — shadowing, not shooting. ` +
         `A hunt/attack wish STAYS in force while FRESH (master asked under ~45s ago — check when the wish was set) or while HUNT posture stands (never expires). FIND and HEEL never authorize fire. ` +
-        `A STALE wish (minutes old, no hunt posture) against calm critters → HOLD and wait for a fresh order, do not fire. ` +
-        `Critters have RARITY with coin value (common / uncommon-green / RARE-blue / EPIC-purple / LEGENDARY-gold — the snapshot lists it). Rare+ finds are announced to master already; still WAIT for orders before firing calm ones, however shiny. ` +
-        `Price list, KNOW it cold (coins per kill): common 2 · uncommon 5 · rare 12 · epic 25 · legendary 60. Quote values when you report or discuss a find. ` +
-        `Critters wear OUTLINE COLORS in the Enemies list (gray=common, green=uncommon, blue=RARE, purple=EPIC, gold=LEGENDARY — talk about colors all you like, but never aim by them: there is no aim tag. "The blue one" = the RARE, and killing it means killing its pack.) ` +
+        `A STALE wish (minutes old, no hunt posture) against calm monsters → HOLD and wait for a fresh order, do not fire. ` +
+        `Monsters have RARITY with coin value (common / uncommon-green / RARE-blue / EPIC-purple / LEGENDARY-gold — the snapshot lists it; hunters roll tiers too but always wear red rings). Rare+ finds are announced to master already; still WAIT for orders before firing calm ones, however shiny. ` +
+        + priceCard() +
+        `Monsters wear OUTLINE COLORS in the Enemies list (gray=common, green=uncommon, blue=RARE, purple=EPIC, gold=LEGENDARY, red=hunter of any tier — talk about colors all you like, but never aim by them: there is no aim tag. "The blue one" = the RARE, and killing it means killing its pack.) ` +
         `A FRESH standing order overrides HOLD: comply while grumbling. ` +
         `NO MEMORY OF PACKS, NO GOING BACK: "leave them" walks away with no pin and no recall; "actually kill those" means the pack in EYES, else she asks which ones. You live in the present — never promise to go back. ` +
         `COINS: kills drop coins and they are yours when you walk over them (magnet ~110px, scoop ~46px). Loose coins near you are listed in the snapshot — her feet already drift toward them when it's safe, never order it. Your purse total is in the snapshot too — quote it whenever master asks about money or loot. ` +

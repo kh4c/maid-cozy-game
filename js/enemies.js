@@ -538,5 +538,24 @@ window.Enemies = (() => {
       `Tiers, rolled by every monster: ${ladder} — hunters add +${LONER_GRIT}hp and +${LONER_BOUNTY}c on top.`;
   }
 
-  return { init, update, hostileCount, playerAttack, damageAt, nearest, sense, senseView, nearestView, priceListText, bestiary, bestiaryText, debugGroups: () => groups };
+  // ---- combat card: data-driven, species-extensible ---------------------------
+  // The think prompt quotes this instead of hardcoding "3 hits / 95 speed".
+  // Species #3 = one row here + one bestiary entry; no prompt surgery.
+  function combatFacts() {
+    let dmg = 1, range = 850;
+    try {
+      if (typeof window !== 'undefined' && window.Gun) {
+        if (window.Gun.bulletDamage) dmg = window.Gun.bulletDamage() || dmg;
+        if (window.Gun.rangePx) range = window.Gun.rangePx() || range;
+      }
+    } catch (e) {}
+    const lo = Math.min(...RARITY.map((t) => t.hp)), hi = Math.max(...RARITY.map((t) => t.hp));
+    const hits = (hp) => `${Math.ceil(hp / dmg)}`;
+    return `Facts: M1 Garand range ~${range}px, auto-fires while [fire] is active, ${dmg} damage per bullet. ` +
+      `PACKS: groups of ${GROUP_MIN}-${GROUP_MAX} grazers, ${lo}-${hi}hp (${hits(lo)}-${hits(hi)} hits each), chase at ${HOSTILE_SPEED}. ` +
+      `HUNTERS: always alone, ${lo + LONER_GRIT}-${hi + LONER_GRIT}hp (${hits(lo + LONER_GRIT)}-${hits(hi + LONER_GRIT)} hits each), chase at ${LONER_SPEED}. ` +
+      `She runs 300 — she outruns both. Bite = 1 heart at 42px. Open grassland, no cover.\n`;
+  }
+
+  return { init, update, hostileCount, playerAttack, damageAt, nearest, sense, senseView, nearestView, priceListText, bestiary, bestiaryText, combatFacts, debugGroups: () => groups };
 })();
