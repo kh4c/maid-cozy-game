@@ -325,6 +325,11 @@ window.Chat = (() => {
       };
       let sysText = (s.chatSystem || 'You are Cosette, a tsundere maid game companion.') +
         `\n\n[EVENT — ${EV[f.event] || EV.found} ` +
+        // TEMPLATE-FIRST: the fallback line below is ALREADY a correct announcement.
+        // Your job: say the same news in your own voice, staying CLOSE to it, and
+        // — only if it fits naturally — tie it to the last few chat messages.
+        // Relevance beats creativity: an off-topic flourish is worse than a plain line.
+        `START from this approved line: "${fb}" — keep its facts and meaning (you may reword). ` +
         ctx +
         (f.event === 'wiped'
           ? `Facts (quote EXACTLY, never invent): ${f.kills} killed this pack${f.purse != null ? `, purse now ${f.purse} coins` : ''}. `
@@ -335,6 +340,7 @@ window.Chat = (() => {
         `${f.prev ? `Context: you already reported another pack (${f.prev}). ${f.compare || 'Say which pack is closer and which you would take first, and why.'} ` : ''}` +
         `${f.switched ? `You left the old pack for this one because it is ${f.switched} — say why, briefly. ` : ''}` +
         `${f.aged ? `You spotted this ${f.aged}s ago (the news waited its turn) — mention it may have moved since. ` : ''}` +
+        `You may reference the recent chat ONLY where it truly connects to this event (e.g. master predicted this pack — credit them). If nothing connects, ignore the chat entirely and just deliver the line. ` +
         `Speak ONLY the announcement — NEVER repeat or quote the [Live situation] block (no Position/Health/Stamina/Weapon readouts in chat; master can see the HUD). ` +
         `No combat/move/intent/task tags — just the announcement. This is proactive, not a reply to master.]`;
       // NOTE: no live-snapshot injection here on purpose. announce already carries
@@ -368,6 +374,16 @@ window.Chat = (() => {
       if (/^(Position|Health|Stamina|Weapon|Enemies|Coins|Objective)\s*:/im.test(line) || /\[Live situation/i.test(line) || /\[(?:EVENT|TASK)[\s\S]*$/i.test(line)) {
         throw new Error('echo');
       }
+      // RELEVANCE GUARD: drift detection. The template line is the source of
+      // truth; a generation that wanders (invented places, story-time, money
+      // amounts that match no fact) gets replaced by the template. Better a
+      // plain correct line than a vivid wrong one.
+      const factsNums = String(fb).match(/\d+/g) || [];
+      const drift = /(once upon|back in|my village|the manor|the estate|I remember when|years ago)\b/i.test(line)
+        || /\b\d{3,}\b/.test(line) && !factsNums.some((n) => n.length >= 3); // big numbers never in facts
+      const coinNums = (line.match(/(\d+)\s*(coins?|c\b)/i) || []).slice(1);
+      const badCoins = coinNums.length > 0 && factsNums.length > 0 && !coinNums.some((c) => factsNums.includes(c));
+      if (drift || badCoins) throw new Error('drift');
       return say(line.slice(0, 220));
     } catch (e) { try { return say(fb); } catch (e2) { return false; } }
   }
