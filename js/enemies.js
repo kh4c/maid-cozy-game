@@ -320,8 +320,34 @@ window.Enemies = (() => {
     return { total: list.length, hostile: list.filter((e) => e.hostile).length, nearest: list[0] || null, list };
   }
 
-  // price list: the single source of truth for critter worth — the snapshot
-  // quotes this verbatim so BOTH minds (chat + brain) actually know prices.
+  // ---- screen-rect queries: what YOU see = what SHE sees --------------------
+  // A circle lies both ways: it misses screen corners yet covers off-screen
+  // bands above/below. The view is a fixed 1280x720 rect — filter by that.
+  // Memory (recall marches, lost-pack checks) stays circular on purpose.
+  function inView(x, y, cx, cy, hw, hh) { return Math.abs(x - cx) <= hw && Math.abs(y - cy) <= hh; }
+  function viewEntry(g, m, px, py) {
+    const dx = m.x - px, dy = m.y - py;
+    return { x: m.x, y: m.y, dist: Math.hypot(dx, dy), dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2, pack: g.id };
+  }
+  // senseView(mx,my,cx,cy,hw,hh): SEE — everything on screen, dist from the maid
+  function senseView(mx, my, cx, cy, hw, hh) {
+    const list = [];
+    for (const g of groups) for (const m of g.members) {
+      if (inView(m.x, m.y, cx, cy, hw, hh)) list.push(viewEntry(g, m, mx, my));
+    }
+    list.sort((a, b) => a.dist - b.dist);
+    return { total: list.length, hostile: list.filter((e) => e.hostile).length, nearest: list[0] || null, list };
+  }
+  // nearestView(mx,my,cx,cy,hw,hh): closest ON-SCREEN critter (eyes, not memory)
+  function nearestView(mx, my, cx, cy, hw, hh) {
+    let best = null, bd = Infinity;
+    for (const g of groups) for (const m of g.members) {
+      if (!inView(m.x, m.y, cx, cy, hw, hh)) continue;
+      const e = viewEntry(g, m, mx, my);
+      if (e.dist < bd) { bd = e.dist; best = e; }
+    }
+    return best;
+  }
   function priceListText() {
     const ring = { common: 'faint gray outline', uncommon: 'green outline', rare: 'blue outline', epic: 'purple outline', legendary: 'gold outline' };
     return 'Critter prices (coins per kill): ' +
@@ -329,5 +355,5 @@ window.Enemies = (() => {
       '. Bigger body = rarer + tougher (3-10hp).';
   }
 
-  return { init, update, hostileCount, playerAttack, damageAt, nearest, sense, priceListText, debugGroups: () => groups };
+  return { init, update, hostileCount, playerAttack, damageAt, nearest, sense, senseView, nearestView, priceListText, debugGroups: () => groups };
 })();

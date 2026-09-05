@@ -86,7 +86,7 @@ window.Brain = (() => {
       if (!p) return;
       const en = p.enemies;
       if (!en || !en.nearest) return; // nothing in sight at all
-      // SEE vs REACH: she sees the whole screen (~750px) but shoots shorter —
+      // SEE vs REACH: she sees the whole screen (rect — corners included) but shoots shorter —
       // hostiles up to 650px (self-defense, still on-screen), calm critters
       // only to 500px AND on a FRESH order (45s). A stale "kill them" from
       // minutes ago must not mow down new packs. Otherwise: hold fire, watch.
@@ -174,9 +174,9 @@ window.Brain = (() => {
   function auto() { return (S().autoDefend | 0) === 1; }
   function interval() { return Math.max(3, Math.min(30, Number(S().brainInterval) || 6)); }
   // ---- ranges: everything tactical lives at 500px -----------------------------
-  const SENSE_R = 500;    // her circle of awareness — nothing beyond this exists
+  const SENSE_R = 500;    // legacy circle — eyes are the screen rect now (see senseView); kept for fallback only
   const SAFE_MIN = 170;   // back away inside this (bite is 42px — plenty of margin)
-  function senseRadius() { return SENSE_R; } // she only reacts to what is on/near screen
+  function senseRadius() { return SENSE_R; } // fallback only — the snapshot list is already screen-filtered
 
   function setAuto(v) {
     try {
@@ -352,7 +352,7 @@ window.Brain = (() => {
         `Rules: HOSTILE critters in range with aim mode AI → ENGAGE: [aim:nearest:secs] + [fire:secs]. ` +
         `Obey MASTER'S CURRENT WISH below — it is the master's intent, translated from their chat; pursue it when it is safe to do so (if it says attack, [aim:nearest]+[fire]; if it says stop/come, [cease]+[stop]). ` +
         `KEEP DISTANCE (built-in reflex, not a decision): stay 170-500px from anything ALIVE. Closer than 170px → [move:dx,dy:secs] away along (dx,dy) negated. Farther than 500px → walk closer with [move]. Do this every think, even mid-fight. ` +
-        `SIGHT vs REACH: you SEE every on-screen critter (~750px, all listed above) but your REACH is shorter — hostiles 650px, calm 500px and only on fresh orders. Never fire past reach. ` +
+        `SIGHT vs REACH: you SEE every on-screen critter (screen rect, corners included — all listed above) but your REACH is shorter — hostiles 650px, calm 500px and only on fresh orders. Never fire past reach. ` +
         `SELF-PRESERVATION FIRST: anything hostile within ~250px is a bite threat — if HP is 4 or less, or stamina is low/exhausted, FLEE FIRST: [run:dx,dy:secs] away (negate the threat's dx,dy) and only turn to fight ([aim:nearest]+[fire]) once at 400px+. ` +
         `Running needs stamina — check it before committing to a long chase or flight. ` +
         `Calm critters → HOLD / WAIT: [cease]. Watch them, do NOT fire on your own initiative — waiting is the job. ` +
@@ -459,8 +459,7 @@ window.Brain = (() => {
     try {
       const snap = window.Situation.snapshot();
       hot = !!(snap.enemies && snap.enemies.hostile > 0);
-      const n = snap.enemies && snap.enemies.nearest;
-      near = !!(n && n.dist < senseRadius());
+      near = !!(snap.enemies && snap.enemies.total > 0); // eyes = screen: anything listed is seen
     } catch (e) { hot = false; near = false; }
     acc += dt;
     if (hot && acc >= interval()) {
@@ -1083,11 +1082,12 @@ window.Brain = (() => {
     return 'skipped';
   }
   function findAvail(p) {
-    // first critter in reach that counts: not dismissed — unless it's the
-    // recalled pack she's marching back to (dismissal lifted for that one)
+    // first VISIBLE critter that counts: the snapshot list is already the
+    // screen rect, so no distance cap — corners count too. Excludes dismissed
+    // packs, unless it's the recalled pack she's marching back to.
     try {
       for (const e of (p.enemies.list || [])) {
-        if (e.dist <= 650 && (!isDismissed(e.x, e.y) || nearRecall(e.x, e.y))) return e;
+        if (!isDismissed(e.x, e.y) || nearRecall(e.x, e.y)) return e;
       }
     } catch (e) {}
     return null;
@@ -1233,7 +1233,13 @@ window.Brain = (() => {
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       if (!p) return;
-      const n = window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(p.px, p.py, 650) : null;
+      // eyes = the screen rect (what you see is what she sees); circular fallback for tests
+      let n = null;
+      try {
+        const vc = window.__maidCamera && window.__maidCamera.viewCenter ? window.__maidCamera.viewCenter() : null;
+        if (window.Enemies && vc && window.Enemies.nearestView) n = window.Enemies.nearestView(p.px, p.py, vc.x, vc.y, 640, 360);
+        else if (window.Enemies && window.Enemies.nearest) n = window.Enemies.nearest(p.px, p.py, 650);
+      } catch (e) { n = null; }
       if (!n) return;
       const dx = n.dx, dy = n.dy;
       if (n.dist < SAFE_MIN) {

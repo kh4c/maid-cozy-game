@@ -1,6 +1,8 @@
-// Keyboard input -> movement axis. Classic script.
+// Mouse click-to-move -> movement axis. No WASD — the player points, she walks.
+// A click owns her feet briefly (AI movement yields while the pin is live);
+// with no live click and a standing goal/task, the brain's orders flow again —
+// that handoff IS the AI taking back over. Classic script.
 window.Input = (() => {
-  const keys = Object.create(null);
   let attackQueued = false; // edge-triggered swing (Space/J), consumed by main
 
   window.addEventListener('keydown', (e) => {
@@ -12,13 +14,10 @@ window.Input = (() => {
     if (e.code === 'Escape' && window.EditMode.ready && window.EditMode.active) window.EditMode.toggle(); // Esc exits
     if (e.code === 'KeyR' && window.EditMode.ready && window.EditMode.active) window.EditMode.resetLayout(); // R resets UI layout (only while editing)
     if (!e.repeat && (e.code === 'Space' || e.code === 'KeyJ')) attackQueued = true; // swing
-    keys[e.code] = true;
   });
-  window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 
-  // Chat-ordered walking: "go left" drives the sprite without keys.
-  // order(x, y, secs) sets a timed direction vector; axis() merges it with
-  // WASD and drops it on expiry. stopWalk() cancels (user "stop" / new pin).
+  // Chat/brain-ordered walking: order(x, y, secs) sets a timed direction
+  // vector; axis() merges it and drops it on expiry. stopWalk() cancels.
   let chatMove = null; // { x, y, until }
   function order(x, y, secs) {
     const s = Math.max(0.3, Math.min(8, Number(secs) || 2));
@@ -26,19 +25,51 @@ window.Input = (() => {
   }
   function stopWalk() { chatMove = null; }
 
-  // Normalized movement axis (diagonals scaled so speed is consistent)
-  function axis() {
+  // Click-to-move: a world pin with a short leash. Arrival (~14px) or 4s ends
+  // it; each new click re-pins. While live, AI orders are ignored (not lost).
+  let clickMove = null; // { x, y, until }
+  const CLICK_SECS = 4; // one click owns her feet up to 4s — then AI resumes
+  const ARRIVE_R = 14;  // close enough: stop, hand the feet back
+  function clickTo(wx, wy) {
+    if (!isFinite(wx) || !isFinite(wy)) return;
+    clickMove = { x: wx, y: wy, until: performance.now() + CLICK_SECS * 1000 };
+  }
+  function manualActive() { return !!clickMove && performance.now() <= clickMove.until; }
+
+  function bindCanvas(canvas) {
+    if (!canvas || canvas._clickMoveBound) return;
+    canvas._clickMoveBound = true;
+    canvas.addEventListener('pointerdown', (e) => {
+      if (e.button !== undefined && e.button !== 0) return; // left clicks walk
+      try {
+        if (window.EditMode && window.EditMode.active) return; // editing, not walking
+        if (window.Health && window.Health.dead) return;       // fainted: no control
+        const cam = window.__maidCamera;
+        if (!cam || typeof cam.toWorld !== 'function') return;
+        const w = cam.toWorld(e.clientX, e.clientY);
+        if (w) clickTo(w.x, w.y);
+      } catch (err) { /* a bad click walks nowhere */ }
+    });
+  }
+
+  // axis(px, py): needs her feet position for click steering. Manual pin wins
+  // while live; otherwise AI/chat orders flow — the take-over is automatic.
+  function axis(px, py) {
+    if (clickMove) {
+      if (performance.now() > clickMove.until) clickMove = null;
+      else {
+        const dx = clickMove.x - (Number(px) || 0), dy = clickMove.y - (Number(py) || 0);
+        const d = Math.hypot(dx, dy);
+        if (d < ARRIVE_R) clickMove = null;
+        else return { x: dx / d, y: dy / d };
+      }
+    }
     let x = 0, y = 0;
-    if (keys['KeyA'] || keys['ArrowLeft'])  x -= 1;
-    if (keys['KeyD'] || keys['ArrowRight']) x += 1;
-    if (keys['KeyW'] || keys['ArrowUp'])    y -= 1;
-    if (keys['KeyS'] || keys['ArrowDown'])  y += 1;
-    if (x !== 0 && y !== 0) { const inv = 1 / Math.SQRT2; x *= inv; y *= inv; }
     if (chatMove) {
       if (performance.now() > chatMove.until) chatMove = null;
       else { x += chatMove.x; y += chatMove.y; }
     }
-    const len = Math.hypot(x, y); // clamp combined keys+chat input to unit
+    const len = Math.hypot(x, y); // clamp AI/chat input to unit
     if (len > 1) { x /= len; y /= len; }
     return { x, y };
   }
@@ -50,5 +81,5 @@ window.Input = (() => {
     return q;
   }
 
-  return { axis, order, stopWalk, attackPressed };
+  return { axis, order, stopWalk, clickTo, manualActive, bindCanvas, attackPressed };
 })();

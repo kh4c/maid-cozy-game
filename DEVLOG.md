@@ -4,6 +4,26 @@ Chronological record of what was built and why. Newest entries at the top.
 
 ---
 
+## 2026-09-06 — Screen-rect eyes (no more circle lies) + click-to-move replaces WASD
+
+**Rect eyes:** the old 750px SEE circle lied both ways — it missed screen corners
+yet covered off-screen bands above/below, so the maid ignored visible corner
+foes and reacted to things the player couldn't see. New rule: what YOU see is
+what SHE sees. `Enemies.senseView/nearestView(mx,my,cx,cy,640,360)` filters by
+the 1280x720 view rect around the camera center (dist still measured from the
+maid for REACH rules). `findAvail` dropped its 650px cap (screen list IS the
+cap — corners count), think-cadence `near` = anything listed. Memory stays
+circular on purpose: recall marches and lost-pack checks need to re-find packs
+that wander off-screen. Verified: old circle saw corner+band+right (3/3),
+rect sees only the corner one.
+
+**Click-to-move:** WASD deleted. Left-click the canvas drops a world pin; she
+walks to it (arrival 14px or 4s leash, whichever first). While the pin is live
+her feet are yours — AI movement yields; when it lapses with no new click and
+a goal/task needs motion, the brain's orders flow again. Faint/edit guards:
+dead or editing clicks pin nothing. HUD now reads "click to move".
+Harness `hpercept.js`: 15/15 (rect 5 + handoff 10).
+
 ## 2026-09-06 — Overall goal vs current task: hunt filter (min worth), no more tactic-vs-filter fights
 
 **Problem:** "we are low on ammo — only prey worth 5+, toward our 300 quota" needed TWO ideas at once (overall goal + current filter), and the new filter fought the old tactics three ways: (1) a standing quota keeps `combatDrive` fresh forever → the gun kept shredding the 2-coin commons the filter just rejected; (2) a recalled-then-exempt pack got instantly re-abandoned on arrival; (3) the filter outlived the hunt task that set it.

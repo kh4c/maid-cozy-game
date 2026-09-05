@@ -67,6 +67,7 @@
   const camera = window.Camera.create(world, app);
   camera.snap(character.view.x, character.view.y);
   window.__maidCamera = camera; // the brain's "look at that" focus (lookAt)
+  try { window.Input && window.Input.bindCanvas && window.Input.bindCanvas(app.canvas); } catch (e) {} // click-to-move pin
 
   // ---- Sunrays + dust motes (screen-space overlay, above character) -----------------
   let effects;
@@ -197,11 +198,12 @@
     const dtSec = Math.min(ticker.deltaMS / 1000, 0.05);
     const s = window.Settings.settings;
 
+    const view = character.view;
     const a = (window.EditMode.active || (window.Health && window.Health.dead))
       ? { x: 0, y: 0 } // fainted: no control until respawn
-      : window.Input.axis();
+      : window.Input.axis(view.x, view.y); // click pin (yours) or AI orders (hers)
     // STAMINA: moving drains the tank; at empty she plants her feet and rests
-    // (control locked — WASD, chat walks AND brain runs all stop) until she
+    // (control locked — clicks, chat walks AND brain runs all stop) until she
     // catches her breath. Moving into exhaustion is allowed; moving after isn't.
     const wantsMove = (a.x !== 0 || a.y !== 0);
     let moved = false;
@@ -218,7 +220,6 @@
     } else {
       moved = wantsMove;
     }
-    const view = character.view;
     view.x += a.x * s.speed * dtSec;
     view.y += a.y * s.speed * dtSec;
 

@@ -1,5 +1,5 @@
 // Maid stamina — she can only keep walking so long. Moving drains the tank;
-// at empty she is EXHAUSTED: control locks (WASD + chat walks + brain runs)
+// at empty she is EXHAUSTED: control locks (clicks + chat walks + brain runs)
 // and she plants her feet to catch her breath until the tank refills enough.
 // Classic script. main.js drives update(dt, moving) every frame.
 window.Stamina = (() => {

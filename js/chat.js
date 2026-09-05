@@ -295,7 +295,7 @@ window.Chat = (() => {
     const input = $('chat-input');
     if (!input) return;
     input.addEventListener('keydown', (e) => {
-      e.stopPropagation(); // game keys (WASD/P/E) must not fire while typing
+      e.stopPropagation(); // game keys (P/E) must not fire while typing
       if (e.key === 'Enter') { send(input.value); input.value = ''; }
       else if (e.key === 'Escape') { input.value = ''; input.blur(); }
     });

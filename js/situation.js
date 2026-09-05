@@ -45,13 +45,18 @@ window.Situation = (() => {
       }
     } catch (e) { /* deaf snapshot */ }
 
-    // enemies — SEE range covers the whole screen (~750px incl. corners),
-    // so on-screen critters always register. REACH (who she fires at /
-    // approaches) stays shorter — that's the brain's job, not the eyes'.
+    // enemies — SEE = the screen rect (1280x720 around the camera center),
+    // so on-screen critters always register, corners included, and off-screen
+    // bands above/below never do. REACH (who she fires at / approaches) stays
+    // distance-based — that's the brain's job, not the eyes'.
     let enemies = { total: 0, hostile: 0, nearest: null, list: [] };
     try {
-      if (window.Enemies && typeof window.Enemies.sense === 'function') {
-        enemies = window.Enemies.sense(p.x, p.y, 750); // see everything on screen
+      let vc = null;
+      try { vc = window.__maidCamera && window.__maidCamera.viewCenter ? window.__maidCamera.viewCenter() : null; } catch (e) {}
+      if (window.Enemies && vc && typeof window.Enemies.senseView === 'function') {
+        enemies = window.Enemies.senseView(p.x, p.y, vc.x, vc.y, 640, 360); // eyes = the screen
+      } else if (window.Enemies && typeof window.Enemies.sense === 'function') {
+        enemies = window.Enemies.sense(p.x, p.y, 750); // no camera (tests) — full-circle fallback
       } else if (window.Enemies && typeof window.Enemies.hostileCount === 'function') {
         enemies.hostile = window.Enemies.hostileCount();
       }

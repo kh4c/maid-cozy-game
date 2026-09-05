@@ -69,7 +69,24 @@ window.Camera = (() => {
       worldContainer.y = app.screen.height / 2 - aimY;
     }
 
-    return { update, snap, shake, lookAt };
+    // view center in WORLD coords — "what's on screen" for rect-based detection
+    function viewCenter() {
+      try {
+        return { x: app.screen.width / 2 - worldContainer.x, y: app.screen.height / 2 - worldContainer.y };
+      } catch (e) { return { x: 0, y: 0 }; }
+    }
+
+    // client (CSS-pixel) click -> world coords, for click-to-move
+    function toWorld(clientX, clientY) {
+      try {
+        const r = app.canvas.getBoundingClientRect();
+        const sx = (clientX - r.left) / r.width * app.screen.width;
+        const sy = (clientY - r.top) / r.height * app.screen.height;
+        return { x: sx - worldContainer.x, y: sy - worldContainer.y };
+      } catch (e) { return null; }
+    }
+
+    return { update, snap, shake, lookAt, viewCenter, toWorld };
   }
   return { create };
 })();
