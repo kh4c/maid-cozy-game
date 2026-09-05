@@ -217,6 +217,7 @@
 
   try {
     window.Inventory && window.Inventory.init();
+    window.Store && window.Store.init();
     window.Bestiary && window.Bestiary.init();
   } catch (err) {
     reportError('inventory failed: ' + err.message);
@@ -303,8 +304,9 @@
     } else {
       moved = wantsMove;
     }
-    view.x += a.x * s.speed * wdt;
-    view.y += a.y * s.speed * wdt;
+    const spdMul = (window.Store && typeof window.Store.speedMult === 'function') ? window.Store.speedMult() : 1;
+    view.x += a.x * s.speed * spdMul * wdt;
+    view.y += a.y * s.speed * spdMul * wdt;
 
     // INFINITE world: no bounds clamping — background chunks stream in around the camera
     character.update(a, !!(window.Health && window.Health.dead));

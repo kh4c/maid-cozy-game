@@ -28,6 +28,7 @@
 <script src="js/situation.js"></script>
 <script src="js/brain.js"></script>
 <script src="js/inventory.js"></script>
+<script src="js/store.js"></script>
 <script src="js/bestiary.js"></script>
 </head>
 <body>
@@ -48,8 +49,8 @@
   <div id="dialog-box"><span id="dialog-text">hi...</span></div>
   <div id="thought-box" title="Her survival brain — separate from chat"><span id="thought-label">💭 tactic</span><span id="thought-text">field is quiet… press 💭 and I’ll size it up.</span><span id="thought-meta"></span></div>
   <div id="combat-bar"><span id="sense-line"></span><button id="think-btn" title="Think now">💭</button></div>
-  <div id="bag-btn" title="Inventory (coins)">🎒<span id="inv-count">0</span></div>
-  <div id="inv-panel"><div class="title">🎒 INVENTORY</div><div id="inv-grid"></div><div id="inv-meta"></div></div>
+  <div id="store-btn" title="Store — spend coins on healing and upgrades">🛒<span id="store-coins">0</span></div>
+  <div id="store-panel"><div class="title">🛒 STORE</div><div id="store-coins-line"></div><div id="store-list"></div></div>
   <div id="book-btn" title="Bestiary — the world's monsters">📖</div>
   <div id="book-panel"><div class="title">📖 BESTIARY</div><div id="book-list"></div></div>
   <div id="chat-row"><input id="chat-input" type="text" placeholder="talk to her… (Enter)" autocomplete="off" maxlength="300" /></div>

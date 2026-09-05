@@ -118,6 +118,7 @@ window.Situation = (() => {
             ? `${near.n} loose coin(s) nearby — nearest ~${Math.round(near.nearest.dist)}px ${dirName(near.nearest.dx, near.nearest.dy)}, walk over to scoop.`
             : (st.drops > 0 ? `${st.drops} loose coin(s) still on the ground further out.` : 'No loose coins lying around.')));
       }
+      try { if (window.Store && typeof window.Store.describe === 'function') lines.push(window.Store.describe()); } catch (e2) {}
     } catch (e) { /* pockets uncounted */ }
     // standing posture (both minds track it — the brain enforces, chat reports)
     try {

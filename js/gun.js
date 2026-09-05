@@ -12,7 +12,8 @@ window.Gun = (() => {
   const BULLET_SPEED = 950;
   const BULLET_LIFE = 0.9;             // ~850px range
   const HIT_R = 44;                    // bullet splash vs critters (they're big)
-  const BULLET_DMG = 1;                // per-bullet damage — Enemies.combatFacts() quotes this, keep them in sync
+  let BULLET_DMG = 1; // raised by the store (damage upgrade) — combatFacts() quotes it live
+  function setDamage(d) { BULLET_DMG = Math.max(1, Math.round(Number(d) || 1)); } // store-bought punch
   const RECOIL_DIST = 13, RECOIL_TILT = 0.38;
   const GUN_SCALE = 1.8;               // big iron (was 1.15)
 
@@ -312,5 +313,5 @@ window.Gun = (() => {
   return { init, update, debug, status,
     setAimMode, toggleAim, getAimMode,
     aiAimAt, aiAimDir, aiAimNearest, aiFire, aiCease,
-    bulletDamage: () => BULLET_DMG, rangePx: () => Math.round(BULLET_SPEED * BULLET_LIFE) };
+    bulletDamage: () => BULLET_DMG, setDamage, rangePx: () => Math.round(BULLET_SPEED * BULLET_LIFE) };
 })();

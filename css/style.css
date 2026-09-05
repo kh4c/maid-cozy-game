@@ -182,36 +182,41 @@ canvas { display: block; }
 .beast-habit { color: #9d95c7; font-size: 11px; }
 
 /* ---- Inventory: bag button + panel ------------------------------------------ */
-#bag-btn {
+#store-btn {
   position: absolute; right: 12px; bottom: 12px; z-index: 9;
   cursor: pointer; user-select: none;
   background: rgba(20, 18, 34, 0.9); color: #ffd9a0;
   border: 1px solid #3a3560; border-radius: 8px;
   font: 16px/1 monospace; padding: 8px 10px;
 }
-#bag-btn:hover { background: rgba(40, 36, 72, 0.95); }
-#inv-count {
+#store-btn:hover { background: rgba(40, 36, 72, 0.95); }
+#store-coins {
   font-size: 11px; color: #fff; margin-left: 5px;
   display: inline-block; min-width: 14px; text-align: right;
 }
-#inv-count.bump { animation: inv-bump 0.35s ease-out; }
-@keyframes inv-bump { 0% { transform: scale(1.6); color: #ffd24a; } 100% { transform: scale(1); } }
-#inv-panel {
+#store-coins.bump { animation: store-bump 0.35s ease-out; }
+@keyframes store-bump { 0% { transform: scale(1.6); color: #ffd24a; } 100% { transform: scale(1); } }
+#store-panel {
   position: absolute; right: 12px; bottom: 56px; z-index: 9;
-  display: none; width: 236px;
+  display: none; width: 264px;
   background: rgba(20, 18, 34, 0.94); border: 1px solid #3a3560;
   border-radius: 8px; padding: 10px 12px;
   font: 12px/1.4 monospace; color: #cfc9ff; user-select: none;
 }
-#inv-panel .title { font-weight: bold; color: #ffd9a0; margin-bottom: 8px; }
-#inv-grid { display: flex; flex-wrap: wrap; gap: 4px; }
-#inv-grid .slot {
-  width: 24px; height: 24px; border-radius: 4px;
-  background: rgba(0, 0, 0, 0.35); border: 1px solid #3a3560;
-  display: flex; align-items: center; justify-content: center; font-size: 13px;
+#store-panel .title { font-weight: bold; color: #ffd9a0; margin-bottom: 4px; }
+#store-coins-line { font-size: 10px; color: #8d86b8; margin-bottom: 8px; }
+.store-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.store-icon { font-size: 18px; }
+.store-body { flex: 1; display: flex; flex-direction: column; }
+.store-name { color: #ffd9a0; }
+.store-owned { color: #8a6d1f; font-size: 10px; letter-spacing: 1px; }
+.store-blurb { font-size: 10px; color: #8d86b8; }
+.store-buy {
+  cursor: pointer; font: 11px/1 monospace; color: #1a1730;
+  background: #ffd24a; border: none; border-radius: 5px; padding: 6px 8px;
 }
-#inv-grid .slot.has { border-color: #8a6d1f; background: rgba(80, 60, 10, 0.4); }
-#inv-meta { margin-top: 8px; font-size: 10px; color: #8d86b8; }
+.store-buy:hover:not(.disabled) { background: #ffe08a; }
+.store-buy.disabled { background: #3a3560; color: #8d86b8; cursor: default; }
 
 /* ---- Combat bar: sense readout + aim/auto/think buttons -------------------- */
 #combat-bar {

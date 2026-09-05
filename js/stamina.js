@@ -3,7 +3,7 @@
 // and she plants her feet to catch her breath until the tank refills enough.
 // Classic script. main.js drives update(dt, moving) every frame.
 window.Stamina = (() => {
-  const MAX = 100;
+  let MAX = 100; // raised by the store (bigger-tank upgrade), persisted in cosette.store
   const DRAIN = 4.5;        // per second while moving -> ~22s continuous travel (2x)
   const REGEN = 8;          // per second while quarter-resting -> a real breather, not instant
   const REGEN_EMPTY = 3.5;  // per second while fully exhausted -> running dry costs real time
@@ -61,6 +61,7 @@ window.Stamina = (() => {
   function canMove(pushed) { return !exhausted && !(autoRest && !pushed); }
   function state() { return { v: Math.round(v), max: MAX, exhausted, autoRest, pct: v / MAX }; }
 
+  function setMax(m) { MAX = Math.max(50, Math.round(Number(m) || MAX)); if (v > MAX) v = MAX; } // store-bought tank
   function reset() { v = MAX; exhausted = false; autoRest = false; stillFor = 0; justExhausted = false; justRecovered = false; justRested = false; } // new life = fresh legs
   // kick: master's "get back to work!" — drops a voluntary rest latch so auto
   // legs flow again (under pushed cover if a push window is live). Never
@@ -73,5 +74,5 @@ window.Stamina = (() => {
     update(0, false);
   }
 
-  return { init, update, canMove, state, reset, kick, get exhausted() { return exhausted; }, get justExhausted() { return justExhausted; }, get justRecovered() { return justRecovered; }, get justRested() { return justRested; }, get value() { return v; } };
+  return { init, update, canMove, state, reset, kick, setMax, get exhausted() { return exhausted; }, get justExhausted() { return justExhausted; }, get justRecovered() { return justRecovered; }, get justRested() { return justRested; }, get value() { return v; } };
 })();

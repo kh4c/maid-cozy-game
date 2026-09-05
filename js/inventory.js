@@ -1,13 +1,21 @@
-// Inventory — coin drops from critters, picked up by walking over them,
-// stored in a simple grid. Click the 🎒 icon (bottom-right) to open/close.
-// Session-only: coins reset on death (new life = new pockets, same as memory).
-// Coin sprite: Kenney tiny-town tile_0093 (gold coin). SFX: Kenney RPG audio
-// handleCoins.ogg. Classic script — coins are a toy, not a save.
+// Purse — coin drops from monsters, picked up by walking over them.
+// PERSISTENT: the purse survives death and reloads (localStorage), and the
+// store spends from it. No bag, no grid, no slots — coins are a number.
+// Coin feel (big, shadow, hover): COIN_SCALE etc below. SFX: Kenney RPG audio handleCoins.
 window.Inventory = (() => {
   const $ = (id) => document.getElementById(id);
-  let coins = 0;
+  const COIN_STORE = 'cosette.coins';
+  function loadCoins() { try { return Math.max(0, Math.round(Number(localStorage.getItem(COIN_STORE)) || 0)); } catch (e) { return 0; } }
+  let coins = loadCoins();
+  function saveCoins() { try { localStorage.setItem(COIN_STORE, String(coins)); } catch (e) {} }
+  function addCoins(n) { coins = Math.max(0, coins + Math.round(Number(n) || 0)); saveCoins(); renderCount(); }
+  function spend(n) { const c = Math.round(Number(n) || 0); if (c <= 0 || coins < c) return false; coins -= c; saveCoins(); renderCount(); return true; }
+  function purse() { return coins; }
   const PICKUP_R = 46;   // walk this close to scoop a coin
-  const MAGNET_R = 110;  // coins inside this drift toward her
+  const MAGNET_R = 110;  // base drift range — the store's magnet upgrade widens it
+  let magnetBonus = 0;   // store-bought extra magnet px, applied on boot by Store.init
+  function magnetR() { return MAGNET_R + magnetBonus; }
+  function setMagnetBonus(px) { magnetBonus = Math.max(0, Math.round(Number(px) || 0)); }
   // coin feel: big, soft shadow, hovering (not glued to the grass)
   const COIN_SCALE = 1.6;  // was 0.9 — easy to spot mid-fight
   const FLOAT_AMP = 6;     // hover height (px each way)
@@ -15,24 +23,8 @@ window.Inventory = (() => {
   const SHADOW_W = 10, SHADOW_H = 4, SHADOW_A = 0.28;
   let drops = [];        // { spr, sh, x, y, vx, vy, t, settled, phase }
   let tex = null;
-  let open = false;
 
-  function init() {
-    const btn = $('bag-btn');
-    if (btn) btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggle();
-    });
-    render();
-  }
-
-  function toggle(force) {
-    open = (force === undefined) ? !open : !!force;
-    const p = $('inv-panel');
-    if (p) p.style.display = open ? 'block' : 'none';
-    render();
-  }
-  function isOpen() { return open; }
+  function init() { renderCount(); } // no panel anymore — the purse lives on the 🛒 button
 
   async function ensureTex() {
     if (tex) return tex;
@@ -70,7 +62,7 @@ window.Inventory = (() => {
     } catch (e) { coinsFallback(count); }
   }
   // no coin texture? credit directly so the loop never breaks
-  function coinsFallback(n) { coins += n; render(); flash(); }
+  function coinsFallback(n) { addCoins(n); flash(); }
 
   // main.js calls update(dt, px, py) with her feet position
   function update(dt, px, py) {
@@ -88,19 +80,18 @@ window.Inventory = (() => {
       // magnet + pickup
       const dx = px - d.x, dy = (py - 14) - d.y;
       const dist = Math.hypot(dx, dy);
-      if (dist < MAGNET_R && d.t > 0.25) {
+      if (dist < magnetR() && d.t > 0.25) {
         const k = 1 - Math.exp(-8 * dt);
         d.x += dx * k; d.y += dy * k;
       }
       if (dist < PICKUP_R) {
-        coins += 1;
+        addCoins(1);
         flash();
         try { window.Sound && window.Sound.playSfx('combat', 'coin.ogg', { rate: 1 + Math.random() * 0.2, volume: 0.5 }); } catch (e) {}
         if (d.spr.parent) d.spr.parent.removeChild(d.spr);
         d.spr.destroy();
         if (d.sh) { try { if (d.sh.parent) d.sh.parent.removeChild(d.sh); d.sh.destroy(); } catch (e2) {} }
         drops.splice(i, 1);
-        if (open) render();
         continue;
       }
       // hover: coin floats on a slow sine, shadow breathes underneath
@@ -116,29 +107,18 @@ window.Inventory = (() => {
   }
 
   function flash() {
-    const c = $('inv-count');
+    const c = $('store-coins');
     if (c) { c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
     renderCount();
   }
 
   function renderCount() {
-    const c = $('inv-count');
+    const c = $('store-coins');
     if (c) c.textContent = String(coins);
+    try { if (window.Store && typeof window.Store.isOpen === 'function' && window.Store.isOpen()) window.Store.render(); } catch (e) {}
   }
 
-  function render() {
-    renderCount();
-    const grid = $('inv-grid');
-    if (!grid) return;
-    const slots = Math.max(8, coins + 4);
-    let h = '';
-    for (let i = 0; i < slots; i++) {
-      h += (i < coins) ? '<div class="slot has" title="coin">🪙</div>' : '<div class="slot"></div>';
-    }
-    grid.innerHTML = h;
-    const meta = $('inv-meta');
-    if (meta) meta.textContent = `${coins} coin${coins === 1 ? '' : 's'} · this life only`;
-  }
+  function render() { renderCount(); } // kept for callers — the purse is just a number now
 
   function state() { return { coins, drops: drops.length }; }
   // coins lying on the ground near (px,py): count + nearest vector (brain/snapshot)
@@ -152,10 +132,9 @@ window.Inventory = (() => {
     } catch (e) {}
     return { n, nearest: best };
   }
-  function reset() { // new life: pockets empty, world drops stay (they're world objects)
-    coins = 0;
-    render();
+  function reset() { // new life: purse KEEPS its coins (persistent), world drops stay too
+    renderCount();
   }
 
-  return { init, update, drop, toggle, isOpen, state, dropsNear, reset, render };
+  return { init, update, drop, state, dropsNear, reset, render, purse, spend, magnetR, setMagnetBonus };
 })();

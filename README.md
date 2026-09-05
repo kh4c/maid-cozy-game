@@ -33,7 +33,7 @@ python -m http.server 8095 --bind 127.0.0.1
 | Chat box | Talk to her — move orders (`go left`, `find some critters`), attack orders (`attack them!`, `kill the hunter`), urge her on (`work faster!`, `no resting`), `stop`. She replies in character AND acts |
 | 💭 button | Her tactical brain thinks immediately (thought box, bottom-right) |
 | 🛡️ AUTO button | Auto-think when danger nears (off = she only thinks on 💭) |
-| 🎒 bag (bottom-right) | Open the coin inventory |
+| 🛒 store (bottom-right) | Spend persistent coins on healing + upgrades |
 | 📖 book (bottom-left) | Open the bestiary: every species, stats, lore |
 | Kill panels (top-left) | Lifetime kill counts (persist in `localStorage`): critter icon + count, hunter icon + count |
 | Stamina bar (under hearts) | 2×-long tank; auto-rests at ¼, longer cooldown after a full drain; urge her to push through |
@@ -60,7 +60,7 @@ Stack: **[pixi-live2d5](https://github.com/omniwaifu/pixi-live2d5)** (PixiJS v8 
 - **Kill panels** — lifetime critter + hunter counts with sprite icons, persisted in `localStorage`. HUD-only: totals never enter her speech or thoughts.
 - **Stamina economy** — 2×-long tank bar under the hearts; auto-rests at ¼, slow regen with a longer cooldown after a full drain. Urge her (`work faster!`, `no resting`) to push through on your word.
 - **Night by default** — day/night cycle with a WORLD-tab switch; night uses its own ground texture, tight spotlight that follows her, reduced vision, darkened Live2D.
-- **Coin inventory** — kills drop coins (magnet pickup); 🎒 bag opens a 20-slot grid. Resets each life.
+- **Store + persistent purse** — kills drop coins (magnet pickup); the purse survives death and reloads (`cosette.coins`). The 🛒 store spends it on full heal, +max stamina, +bullet damage, +magnet range, +move speed — upgrades persist too (`cosette.store`). No inventory grid; she knows the stock and points at the store when asked about money.
 - **Infinite map** — background streams 1254×1254 chunks around the camera; off-screen chunks are destroyed, so memory stays flat no matter how far you walk.
 - **Smooth camera** — frame-rate-independent exponential lerp (`t = 1 - e^(-k·dt)`), k=8, deadzone box + idle sway + momentary `lookAt` focus points.
 - **8-way facing** — horizontal flip + ~12° lean toward vertical movement; shadow stays flat on the ground (sibling of the body, not a child).
@@ -93,7 +93,8 @@ Stack: **[pixi-live2d5](https://github.com/omniwaifu/pixi-live2d5)** (PixiJS v8 
 | `js/bestiary.js` | 📖 journal panel: renders species entries fresh from `Enemies.bestiary()` |
 | `js/health.js` | 9 hearts, faint lock, hooks into brain/stamina/inventory |
 | `js/stamina.js` | 100pt movement tank, exhaustion lock, rest recovery |
-| `js/inventory.js` | Coin drops, magnet pickup, 🎒 bag + slot-grid panel |
+| `js/inventory.js` | Coin drops, magnet pickup, persistent purse (`cosette.coins`) + spend |
+| `js/store.js` | 🛒 shop panel: heal/tank/damage/magnet/speed stock, persistent levels (`cosette.store`) |
 | `js/effects.js` | Sun glow + dust particles (beams disabled) |
 | `js/audio.js` | SoundManager: Web Audio buses, BGM loop, gear UI |
 | `js/live2d.js` | Live2D companion: pixi-live2d5 init, upper-body framing, drag/wheel placement tool |
