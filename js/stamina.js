@@ -7,8 +7,8 @@ window.Stamina = (() => {
   const DRAIN = 4.5;        // per second while moving -> ~22s continuous travel (2x)
   const REGEN = 8;          // per second while quarter-resting -> a real breather, not instant
   const REGEN_EMPTY = 3.5;  // per second while fully exhausted -> running dry costs real time
-  const REST_DELAY = 1.5;   // seconds standing still before quarter-rest regen kicks in
-  const EMPTY_DELAY = 3.0;  // seconds doubled-over before empty-tank regen even starts
+  const REST_DELAY = 5;   // seconds standing still before quarter-rest regen kicks in
+  const EMPTY_DELAY = 10; // seconds doubled-over before empty-tank regen even starts
   const REST_UNTIL = 50;    // exhausted until the tank climbs back to here
   const AUTO_REST_AT = 25;  // auto-run parks HERE (1/4) — only pushed legs go lower
   const AUTO_RESUME_AT = 55;// auto-run resumes here (hysteresis, no flicker)
