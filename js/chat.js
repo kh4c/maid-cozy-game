@@ -121,6 +121,24 @@ window.Chat = (() => {
     return out;
   }
 
+  // ---- Chat intent -> tactic memo -------------------------------------------
+  // The CHAT model is the one who understands natural language, so we ask it
+  // (cheaply) to translate the user's latest line into a standing tactical
+  // memo the survival brain reads on every think. Written to window.Brain.memo.
+  function buildIntentInstr() {
+    return (
+      '[TASK: also output one final line intent=[[...]] — a <=200 char third-person memo ' +
+      'for the tactical brain describing what the MASTER wants the maid to do right now. ' +
+      'State the goal, the target, and the duration/condition, e.g. intent=[[Master wants her to hunt down and kill the calm pack to the south-east, keep firing until they are all gone]] ' +
+      'or intent=[[Master wants her to stop shooting and just walk beside him]] or intent=[[No tactical intent, casual chat]]. ' +
+      'Base it ONLY on the master\'s latest message. This line is stripped from the dialog.]'
+    );
+  }
+  function extractIntent(reply) {
+    const m = String(reply || '').match(/intent=\[\[([\s\S]*?)\]\]/i);
+    return m ? m[1].trim().slice(0, 240) : null;
+  }
+
   async function send(userText) {
     const text = (userText || '').trim();
     if (!text || busy) return;
@@ -137,6 +155,16 @@ window.Chat = (() => {
         window.Brain.orderAttack(text);
       }
     } catch (e) { /* orders are cosmetic — never break chat */ }
+    // Non-combat intents ("stop shooting", "come here", "leave them alone") —
+    // pre-seed the brain's memo at once so the NEXT auto-think obeys even
+    // before this chat reply (with its intent= line) comes back.
+    try {
+      if (window.Brain && typeof window.Brain.setMemo === 'function' &&
+          /(stop|cease|don.t|do not|leave (them|it)|come|follow|rest|relax|calm)/i.test(text) &&
+          !/(attack|shoot|kill|fire|fight|hunt|destroy|blast)/i.test(text)) {
+        window.Brain.setMemo('Master seems to want her to stand down / stay close: ' + text, text);
+      }
+    } catch (e) {}
     setText('…');
     try {
       const s = window.Settings.settings; // live Chat-tab values (persisted)
@@ -154,6 +182,7 @@ window.Chat = (() => {
         }
       } catch (e) { /* chat works deaf too */ }
       sysText += '\n\n[Movement: the game sprite walks when you emit [move:x,y:secs] — left=[-1,0] right=[1,0] up=[0,-1] down=[0,1], secs 0.5-8. When the user asks you to go/walk/move somewhere, write a *walking action* AND append the matching tag, e.g. *walks left* [move:-1,0:2]. The tag is stripped before display, so keep it exact. One tag per reply.]';
+      sysText += '\n\n' + buildIntentInstr();
       const res = await fetch(s.chatUrl.replace(/\/$/, '') + '/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -171,6 +200,13 @@ window.Chat = (() => {
       const data = await res.json();
       let reply = ((data.choices && data.choices[0] && data.choices[0].message.content) || '').trim();
       reply = reply.replace(/<think>[\s\S]*?<\/think>/g, '').trim(); // thinking models leak <think> blocks
+      // INTENT MEMO: the chat model's read of what master wants -> the brain
+      // reads this on every tactical think (combat orders also nudge it live).
+      try {
+        const intent = extractIntent(reply);
+        if (intent && window.Brain && typeof window.Brain.setMemo === 'function') window.Brain.setMemo(intent, text);
+      } catch (e) { /* memo is best-effort */ }
+      reply = reply.replace(/intent=\[\[[\s\S]*?\]\]/gi, '').trim(); // never display
       // Explicit [move:x,y:secs] tags drive the sprite, then are stripped so
       // they never show in the dialog. *walks left* phrasing is a fallback.
       const tagMoves = [...reply.matchAll(/\[move\s*:\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)(?:\s*:\s*([\d.]+))?\]/gi)];

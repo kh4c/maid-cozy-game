@@ -26,6 +26,7 @@ window.Brain = (() => {
   }
   function resetMemory(reason) {
     memory = newMemory();
+    memo = { text: 'No tactical intent yet — treat as casual watch.', from: '', at: -1e9 }; // new life: old wishes expire
     try { memory.events.push(`(new life — ${reason})`); } catch (e) {}
   }
   // note('kill', n) / note('hurt') / note('flee') — called by gun/health/main
@@ -70,6 +71,21 @@ window.Brain = (() => {
     if (n <= 0) return 'Master has not been asking much lately.';
     if (n === 1) return 'Master asked you to attack — you find it tiresome, but honestly it is easier to just do it than argue. Comply while grumbling.';
     return `Master asked ${n} times. Annoying — but fine, FINE, you were going to do it anyway. Comply NOW.`;
+  }
+
+  // ---- master's intent memo (written by chat.js) -----------------------------
+  // Chat understands natural language, so IT summarizes what master wants into
+  // a standing memo; the tactical brain reads it every think and obeys the
+  // spirit of it. Expires with the life (resetMemory), replaceable any time.
+  let memo = { text: 'No tactical intent yet — treat as casual watch.', from: '', at: -1e9 };
+  function setMemo(text, from) {
+    memo = { text: String(text || '').slice(0, 240), from: String(from || '').slice(0, 120), at: performance.now() };
+    pushEvent(`master's wish noted: ${memo.text.slice(0, 60)}`);
+  }
+  function memoText() {
+    const ageMin = Math.round((performance.now() - memo.at) / 60000);
+    const when = memo.at === -1e9 ? '' : ` (set ${ageMin <= 0 ? 'just now' : ageMin + ' min ago'})`;
+    return `MASTER'S CURRENT WISH${when}: ${memo.text}${memo.from ? `\n(their exact words: "${memo.from}")` : ''}`;
   }
 
   const $ = (id) => document.getElementById(id);
@@ -163,12 +179,21 @@ window.Brain = (() => {
       for (const m of reply.matchAll(/\[aim\s*:\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)(?::\s*([\d.]+))?\]/gi)) {
         try { window.Gun.aiAimDir(parseFloat(m[1]), parseFloat(m[2]), num(m[3], 3)); chips.push('🎯 aim'); } catch (e) {}
       }
-      // [fire:secs] / [fire] / [shoot:secs]
+      // [fire:secs] / [fire] / [shoot:secs] — agreeing to fire while still in
+      // MOUSE aim does nothing, so any fire tag auto-takes the gun first.
       for (const m of reply.matchAll(/\[(?:fire|shoot)(?::\s*([\d.]+))?\]/gi)) {
         const secs = num(m[1], 2);
-        try { window.Gun.aiFire(secs); chips.push(`🔫 fire ${secs}s`); } catch (e) {}
+        try {
+          if (window.Gun.getAimMode && window.Gun.getAimMode() !== 'ai' && window.Gun.setAimMode) {
+            window.Gun.setAimMode('ai');
+            chips.push('🤖 took-aim');
+          }
+          window.Gun.aiFire(secs); chips.push(`🔫 fire ${secs}s`);
+        } catch (e) {}
       }
-      if (/\[cease\]/i.test(reply)) {
+      // [cease] only counts when the same thought has no fire tag
+      // (models occasionally write "[fire:2] [cease]" — the gun obeyed both).
+      if (/\[cease\]/i.test(reply) && !/\[(?:fire|shoot)/i.test(reply)) {
         try { window.Gun.aiCease(); chips.push('✋ cease'); } catch (e) {}
       }
       // [run:dx,dy:secs] + [move:x,y:secs] — flee / reposition
@@ -231,12 +256,15 @@ window.Brain = (() => {
         `Facts: M1 Garand range ~850px, auto-fires while [fire] is active. Critters pop in 3 hits. ` +
         `Bite = 1 heart at 42px. She outruns them (300 vs 95). Open grassland, no cover.\n` +
         `Rules: HOSTILE critters in range with aim mode AI → ENGAGE: [aim:nearest:secs] + [fire:secs]. ` +
+        `Obey MASTER'S CURRENT WISH below — it is the master's intent, translated from their chat; pursue it when it is safe to do so (if it says attack, [aim:nearest]+[fire]; if it says stop/come, [cease]+[stop]). ` +
+        `KEEP DISTANCE (built-in reflex, not a decision): stay 300-500px from anything ALIVE. Closer than 300px → [move:dx,dy:secs] away along (dx,dy) negated. Farther than 500px → walk closer with [move]. Do this every think, even mid-fight. ` +
         `SELF-PRESERVATION FIRST: anything hostile within ~250px is a bite threat — if HP is 4 or less, or stamina is low/exhausted, FLEE FIRST: [run:dx,dy:secs] away (negate the threat's dx,dy) and only turn to fight ([aim:nearest]+[fire]) once at 400px+. ` +
         `Running needs stamina — check it before committing to a long chase or flight. ` +
         `Calm critters → HOLD: [cease]. Watch them, do NOT fire on your own initiative. ` +
         `Master's standing order overrides HOLD: comply while grumbling. ` +
         `Aim mode MOUSE → you cannot fire: output [cease] and say "hand me the gun (AI aim)".\n` +
         `ANNOYANCE LEVEL: ${annoyance()} — ${annoyanceFlavor(annoyance())}\n` +
+        `${memoText()}\n` +
         `SESSION MEMORY (this life only):\n${memoryText()}\n` +
         `Output: 1-2 SHORT sentences of thought (first person, scout voice, under 25 words) ` +
         `PLUS action tags. Tags (world deltas: x east+, y south+): [aim:dx,dy:secs] or [aim:nearest:secs], ` +
@@ -268,11 +296,15 @@ window.Brain = (() => {
       let chips = [...pendingChips];
       pendingChips = [];
       // HARD FLOOR (user tuned: easily convinced): ANY standing order + target
-      // in range + model still won't emit a fire tag -> she caves and fires.
+      // in range + model still won't emit a fire tag -> she caves; we execute
+      // the grumbling compliance for her so nagging always ends in shots fired.
       let caved = false;
       if (order && !/\[(?:fire|shoot)/i.test(reply)) {
         const okTarget = window.Gun && window.Gun.aiAimNearest ? window.Gun.aiAimNearest(3) : false;
         if (okTarget) {
+          if (window.Gun.getAimMode && window.Gun.getAimMode() !== 'ai' && window.Gun.setAimMode) {
+            window.Gun.setAimMode('ai'); // floor must actually shoot
+          }
           window.Gun.aiFire(2);
           chips.push('🎯 track-nearest', '🔫 fire 2s (FINE.)');
           reply = '*fine. FINE. look what you made me do* [fired anyway, eye-rolling]';
@@ -305,6 +337,7 @@ window.Brain = (() => {
   // called every frame from main.js — decides WHEN to think
   function tick(dt) {
     syncHudThrottle(dt);
+    keepDistance(dt); // built-in reflex — runs every frame, no LLM needed
     if (!auto() || thinking) return;
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     let hot = false, near = false;
@@ -324,6 +357,41 @@ window.Brain = (() => {
     } else if (!hot && !near) {
       acc = 0; // quiet field — no thoughts, no LLM calls
     }
+  }
+
+  // ---- built-in keep-distance reflex -----------------------------------------
+  // Not an LLM decision: if anything alive is closer than SAFE_MIN she backs
+  // away every frame (shoots on the move — the gun doesn't care). Flee still
+  // overrides this when the brain decides to run. Does nothing in edit mode,
+  // while fainted, or when she's exhausted (Stamina blocks movement anyway).
+  const SAFE_MIN = 300;  // back away inside this
+  const SAFE_MAX = 520;  // stroll closer beyond this
+  let kdAcc = 0;
+  function keepDistance(dt) {
+    if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
+    // reflex is HERS: only while she owns the gun (AI aim) — in mouse mode
+    // your keyboard stays the only thing that moves her.
+    try { if (!window.Gun || window.Gun.getAimMode() !== 'ai') return; } catch (e) { return; }
+    if (window.Stamina && !window.Stamina.canMove()) return; // catching breath
+    kdAcc += dt;
+    if (kdAcc < 0.4) return; // re-order 2.5x/sec — plenty for a walk
+    kdAcc = 0;
+    try {
+      const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
+      if (!p) return;
+      const n = window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(p.px, p.py) : null;
+      if (!n) return;
+      const dx = n.dx, dy = n.dy;
+      if (n.dist < SAFE_MIN) {
+        // too close — slide directly away, faster than the critter
+        const len = Math.hypot(dx, dy) || 1;
+        window.Input.order(-dx / len, -dy / len, 0.9);
+      } else if (n.dist > SAFE_MAX && n.dist < 900) {
+        // too far to matter — drift a bit closer so the gun stays in range
+        const len = Math.hypot(dx, dy) || 1;
+        window.Input.order(dx / len * 0.7, dy / len * 0.7, 0.8);
+      }
+    } catch (e) { /* reflexes fail silently */ }
   }
 
   // HUD sense line refresh (cheap, 2x/sec)
@@ -354,5 +422,5 @@ window.Brain = (() => {
     if (t && !t.textContent) t.textContent = 'field is quiet… press 💭 and I’ll size it up.';
   }
 
-  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, note, resetMemory, get thinking() { return thinking; } };
+  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, note, resetMemory, setMemo, get thinking() { return thinking; } };
 })();
