@@ -129,6 +129,14 @@ window.Chat = (() => {
     clearInterval(typeTimer);
     history.push({ role: 'user', content: text });
     parseWalk(text); // "go left" walks her at once; she still replies in character
+    // Combat orders ("attack them!", "shoot it") go to the survival brain, not
+    // the chat persona — she takes the gun (AI aim) and thinks immediately.
+    try {
+      if (/(attack|shoot|kill|fire|fight|defend|aim|hunt|get them|take them|destroy|blast)/i.test(text) &&
+          window.Brain && typeof window.Brain.orderAttack === 'function') {
+        window.Brain.orderAttack(text);
+      }
+    } catch (e) { /* orders are cosmetic — never break chat */ }
     setText('…');
     try {
       const s = window.Settings.settings; // live Chat-tab values (persisted)

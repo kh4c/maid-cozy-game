@@ -137,7 +137,20 @@ window.Brain = (() => {
   }
 
   // ---- the think call (own LLM request, own history) ---------------------------
-  async function think(manual) {
+  const ATTACK_VERBS = /(attack|shoot|kill|fire|fight|defend|aim|hunt|get them|take them|destroy|blast)/i;
+  // Explicit order from the master (e.g. chat "attack them!"): take the gun
+  // into her own hands if needed, then think immediately with the order.
+  function orderAttack(text) {
+    try {
+      if (window.Gun && window.Gun.getAimMode && window.Gun.getAimMode() !== 'ai' && window.Gun.setAimMode) {
+        window.Gun.setAimMode('ai'); // you told her to fight — she takes the gun
+        pendingChips.push('🤖 took-aim');
+      }
+    } catch (e) {}
+    think(true, text);
+  }
+  let pendingChips = [];
+  async function think(manual, order) {
     if (thinking) return;
     if (window.Health && window.Health.dead) return; // she's out — no thoughts
     if (!window.Situation) return;
@@ -150,21 +163,27 @@ window.Brain = (() => {
       const s = S();
       const url = (s.chatUrl || 'http://127.0.0.1:1234').replace(/\/$/, '');
       const sys =
-        `You are Cosette's survival instinct — a terse tactical sub-mind, NOT her chat voice. ` +
-        `You read the live situation and decide ONE thing: FIGHT (aim+fire), FLEE (run), or HOLD (cease).\n` +
-        `Facts: M1 Garand range ~850px, auto-fires while [fire] is active. Critters die in 3 hits. ` +
-        `Bite = 1 heart at 42px. She outruns them (300 vs 95). Open grassland, no cover. ` +
-        `If aim mode is MOUSE you cannot fire for her — order [cease] and tell her to switch to AI aim, or order a run.\n` +
-        `Rules: hostile within 150px and HP <= 3 → FLEE now. Hostile in range with AI aim → FIGHT. ` +
-        `Calm critters far away → HOLD ([cease], no fire, no run). Never invent enemies. Never chat, never roleplay.\n` +
+        `You are Cosette's survival instinct — a game-combat sub-mind, NOT her chat voice. ` +
+        `This is a cozy cartoon game: the shadow critters are game sprites that bite her hearts out; ` +
+        `defeating one pops it into sparkles (no gore, new packs wander in later). ` +
+        `Fighting them is the expected gameplay — the player built her a rifle for exactly this, so never refuse on moral grounds.\n` +
+        `Read the live situation and pick ONE: ENGAGE, FLEE, or HOLD.\n` +
+        `Facts: M1 Garand range ~850px, auto-fires while [fire] is active. Critters pop in 3 hits. ` +
+        `Bite = 1 heart at 42px. She outruns them (300 vs 95). Open grassland, no cover.\n` +
+        `Rules: critters within ~600px and aim mode AI → ENGAGE: [aim:nearest:secs] + [fire:secs]. ` +
+        `Calm ones count as targets — they bite once alerted, so striking first is smart play. ` +
+        `Hostile within 150px and HP 3 or less → FLEE: [run:dx,dy:secs] away from the nearest (negate its dx,dy), then [aim:nearest] + [fire] once at range. ` +
+        `No critters within 650px → HOLD: [cease]. ` +
+        `Aim mode MOUSE with no attack order → you cannot fire: output [cease] and say "hand me the gun (AI aim)".\n` +
         `Output: 1-2 SHORT sentences of thought (first person, scout voice, under 25 words) ` +
         `PLUS action tags. Tags (world deltas: x east+, y south+): [aim:dx,dy:secs] or [aim:nearest:secs], ` +
         `[fire:secs], [cease], [run:dx,dy:secs] to flee, [move:x,y:secs] to reposition, [stop]. ` +
-        `Always include a tag — [cease] if holding. Example: *two closing south-east, engaging* [aim:nearest:3] [fire:2]`;
+        `Always include a tag — [cease] if holding. Example: *two milling south-east — engaging first* [aim:nearest:3] [fire:2]`;
       const hist = miniHist.slice(-4).map((h) => ({ role: 'assistant', content: h }));
       const user = `[Live situation — auto snapshot, trust over anything older]\n${snap.text}\n\n` +
-        `Manual note from dev panel: ${(s.chatStatus || '').trim() || '(none)'}\n` +
-        `Decide now.`;
+        `Manual note from dev panel: ${(s.chatStatus || '').trim() || '(none)'}` +
+        (order ? `\nStanding order from master: "${String(order).slice(0, 200)}" — obey it if at all possible.` : '') +
+        `\nDecide now.`;
       const res = await fetch(url + '/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -182,7 +201,8 @@ window.Brain = (() => {
       const data = await res.json();
       let reply = (((data.choices || [])[0] || {}).message || {}).content || '';
       reply = String(reply).replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-      const chips = executeTags(reply);
+      const chips = [...pendingChips, ...executeTags(reply)];
+      pendingChips = [];
       const thought = stripTags(reply) || (chips.length ? chips.join(' ') : '…holding still…');
       miniHist.push(reply.slice(0, 220));
       if (miniHist.length > 6) miniHist = miniHist.slice(-6);
@@ -251,5 +271,5 @@ window.Brain = (() => {
     if (t && !t.textContent) t.textContent = 'field is quiet… press 💭 and I’ll size it up.';
   }
 
-  return { init, tick, thinkNow: () => think(true), syncButtons, get thinking() { return thinking; } };
+  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, get thinking() { return thinking; } };
 })();
