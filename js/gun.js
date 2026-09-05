@@ -203,7 +203,7 @@ window.Gun = (() => {
       let tgt = (aiAim && now < aiAim.until) ? aiAim : null;
       if (!tgt) {
         try {
-          const n = window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(px, py, 500) : null;
+          const n = window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(px, py, 650) : null;
           if (n) tgt = { x: n.x, y: n.y };
         } catch (e) {}
       }

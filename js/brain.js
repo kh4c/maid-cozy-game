@@ -85,13 +85,16 @@ window.Brain = (() => {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       if (!p) return;
       const en = p.enemies;
-      if (!en || !en.nearest || en.nearest.dist > 500) return; // nothing in her circle
-      // FIRE DISCIPLINE: hostiles are always fair game (self-defense). Calm
-      // critters only while the order is FRESH (45s) — a stale "kill them"
-      // from minutes ago must not mow down every new pack that wanders in.
-      // Otherwise she waits: hold fire, keep watching.
+      if (!en || !en.nearest) return; // nothing in sight at all
+      // SEE vs REACH: she sees the whole screen (~750px) but shoots shorter —
+      // hostiles up to 650px (self-defense, still on-screen), calm critters
+      // only to 500px AND on a FRESH order (45s). A stale "kill them" from
+      // minutes ago must not mow down new packs. Otherwise: hold fire, watch.
+      const d = en.nearest.dist, hot = !!en.nearest.hostile;
       const fresh = performance.now() - lastAskAt < 45000;
-      if (!en.nearest.hostile && !fresh) {
+      if (hot) {
+        if (d > 650) return; // hostile but far — think about it, don't spray
+      } else if (d > 500 || !fresh) {
         try { window.Gun && window.Gun.aiCease && window.Gun.aiCease(); } catch (e) {}
         return;
       }
@@ -133,7 +136,7 @@ window.Brain = (() => {
     const t = memo.text.toLowerCase();
     // stop FIRST — negation beats attack words ("don't kill those" = stand down)
     if (wantsStop(t)) { setAttackOrder(false, 'master said stop'); stopFollow(); stopStroll(); }
-    else if (wantsAttack(t)) setAttackOrder(true, 'master ordered');
+    else if (wantsAttack(t)) { setAttackOrder(true, 'master ordered'); lastAskAt = performance.now(); } // memo wish counts as fresh intent
     // "not big enough, find another" while she's on a pack: dismiss THIS
     // group (ignored ~3 min) and walk AWAY to look elsewhere — she must
     // never re-find the same group. Falls through to normal handling below.
@@ -323,6 +326,7 @@ window.Brain = (() => {
         `Rules: HOSTILE critters in range with aim mode AI → ENGAGE: [aim:nearest:secs] + [fire:secs]. ` +
         `Obey MASTER'S CURRENT WISH below — it is the master's intent, translated from their chat; pursue it when it is safe to do so (if it says attack, [aim:nearest]+[fire]; if it says stop/come, [cease]+[stop]). ` +
         `KEEP DISTANCE (built-in reflex, not a decision): stay 170-500px from anything ALIVE. Closer than 170px → [move:dx,dy:secs] away along (dx,dy) negated. Farther than 500px → walk closer with [move]. Do this every think, even mid-fight. ` +
+        `SIGHT vs REACH: you SEE every on-screen critter (~750px, all listed above) but your REACH is shorter — hostiles 650px, calm 500px and only on fresh orders. Never fire past reach. ` +
         `SELF-PRESERVATION FIRST: anything hostile within ~250px is a bite threat — if HP is 4 or less, or stamina is low/exhausted, FLEE FIRST: [run:dx,dy:secs] away (negate the threat's dx,dy) and only turn to fight ([aim:nearest]+[fire]) once at 400px+. ` +
         `Running needs stamina — check it before committing to a long chase or flight. ` +
         `Calm critters → HOLD / WAIT: [cease]. Watch them, do NOT fire on your own initiative — waiting is the job. ` +
@@ -549,12 +553,12 @@ window.Brain = (() => {
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       if (!p || !p.enemies || !p.enemies.nearest) return;
-      // dismissed groups don't count — first non-dismissed critter in 500px.
+      // dismissed groups don't count — first non-dismissed critter in reach.
       // Only runts in view → keep strolling elsewhere, never re-find them.
       let avail = null;
       try {
         for (const e of (p.enemies.list || [])) {
-          if (e.dist <= 500 && !isDismissed(e.x, e.y)) { avail = e; break; }
+          if (e.dist <= 650 && !isDismissed(e.x, e.y)) { avail = e; break; }
         }
       } catch (e) {}
       if (!avail) return;
@@ -606,7 +610,7 @@ window.Brain = (() => {
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       const n = p && p.enemies && p.enemies.nearest;
-      if (!n || n.dist > 500 || isDismissed(n.x, n.y)) {
+      if (!n || n.dist > 700 || isDismissed(n.x, n.y)) {
         followLostAcc += dt; // pack left her circle — grace period, then give up
         if (followLostAcc > 6) {
           stopFollow();
@@ -683,14 +687,18 @@ window.Brain = (() => {
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       if (!p) return;
-      const n = window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(p.px, p.py, 500) : null;
+      const n = window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(p.px, p.py, 650) : null;
       if (!n) return;
       const dx = n.dx, dy = n.dy;
       if (n.dist < SAFE_MIN) {
         // too close — slide directly away, faster than the critter
         const len = Math.hypot(dx, dy) || 1;
         window.Input.order(-dx / len, -dy / len, 0.9);
-      } else if (n.dist > SAFE_MAX && n.dist < ENGAGE_MAX) {
+      } else if (n.hostile && n.dist > 500) {
+        // threat on screen but past gun reach — close in so she can fight it
+        const len = Math.hypot(dx, dy) || 1;
+        window.Input.order(dx / len * 0.7, dy / len * 0.7, 0.8);
+      } else if (!n.hostile && n.dist > SAFE_MAX && n.dist <= ENGAGE_MAX) {
         // too far to matter — drift a bit closer so the gun stays in range
         const len = Math.hypot(dx, dy) || 1;
         window.Input.order(dx / len * 0.7, dy / len * 0.7, 0.8);

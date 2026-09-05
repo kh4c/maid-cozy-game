@@ -45,11 +45,13 @@ window.Situation = (() => {
       }
     } catch (e) { /* deaf snapshot */ }
 
-    // enemies
+    // enemies — SEE range covers the whole screen (~750px incl. corners),
+    // so on-screen critters always register. REACH (who she fires at /
+    // approaches) stays shorter — that's the brain's job, not the eyes'.
     let enemies = { total: 0, hostile: 0, nearest: null, list: [] };
     try {
       if (window.Enemies && typeof window.Enemies.sense === 'function') {
-        enemies = window.Enemies.sense(p.x, p.y, 500); // awareness cap: 500px
+        enemies = window.Enemies.sense(p.x, p.y, 750); // see everything on screen
       } else if (window.Enemies && typeof window.Enemies.hostileCount === 'function') {
         enemies.hostile = window.Enemies.hostileCount();
       }
