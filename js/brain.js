@@ -198,7 +198,7 @@ window.Brain = (() => {
         `*snorts* Pick only the rich ones? Master, a coin is a coin! Small, big — they all die the same.`,
         `*waves a hand* Worth-schmorth! Every critter pays, master — leave the picking to the purse.`,
       ];
-      try { sayUnlessBusy(lines[(askCount | 0) % lines.length]); } catch (e) {}
+      try { sayUnlessBusy('money-banter', {}, lines[(askCount | 0) % lines.length]); } catch (e) {}
     }
     if (wantsStop(t) && !LEAVE_RE.test(t)) {
       // Full stop: posture cleared, trigger released, feet stilled. LEAVE-words
@@ -233,7 +233,7 @@ window.Brain = (() => {
       // asking which ones she means.
       let vis = false;
       try { const e = window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(window.__maid.x, window.__maid.y, 500) : null; vis = !!(e && e.dist != null && e.dist < 500); } catch (e2) {}
-      if (!vis) sayUnlessBusy(`*tilts her head, scanning* Which ones, master? I don't see them — walk me closer or point me at them.`);
+      if (!vis) sayUnlessBusy('which-ones', {}, `*tilts her head, scanning* Which ones, master? I don't see them — walk me closer or point me at them.`);
     }
     // movement wishes start the stroll even with no direction known; a plain
     // "go wander" also releases heel (feet free again).
@@ -854,8 +854,8 @@ window.Brain = (() => {
     try {
       if (window.Chat && typeof window.Chat.announce === 'function') {
         window.Chat.announce(Object.assign({ event }, facts), fallback).catch(() => {});
-      } else sayUnlessBusy(fallback);
-    } catch (e) { sayUnlessBusy(fallback); }
+      } else sayUnlessBusy(event, facts, fallback);
+    } catch (e) { sayUnlessBusy(event, facts, fallback); }
   }
 
   function followTick(dt) {
@@ -959,14 +959,19 @@ window.Brain = (() => {
   function purseNow() {
     try { return (window.Inventory && window.Inventory.state ? window.Inventory.state().coins : 0) | 0; } catch (e) { return 0; }
   }
-  function sayUnlessBusy(line) {
-    // mid-exchange the LLM reply carries the news; otherwise speak / queue.
+  function sayUnlessBusy(event, facts, fallback) {
+    // Like genLine, but DROPS instead of queuing when mid-exchange (the live
+    // LLM reply carries the news). When free it GENERATES via announce — the
+    // template speaks verbatim ONLY if the model is unreachable (news never
+    // lost, only less pretty). Nothing hardcoded reaches the dialog healthy.
     let chatBusy = false;
     try { chatBusy = !!(window.Chat && window.Chat.isBusy && window.Chat.isBusy()); } catch (e) {}
     if (chatBusy) return;
-    let said = false;
-    try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
-    if (!said) queueNews({ text: line });
+    try {
+      if (window.Chat && typeof window.Chat.announce === 'function') {
+        window.Chat.announce(Object.assign({ event }, facts), fallback).catch(() => { try { window.Chat.say(fallback); } catch (e) {} });
+      } else if (window.Chat && window.Chat.say) window.Chat.say(fallback);
+    } catch (e) { try { window.Chat.say(fallback); } catch (e2) {} }
   }
   function setObjective(o) {
     objective = o;
