@@ -107,68 +107,38 @@ canvas { display: block; }
 #chat-input:focus { border-color: rgba(157, 148, 255, 0.7); }
 
 /* ---- Health: pixel hearts HUD, hurt flash, faint veil ------------------------- */
-/* Hearts are pure CSS pixel art (box-shadow blocks) — no image files.
-   Panel is transparent: just the hearts floating under the HUD bar. */
+/* Hearts are single-path SVGs (crisp pixel silhouette, black outline) drawn
+   by health.js — no image files. Panel is transparent: floating hearts. */
 #hearts {
   position: absolute; top: 46px; left: 12px; z-index: 5;
-  display: flex; gap: 8px; padding: 0; background: none;
+  display: flex; gap: 6px; padding: 0; background: none;
   pointer-events: none; user-select: none;
 }
-.px-heart {
-  --px: 5px; /* pixel block size — heart renders 7x6 blocks (35x30px) */
-  width: var(--px); height: var(--px);
-  margin: 0 calc(var(--px) * 6) calc(var(--px) * 5) 0;
-}
-.px-heart.hp-on {
-  color: #ff5d73;
-  box-shadow:
-    calc(var(--px)*1) 0 0 0 currentColor, calc(var(--px)*2) 0 0 0 currentColor,
-    calc(var(--px)*4) 0 0 0 currentColor, calc(var(--px)*5) 0 0 0 currentColor,
-    0 var(--px) 0 0 currentColor,
-    calc(var(--px)*1) var(--px) 0 0 currentColor, calc(var(--px)*2) var(--px) 0 0 currentColor,
-    calc(var(--px)*3) var(--px) 0 0 currentColor, calc(var(--px)*4) var(--px) 0 0 currentColor,
-    calc(var(--px)*5) var(--px) 0 0 currentColor, calc(var(--px)*6) var(--px) 0 0 currentColor,
-    0 calc(var(--px)*2) 0 0 currentColor,
-    calc(var(--px)*1) calc(var(--px)*2) 0 0 currentColor, calc(var(--px)*2) calc(var(--px)*2) 0 0 currentColor,
-    calc(var(--px)*3) calc(var(--px)*2) 0 0 currentColor, calc(var(--px)*4) calc(var(--px)*2) 0 0 currentColor,
-    calc(var(--px)*5) calc(var(--px)*2) 0 0 currentColor, calc(var(--px)*6) calc(var(--px)*2) 0 0 currentColor,
-    calc(var(--px)*1) calc(var(--px)*3) 0 0 currentColor, calc(var(--px)*2) calc(var(--px)*3) 0 0 currentColor,
-    calc(var(--px)*3) calc(var(--px)*3) 0 0 currentColor, calc(var(--px)*4) calc(var(--px)*3) 0 0 currentColor,
-    calc(var(--px)*5) calc(var(--px)*3) 0 0 currentColor,
-    calc(var(--px)*2) calc(var(--px)*4) 0 0 currentColor, calc(var(--px)*3) calc(var(--px)*4) 0 0 currentColor,
-    calc(var(--px)*4) calc(var(--px)*4) 0 0 currentColor,
-    calc(var(--px)*3) calc(var(--px)*5) 0 0 currentColor;
-}
-.px-heart.hp-off {
-  color: rgba(255, 255, 255, 0.16);
-  box-shadow:
-    calc(var(--px)*1) 0 0 0 currentColor, calc(var(--px)*2) 0 0 0 currentColor,
-    calc(var(--px)*4) 0 0 0 currentColor, calc(var(--px)*5) 0 0 0 currentColor,
-    0 var(--px) 0 0 currentColor,
-    calc(var(--px)*1) var(--px) 0 0 currentColor, calc(var(--px)*2) var(--px) 0 0 currentColor,
-    calc(var(--px)*3) var(--px) 0 0 currentColor, calc(var(--px)*4) var(--px) 0 0 currentColor,
-    calc(var(--px)*5) var(--px) 0 0 currentColor, calc(var(--px)*6) var(--px) 0 0 currentColor,
-    0 calc(var(--px)*2) 0 0 currentColor,
-    calc(var(--px)*1) calc(var(--px)*2) 0 0 currentColor, calc(var(--px)*2) calc(var(--px)*2) 0 0 currentColor,
-    calc(var(--px)*3) calc(var(--px)*2) 0 0 currentColor, calc(var(--px)*4) calc(var(--px)*2) 0 0 currentColor,
-    calc(var(--px)*5) calc(var(--px)*2) 0 0 currentColor, calc(var(--px)*6) calc(var(--px)*2) 0 0 currentColor,
-    calc(var(--px)*1) calc(var(--px)*3) 0 0 currentColor, calc(var(--px)*2) calc(var(--px)*3) 0 0 currentColor,
-    calc(var(--px)*3) calc(var(--px)*3) 0 0 currentColor, calc(var(--px)*4) calc(var(--px)*3) 0 0 currentColor,
-    calc(var(--px)*5) calc(var(--px)*3) 0 0 currentColor,
-    calc(var(--px)*2) calc(var(--px)*4) 0 0 currentColor, calc(var(--px)*3) calc(var(--px)*4) 0 0 currentColor,
-    calc(var(--px)*4) calc(var(--px)*4) 0 0 currentColor,
-    calc(var(--px)*3) calc(var(--px)*5) 0 0 currentColor;
-}
+#hearts svg { display: block; width: 40px; height: 35px; shape-rendering: crispEdges; }
+#hearts .hp-on  { color: #ff5d73; }
+#hearts .hp-off { color: rgba(255, 255, 255, 0.13); }
 #hurt-flash {
   position: absolute; inset: 0; z-index: 30; pointer-events: none; opacity: 0;
   background: radial-gradient(ellipse at center, rgba(255, 30, 60, 0.12) 40%, rgba(255, 30, 60, 0.5) 100%);
 }
 #faint-veil {
   position: absolute; inset: 0; z-index: 30; display: none;
-  align-items: center; justify-content: center;
-  background: rgba(10, 6, 16, 0.72);
-  font: 16px/1.5 monospace; color: #cfc9ff; user-select: none;
+  align-items: center; justify-content: center; flex-direction: column; gap: 14px;
+  background: rgba(8, 5, 12, 0.82);
+  user-select: none; pointer-events: none;
 }
+/* Dark-Souls death screen: huge letterspaced serif, slow blood-red fade-in */
+#faint-veil .big {
+  font: 64px/1 Georgia, 'Times New Roman', serif; letter-spacing: 16px;
+  text-indent: 16px; /* recenter the trailing letterspace */
+  color: #7d1212; text-shadow: 0 0 24px rgba(160, 20, 20, 0.55);
+  animation: faint-in 2.5s ease-out both;
+}
+#faint-veil .sub {
+  font: 14px/1.5 monospace; letter-spacing: 4px; color: #8d86b8;
+  animation: faint-in 2.5s ease-out both;
+}
+@keyframes faint-in { from { opacity: 0; } to { opacity: 1; } }
 
 /* ---- Edit mode overlays ----------------------------------------------------- */
 /* Dashed outline boxes + name tags drawn over each editable component. */

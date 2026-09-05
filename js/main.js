@@ -54,8 +54,8 @@
   // ---- Character -----------------------------------------------------------------
   let character;
   try {
-    const { idleFrames, runFrames } = await window.Assets.loadSheets();
-    character = window.Entities.createCharacter(idleFrames, runFrames);
+    const { idleFrames, runFrames, dieFrames } = await window.Assets.loadSheets();
+    character = window.Entities.createCharacter(idleFrames, runFrames, dieFrames);
     character.applySettings();
     world.addChild(character.view);
   } catch (err) {
@@ -162,7 +162,7 @@
     view.y += a.y * s.speed * dtSec;
 
     // INFINITE world: no bounds clamping — background chunks stream in around the camera
-    character.update(a);
+    character.update(a, !!(window.Health && window.Health.dead));
     if (dust) dust.update(dtSec, view.x, view.y, (a.x !== 0 || a.y !== 0), a.x, a.y);
     camera.update(view.x, view.y, dtSec);
 

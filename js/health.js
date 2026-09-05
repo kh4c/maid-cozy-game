@@ -8,13 +8,19 @@ window.Health = (() => {
   let hp = MAX;
   let dead = false;
 
+  // One silhouette path (7x6 pixel grid traced as a single outline): no
+  // internal seams, black stroke outside the fill. Full = red, lost = dim.
+  const HEART_PATH = 'M1 0H3V1H4V0H6V1H7V3H6V4H5V5H4V6H3V5H2V4H1V3H0V1H1Z';
+  function heartSVG(on) {
+    return '<svg viewBox="-0.7 -0.7 8.4 7.4" class="' + (on ? 'hp-on' : 'hp-off') + '">' +
+      '<path d="' + HEART_PATH + '" fill="currentColor" stroke="#0b0b10" stroke-width="0.7"/></svg>';
+  }
+
   function render() {
     const el = document.getElementById('hearts');
     if (!el) return;
     let s = '';
-    for (let i = 0; i < MAX; i++) {
-      s += i < hp ? '<span class="px-heart hp-on"></span>' : '<span class="px-heart hp-off"></span>';
-    }
+    for (let i = 0; i < MAX; i++) s += heartSVG(i < hp);
     el.innerHTML = s;
     el.title = hp + '/' + MAX;
   }

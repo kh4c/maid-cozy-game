@@ -2,7 +2,7 @@
 window.Entities = (() => {
   const { Container, AnimatedSprite, Graphics } = PIXI;
 
-  function createCharacter(idleFrames, runFrames) {
+  function createCharacter(idleFrames, runFrames, dieFrames) {
     const settings = window.Settings.settings;
 
     // root: world position + overall scale. body: flip/tilt only —
@@ -22,14 +22,19 @@ window.Entities = (() => {
     }
     const idleAnim = makeAnim(idleFrames);
     const runAnim = makeAnim(runFrames);
+    // death anim: plays ONCE and holds the last (fallen) frame — loop off
+    const dieAnim = dieFrames ? makeAnim(dieFrames) : null;
+    if (dieAnim) dieAnim.loop = false;
     body.addChild(idleAnim);
     body.addChild(runAnim);
+    if (dieAnim) body.addChild(dieAnim);
 
     let currentAnim = null; // only restart playback on state CHANGE
     function setAnimation(anim) {
       if (currentAnim === anim) return;
       idleAnim.visible = (idleAnim === anim);
       runAnim.visible = (runAnim === anim);
+      if (dieAnim) dieAnim.visible = (dieAnim === anim);
       anim.gotoAndPlay(0);
       currentAnim = anim;
     }
@@ -39,10 +44,16 @@ window.Entities = (() => {
       root.scale.set(settings.scale);
       idleAnim.animationSpeed = 1 / Math.max(0.5, settings.idleFps);
       runAnim.animationSpeed = 1 / Math.max(0.5, settings.runFps);
+      if (dieAnim) dieAnim.animationSpeed = 1 / Math.max(0.5, settings.dieFps ?? 8);
     }
 
-    // a: current input axis
-    function update(a) {
+    // a: current input axis; dead: fainted — play the die sheet, hold the fall
+    function update(a, dead) {
+      if (dead && dieAnim) {
+        body.rotation = 0;
+        setAnimation(dieAnim);
+        return;
+      }
       if (a.x < 0) body.scale.x = -Math.abs(body.scale.x);
       else if (a.x > 0) body.scale.x = Math.abs(body.scale.x);
 

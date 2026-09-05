@@ -7,6 +7,9 @@ window.CONFIG = {
             frames: [[0,0],[0,1],[0,2],[0,3],[1,0],[1,1],[1,2],[1,3],[2,0]] },
     run:  { url: 'assets/SG_Maid_Run.png', frameW: 64, frameH: 64, cols: 4,
             frames: [[0,0],[0,1],[0,2],[0,3],[1,0],[1,1],[1,2]] },
+    die:  { url: 'assets/SG_Maid_Die.png', frameW: 64, frameH: 64, cols: 4,
+            // 4 cols x 2 rows = 8 frames, reading order (256x128 sheet)
+            frames: [[0,0],[0,1],[0,2],[0,3],[1,0],[1,1],[1,2],[1,3]] },
   },
 
   // Background image (user-provided grassland with dirt patches, streamed as chunks)
@@ -28,6 +31,7 @@ window.CONFIG = {
     speed: 300,     // px per second
     idleFps: 8,     // idle animation frames/sec
     runFps: 6,      // run animation frames/sec
+    dieFps: 8,       // death animation frames/sec (plays once, holds last frame)
     scale: 2.5,     // sprite render scale (64px -> 160px on screen)
     sunray: 1,      // sunray effect master opacity 0..1
     maxTilt: 0.45,  // run lean, radians (~26°) at full vertical input
