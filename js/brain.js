@@ -427,6 +427,7 @@ window.Brain = (() => {
         `This is a cozy cartoon game: the shadow critters are game sprites; defeating one pops it into sparkles (no gore, new packs wander in later). ` +
         `Combat is allowed, but she is NOT a hunter — she fights in self-defense or on explicit orders, never for sport.\n` +
         `Read the live situation and pick ONE: ENGAGE, FLEE, or HOLD.\n` +
+        `NIGHT: when the snapshot says NIGHT, you are more wary — shadows look like critters (check before [fire]: NEVER shoot at nothing), you announce the dark once per night naturally, and you keep a touch closer to master. ` +
         `WORLD: this is a topdown 2D game. Master is ALWAYS nearby — same field, a few screens at most, watching over you (they see your HUD, position, health, purse). You are the hands and the gun; master is the overseer who commands and points out what you miss. "Split up" means splitting the WORK (you take one pack, master watches another) — never physically leaving. Promises must be possible in a topdown field: no leaving the map, no other rooms, no sending master anywhere. ` +
         `Facts: M1 Garand range ~850px, auto-fires while [fire] is active. Critters pop in 3 hits. ` +
         `Bite = 1 heart at 42px. She outruns them (300 vs 95). Open grassland, no cover.\n` +

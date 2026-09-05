@@ -333,6 +333,13 @@ window.Live2D = (() => {
 
   function destroy() { if (model) { model.destroy(); model = null; } }
 
+  // NIGHT TINT: the model rides ABOVE the world overlay (stage order), so it
+  // would stay bright at night — tint it instead. Soft blue wash, keeps the face readable.
+  function setNight(on) {
+    if (!model) return;
+    try { model.tint = on ? 0x7c88c8 : 0xffffff; } catch (e) { /* cosmetic */ }
+  }
+
   return {
     init, destroy,
     get ready() { return !!model; },
@@ -340,6 +347,7 @@ window.Live2D = (() => {
     get exprName() { return currentExpression(); },
     setExpr(n) { setPinned(n); },
     setMood, // chat emotion -> face (neutral default)
+    setNight,
     apply: applyFraming,
     // read a param value by name (index-resolved, bypasses the string-ID phantom table)
     param(name) {

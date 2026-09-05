@@ -27,17 +27,41 @@
   const world = new Container();
   app.stage.addChild(world);
 
-  // ---- Day/Night overlay ----------------------------------------------------------------
+  // ---- Day/Night overlay + vignette -------------------------------------------------------
   // Sits ABOVE the world (tiles + critters + maid) but BELOW UI. Night = deep blue
-  // wash with soft alpha; day = invisible. Toggled live from the dev panel (WORLD tab).
-  const { Graphics } = PIXI;
+  // wash + soft vignette darkening the screen edges (torch-light feel); day = invisible.
+  // Toggled live from the dev panel (WORLD tab).
+  const { Graphics, Sprite, Texture } = PIXI;
   const nightOverlay = new Graphics();
   app.stage.addChild(nightOverlay);
+  // vignette texture: radial gradient (transparent center -> dark edges), generated once
+  function makeVignetteTexture() {
+    const c = document.createElement('canvas');
+    c.width = 640; c.height = 360;
+    const g = c.getContext('2d');
+    const grad = g.createRadialGradient(320, 180, 120, 320, 180, 420);
+    grad.addColorStop(0, 'rgba(4,8,24,0)');
+    grad.addColorStop(0.6, 'rgba(4,8,24,0.25)');
+    grad.addColorStop(1, 'rgba(2,4,14,0.8)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 640, 360);
+    return Texture.from(c);
+  }
+  let vignette = null;
   function nightOn() { return (window.Settings && Number(window.Settings.settings.worldTime) === 1); }
   function drawNightOverlay() {
+    const on = nightOn();
     nightOverlay.clear();
-    if (!nightOn()) return;
-    nightOverlay.rect(0, 0, app.screen.width, app.screen.height).fill({ color: 0x0a1030, alpha: 0.5 });
+    if (on) nightOverlay.rect(0, 0, app.screen.width, app.screen.height).fill({ color: 0x0a1030, alpha: 0.5 });
+    if (on && !vignette) {
+      vignette = new Sprite(makeVignetteTexture());
+      app.stage.addChild(vignette); // above the flat wash
+    }
+    if (vignette) {
+      vignette.visible = on;
+      if (on) { vignette.width = app.screen.width; vignette.height = app.screen.height; }
+    }
+    try { window.Live2D && window.Live2D.setNight && window.Live2D.setNight(on); } catch (e) { /* cosmetic */ }
   }
   drawNightOverlay();
   window.addEventListener('resize', () => setTimeout(drawNightOverlay, 0));
@@ -97,6 +121,7 @@
   let live2d = window.Live2D;
   try {
     live2d && await live2d.init(app);
+    if (live2d && live2d.ready) live2d.setNight(nightOn()); // model loads above the overlay — tint it too
     document.getElementById('l2d-status').textContent = 'l2d ✓';
   } catch (err) {
     live2d = null;
