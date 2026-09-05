@@ -2,6 +2,24 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Money-is-money: the worth filter is gone
+- **No more bars, no more min-N.** `huntMin`, skip-pins, `[too cheap]`, mid-follow abandon,
+  recall-exemptions, task `min` args, the think-prompt HUNT FILTER — all deleted. Now it's find
+  or kill: FIND locates + reports + shadows (never fires first), HUNT/QUOTA/kill-words fire on
+  EVERYTHING in reach, common or legendary.
+- **Worth-picking gets an answer.** "only worth 5+", "most valuable", "skip the cheap ones" →
+  she says one of three money-is-money lines ("Money is money, master — … We kill them ALL.")
+  and kills them all anyway. Stop-words in the same breath suppress the banter (stop wins).
+  Both minds taught: think-prompt MONEY rule + chat send-time Worth rule (never promise to skip,
+  never emit a min number into task=/intent=).
+- **Kept, untouched:** rarity labels + outlines + price list + appraisal flavor (she still KNOWS
+  worth, she just never ACTS on it), surgical color targets, dismiss/recall memory, wiped-vs-
+  lost, hostiles-always-exempt. Shadow-switching is distance-only now (richer-but-farther no
+  longer interrupts).
+- Tests: hfilter rewritten (answer + kill-all + dismiss/recall + discipline), hdefault L2/L4/L5
+  + new L7 stop-beats-banter, hswitch N2 (no-switch-rich), hfound J4 (dismiss→recall), hmin2
+  DELETED. 8/8 suites green.
+
 ## 2026-09-06 — FIND goal + news queue + smarter second finds
 - **FIND is a goal now.** The verb picks the goal: "find / look for / search" = FIND (locate +
   announce + shadow, trigger stays OFF — hostiles still self-defend); "hunt" = HUNT (kill +

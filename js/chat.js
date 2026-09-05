@@ -145,8 +145,8 @@ window.Chat = (() => {
   // model names it from a closed verb vocabulary — no regexes on our side.
   function buildTaskInstr() {
     return (
-      '[TASK: if the master wants an ONGOING behavior — not chat, not a one-shot move — also output one final line task=[[verb args]] using ONLY this vocabulary: circle [cw|ccw], patrol [radius px], goto [x y world coords], quota [N coins] [min M coins], hunt [min N coins], find [min N coins], follow-pack, clear. ' +
-      'E.g. "just keep circling" → task=[[circle cw]]. "earn 200 coins" → task=[[quota 200]]. "earn 300, only prey worth 5+, we are low on ammo" → task=[[quota 300 min 5]]. "only prey worth 5+ coins" → task=[[hunt min 5]]. "just find some critters" → task=[[find]] (locate + report, NO shooting). "find only prey worth 5+" → task=[[find min 5]]. "come here" is one-shot ([move] tag), not a task. Pure chat: omit the line. This line is stripped from the dialog.]'
+      '[TASK: if the master wants an ONGOING behavior — not chat, not a one-shot move — also output one final line task=[[verb args]] using ONLY this vocabulary: circle [cw|ccw], patrol [radius px], goto [x y world coords], quota [N coins], hunt, find, follow-pack, clear. ' +
+      'E.g. "just keep circling" → task=[[circle cw]]. "earn 200 coins" → task=[[quota 200]]. "hunt them all" → task=[[hunt]]. "just find some critters" → task=[[find]] (locate + report, NO shooting). "come here" is one-shot ([move] tag), not a task. Pure chat: omit the line. This line is stripped from the dialog.]'
     );
   }
   function extractTask(reply) {
@@ -218,6 +218,7 @@ window.Chat = (() => {
       // Grounding rule (every reply): the live block outranks history + promises.
       sysText += '\n\n[Grounding rule: the [Live situation] block above is ground truth — it outranks chat history and any past promise you made. If it shows 0 enemies and no live Known groups, NEVER agree to attack, hunt, or "go back and kill" anything. Say the field is empty or that group is already dead. Never say OK to killing what is not there.]';
       sysText += '\n\n[Money + goals: the purse total in [Live situation] is the ONLY money figure you may quote — copy it EXACTLY, never round, estimate, or reuse an older number (if no purse is shown, say you will check the bag). A quota/goal exists ONLY if the Objective line shows one, or master set it AFTER the latest [new life] marker — NEVER cite a quota from before the marker or from older chat as if it still stands.]';
+      sysText += '\n\n[Worth rule: there is NO worth filter — money is money, every critter counts. If master asks to pick only high-worth prey ("only worth 5+", "most valuable", "skip the cheap ones"), answer playfully along the lines of "money is money!" and kill them ALL anyway. NEVER promise to skip cheap packs, NEVER set a worth bar, NEVER emit a min number into task= or intent=.]';
       if (recallState === 'dead') {
         sysText += '\n\n[Ground truth NOW: master is sending you back after a pack you already wiped — no live remembered pack exists. Do NOT agree. Tell them plainly they are already dead (cite your kills), refuse the hunt, offer to scoop the dropped coins instead. Your intent=[[..]] line must read: the recalled pack is already dead — stand down, no attack, report the kills.]';
       }
