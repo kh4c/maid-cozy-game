@@ -13,6 +13,7 @@ window.Sound = (() => {
   let bgmSource = null;   // looping BufferSource for the current track
   let bgmName = 'cozy';   // current mood: 'cozy' | 'battle'
   let bgmToken = 0;       // races between slow decodes and fast mood flips
+  let bgmPending = null;  // mood currently being decoded — repeat calls wait
   const BGM_URLS = { cozy: 'assets/Cozy1.mp3', battle: 'assets/battle1.mp3' };
   const bgmCache = {};    // mood -> AudioBuffer (switching never re-decodes)
   let started = false;    // first user gesture handled
@@ -82,8 +83,12 @@ window.Sound = (() => {
   // repeat, stale decodes discarded by token).
   async function setBgmMood(mood) {
     if (!ctx || (mood !== 'cozy' && mood !== 'battle')) return;
-    if (mood === bgmName && bgmSource) return;
+    // same mood playing OR already decoding it -> do nothing (the game loop
+    // calls this every frame; without the pending guard it would stack a
+    // fresh 5MB fetch+decode per frame and tank combat fps)
+    if (mood === bgmName && (bgmSource || bgmPending)) return;
     bgmName = mood;
+    bgmPending = mood;
     const my = ++bgmToken;
     try { if (bgmSource) { try { bgmSource.stop(); } catch (e) {} bgmSource = null; } } catch (e) {}
     try {
@@ -99,13 +104,21 @@ window.Sound = (() => {
       bgmSource.connect(buses.bgm);
       bgmSource.start(0);
     } catch (e) { console.warn('BGM switch failed', e); }
+    finally { if (bgmPending === mood) bgmPending = null; }
+  }
+
+  // Decode the battle track in the background after first gesture, so the
+  // first real switch mid-fight has zero decode hitch.
+  function warmBgmCache() {
+    if (!ctx || bgmCache.battle) return;
+    loadBgm(BGM_URLS.battle).then((b) => { bgmCache.battle = b; }).catch(() => {});
   }
 
   // ---- first-gesture start -----------------------------------------------------
   function onFirstGesture() {
     if (started) return;
     started = true;
-    ctx.resume().then(() => startBgm()).catch(console.warn);
+    ctx.resume().then(() => { startBgm(); warmBgmCache(); }).catch(console.warn);
   }
 
   // ---- UI: gear button + volume panel ------------------------------------------
