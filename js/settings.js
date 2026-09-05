@@ -152,6 +152,7 @@ window.Settings = (() => {
     addSlider('chatTokens', 50, 2000, 50, tabChat); // max tokens per reply
     addSlider('chatTemp', 0, 2, 0.05, tabChat);     // temperature
     addSlider('chatActions', 0, 1, 1, tabChat);     // 0 = hide *actions*, 1 = show highlighted
+    addText('chatStatus', 'situation', false, tabChat); // e.g. Location: grassland — change when she moves
     addText('chatSystem', 'persona', true, tabChat);
 
     const btnRow = document.createElement('div');
@@ -168,6 +169,7 @@ window.Settings = (() => {
         slider.value = settings[key];
         val.textContent = settings[key];
       });
+      textControls.forEach(({ key, el }) => { el.value = settings[key] ?? ''; });
       save(); // reset persists immediately so it survives reload
     });
     btnRow.append(saveBtn, resetBtn);

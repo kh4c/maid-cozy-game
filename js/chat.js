@@ -99,12 +99,16 @@ window.Chat = (() => {
     setText('…');
     try {
       const s = window.Settings.settings; // live Chat-tab values (persisted)
+      // Persona + live situation (location etc.) merged into one system prompt.
+      let sysText = s.chatSystem || '';
+      const sit = (s.chatStatus || '').trim();
+      if (sit) sysText += '\n\n[Current situation: ' + sit + ']';
       const res = await fetch(s.chatUrl.replace(/\/$/, '') + '/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: s.chatModel,
-          messages: [{ role: 'system', content: system }, ...recentHistory()],
+          messages: [{ role: 'system', content: sysText }, ...recentHistory()],
           max_tokens: Number(s.chatTokens) || 600,
           temperature: (s.chatTemp === undefined || s.chatTemp === '' ? 0.8 : Number(s.chatTemp)),
         }),

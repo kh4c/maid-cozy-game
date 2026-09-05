@@ -44,6 +44,7 @@ window.CONFIG = {
     chatTokens: 600,  // thinking model: reasoning eats tokens first, answer needs room after
     chatTemp: 0.8,
     chatActions: 1, // 0 = hide *action* text, 1 = show highlighted
+    chatStatus: 'Location: open grassland, standing beside you in the field',
     chatSystem: `[Character]
 Name: cosette
 Appearance: , classic black and white maid outfit.
