@@ -225,8 +225,16 @@ window.Chat = (() => {
         const intent = extractIntent(reply);
         if (intent && window.Brain && typeof window.Brain.setMemo === 'function') window.Brain.setMemo(intent, text);
       } catch (e) { /* memo is best-effort */ }
-      reply = reply.replace(/intent=\[\[[\s\S]*?\]\]/gi, '').trim(); // never display
-      reply = reply.replace(/task=\[\[[\s\S]*?\]\]/gi, '').trim(); // never display
+      // NEVER display: strip all machinery spellings — closed, unclosed, or
+      // lazy single-bracket typos the model sometimes emits.
+      reply = reply
+        .replace(/intent\s*=\s*\[\[[\s\S]*?\]\s*\]\]?/gi, '')   // well-formed
+        .replace(/intent\s*=\s*\[\[([\s\S]*)$/i, '')               // unclosed [[ — eats to end
+        .replace(/intent\s*=\s*\[[^\]\n]{0,200}/gi, '')
+        .replace(/task\s*=\s*\[\[[\s\S]*?\]\]?/gi, '')
+        .replace(/task\s*=\s*\[[^\]\n]{0,200}/gi, '')
+        .replace(/^\s*\]\]\s*$/gm, '')
+        .trim();
       // Explicit [move:x,y:secs] tags drive the sprite, then are stripped so
       // they never show in the dialog. *walks left* phrasing is a fallback.
       const tagMoves = [...reply.matchAll(/\[move\s*:\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)(?:\s*:\s*([\d.]+))?\]/gi)];
@@ -322,13 +330,11 @@ window.Chat = (() => {
         `${f.prev ? `Context: you already reported another pack (${f.prev}). ${f.compare || 'Say which pack is closer and which you would take first, and why.'} ` : ''}` +
         `${f.switched ? `You left the old pack for this one because it is ${f.switched} — say why, briefly. ` : ''}` +
         `${f.aged ? `You spotted this ${f.aged}s ago (the news waited its turn) — mention it may have moved since. ` : ''}` +
+        `Speak ONLY the announcement — NEVER repeat or quote the [Live situation] block (no Position/Health/Stamina/Weapon readouts in chat; master can see the HUD). ` +
         `No combat/move/intent/task tags — just the announcement. This is proactive, not a reply to master.]`;
-      try {
-        if (window.Situation && typeof window.Situation.snapshot === 'function') {
-          const snap = window.Situation.snapshot();
-          sysText += '\n\n[Live situation:\n' + snap.text + ']';
-        }
-      } catch (e) { /* announce deaf too */ }
+      // NOTE: no live-snapshot injection here on purpose. announce already carries
+      // the distilled facts; the full snapshot (position/health/stamina) invites
+      // small models to ECHO the block verbatim into the chat box.
       const res = await fetch(url + '/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -343,8 +349,20 @@ window.Chat = (() => {
       const data = await res.json();
       let line = ((data.choices && data.choices[0] && data.choices[0].message.content) || '').trim();
       line = line.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-      line = line.replace(/intent=\[\[[\s\S]*?\]\]/gi, '').replace(/task=\[\[[\s\S]*?\]\]/gi, '').replace(/\[move\s*:[^\]]*\]/gi, '').trim();
+      line = line
+        .replace(/intent\s*=\s*\[\[[\s\S]*?\]\]?/gi, '')
+        .replace(/intent\s*=\s*\[[^\]\n]{0,200}/gi, '')
+        .replace(/task\s*=\s*\[\[[\s\S]*?\]\]?/gi, '')
+        .replace(/\[move\s*:[^\]]*\]/gi, '')
+        .trim();
       if (!line) throw new Error('empty line');
+      // ECHO GUARD: a confused model sometimes parrots the PROMPT (snapshot /
+      // rules text) instead of speaking. If the reply looks like machinery —
+      // "Position:", "Health:", bracket blocks — discard it and fall back to
+      // the template rather than speak chopped prompt-soup to master.
+      if (/^(Position|Health|Stamina|Weapon|Enemies|Coins|Objective)\s*:/im.test(line) || /\[Live situation/i.test(line) || /\[(?:EVENT|TASK)[\s\S]*$/i.test(line)) {
+        throw new Error('echo');
+      }
       return say(line.slice(0, 220));
     } catch (e) { try { return say(fb); } catch (e2) { return false; } }
   }
