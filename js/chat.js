@@ -9,16 +9,70 @@ window.Chat = (() => {
 
   function setText(t) { $('dialog-text').textContent = t; }
 
-  // Reveal the reply briskly, two chars at a time — reads like she's talking.
+  function esc(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // Render a reply: *action* segments get highlighted; the Chat-tab actions
+  // toggle strips them entirely for pure dialogue.
+  function formatReply(full) {
+    const show = window.Settings.settings.chatActions !== 0;
+    let h = esc(full);
+    h = show
+      ? h.replace(/\*([^*\n]+)\*/g, '<span class="dlg-action">$1</span>')
+      : h.replace(/\*[^*\n]*\*?/g, '');
+    return h;
+  }
+
+  // Reveal the reply briskly — re-rendered as HTML each tick so the
+  // highlighting (or hiding) applies while she "talks".
+  let lastFull = '';
   function typewriter(full) {
     clearInterval(typeTimer);
+    lastFull = full;
     let i = 0;
-    setText('');
+    $('dialog-text').innerHTML = '';
     typeTimer = setInterval(() => {
       i += 2;
-      setText(full.slice(0, i));
+      $('dialog-text').innerHTML = formatReply(full.slice(0, i));
       if (i >= full.length) clearInterval(typeTimer);
     }, 24);
+  }
+
+  // Re-render the last reply (e.g. actions toggle flipped mid-display).
+  function rerender() {
+    if (lastFull) $('dialog-text').innerHTML = formatReply(lastFull);
+  }
+
+  // Read the *action* text to pick her face: smug Roast? pout? happy?
+  // Anything unrecognized (most lines) stays neutral by design.
+  const MOODS = [
+    ['smug',      ['smirk', 'smug', 'scoff', 'rolls her eyes', 'rolls eyes', 'eye-roll', 'raises an eyebrow', 'raised eyebrow', 'sarcast', 'mock', 'snort', 'condescend', 'side-eye', 'side eye']],
+    ['surprised', ['gasp', 'widens', 'surpris', 'shock', 'startl', 'jaw drop', 'jumps']],
+    ['pouty',     ['pout', 'huff', 'sulk', 'annoy', 'frown', 'glare', 'stamp', 'crosses her arms']],
+    ['happy',     ['laugh', 'giggle', 'grin', 'beam', 'chuckle', 'clap', 'bounce', 'happy', 'excited']],
+    ['sleepy',    ['yawn', 'drows', 'tired', 'sleepy', 'stretch', 'droop']],
+    ['soft_smile',['smile', 'warm', 'gently', 'gentle', 'soft', 'nod', 'kind']],
+  ];
+  function moodFromReply(text) {
+    const acts = [];
+    const re = /\*([^*\n]+)\*/g;
+    let m;
+    while ((m = re.exec(text)) !== null) acts.push(m[1].toLowerCase());
+    if (!acts.length) return 'neutral';
+    const joined = acts.join(' | ');
+    for (const [mood, keys] of MOODS) {
+      for (const k of keys) { if (joined.includes(k)) return mood; }
+    }
+    return 'neutral';
+  }
+
+  function setMood(mood) {
+    try {
+      const L = window.Live2D;
+      if (L && L.ready && typeof L.setMood === 'function') L.setMood(mood);
+    } catch (e) { /* face is cosmetic — never break chat */ }
   }
 
   async function send(userText) {
@@ -50,6 +104,7 @@ window.Chat = (() => {
       if (!reply) reply = '…?';
       history.push({ role: 'assistant', content: reply });
       if (history.length > 20) history = history.slice(-20);
+      setMood(moodFromReply(reply)); // her face follows the *action* emotion
       typewriter(reply);
     } catch (e) {
       // Usual suspects: no model loaded in LM Studio, or the browser blocked
@@ -70,5 +125,5 @@ window.Chat = (() => {
     });
   }
 
-  return { init, send };
+  return { init, send, rerender };
 })();

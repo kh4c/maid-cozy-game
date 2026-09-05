@@ -187,9 +187,9 @@ window.Live2D = (() => {
     // right before the vertex bake) — see idleHook above for why
     model.internalModel.on('beforeModelUpdate', idleHook);
 
-    // kick the cycle: first expression immediately
-    model.expression(EXPR_ORDER[0]);
-    curName = EXPR_ORDER[0];
+    // chatMode: face starts neutral; chat emotion drives it from here
+    curName = 'neutral';
+    onNeutral = true;
     nextAt = performance.now() + HOLD_MS;
 
     // framing + expression cycling ride the shared ticker (plain scene-graph
@@ -204,7 +204,7 @@ window.Live2D = (() => {
   }
 
   function tickExpressions(now) {
-    if (pinnedExpr > 0) return;            // manual pin: no cycling
+    if (pinnedExpr > 0 || chatMode) return; // pin wins; chatMode = mood follows chat, no timer cycle
     if (now < nextAt) return;
     if (!onNeutral) {
       // rest the face to neutral between poses — resetExpression() replays
@@ -222,6 +222,23 @@ window.Live2D = (() => {
     }
   }
 
+  // CHAT MOOD: expressions follow the chat emotion instead of the timer.
+  // chat.js calls setMood() with the mood read from *action* text; anything
+  // unrecognized (most lines) lands on neutral. A manual P-panel pin wins
+  // over chat until released.
+  let chatMode = true;
+  function setMood(name) {
+    if (!model || pinnedExpr > 0) return;
+    onNeutral = (name === 'neutral');
+    curName = (name === 'neutral') ? 'neutral' : name;
+    try {
+      if (name === 'neutral') exprMgr.resetExpression();
+      else model.expression(name);
+    } catch (e) { /* keep current face */ }
+    const i = EXPR_ORDER.indexOf(name);
+    if (i >= 0) namedIdx = i;
+  }
+
   function setPinned(n) {
     const prev = pinnedExpr;
     pinnedExpr = n | 0;
@@ -232,9 +249,9 @@ window.Live2D = (() => {
       model.expression(curName);
       nextAt = performance.now() + HOLD_MS;
     } else if (prev > 0) {
-      // released the pin: hold the pinned pose briefly, then rest to
-      // neutral and resume the cycle after it (tickExpressions handles it)
-      nextAt = performance.now() + HOLD_MS;
+      // released the pin: back to neutral (chatMode) or resume cycle
+      if (chatMode) setMood('neutral');
+      else nextAt = performance.now() + HOLD_MS;
     }
   }
 
@@ -302,6 +319,7 @@ window.Live2D = (() => {
     get model() { return model; },
     get exprName() { return currentExpression(); },
     setExpr(n) { setPinned(n); },
+    setMood, // chat emotion -> face (neutral default)
     apply: applyFraming,
     // read a param value by name (index-resolved, bypasses the string-ID phantom table)
     param(name) {

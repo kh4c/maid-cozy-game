@@ -87,6 +87,10 @@ canvas { display: block; }
   pointer-events: none; user-select: none;
 }
 
+#dialog-box .dlg-action {
+  color: #ffd9a0; font-style: italic; /* *action* subtext highlight */
+}
+
 /* ---- Chat input under the dialog box ---------------------------------------- */
 #chat-row {
   position: absolute; left: 50%; bottom: 1.5%; transform: translateX(-50%);

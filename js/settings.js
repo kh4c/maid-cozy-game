@@ -151,6 +151,7 @@ window.Settings = (() => {
     addText('chatUrl', 'server', false, tabChat);
     addSlider('chatTokens', 50, 2000, 50, tabChat); // max tokens per reply
     addSlider('chatTemp', 0, 2, 0.05, tabChat);     // temperature
+    addSlider('chatActions', 0, 1, 1, tabChat);     // 0 = hide *actions*, 1 = show highlighted
     addText('chatSystem', 'persona', true, tabChat);
 
     const btnRow = document.createElement('div');
