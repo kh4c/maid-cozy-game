@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>DIAG</title>
+<style>
+  html, body { margin: 0; background: #222; overflow: hidden; }
+  #label { position: fixed; top: 10px; left: 10px; z-index: 5; font: 20px monospace; color: #0f0; background: rgba(0,0,0,.7); padding: 6px 10px; }
+</style>
+<script src="vendor/pixi.min.js"></script>
+<script src="vendor/live2dcubismcore.min.js"></script>
+<script src="vendor/cubism5.min.js"></script>
+</head>
+<body>
+<div id="label">booting...</div>
+<script>
+(async () => {
+  const app = new PIXI.Application();
+  await app.init({ width: 1280, height: 720, backgroundColor: '#333344', preferWebGLVersion: 2 });
+  document.body.appendChild(app.canvas);
+  PIXI.live2d.Live2DModel.registerTicker(PIXI.Ticker);
+  const model = await PIXI.live2d.Live2DModel.from('assets/live2d/Maid/Maid.model3.json', { autoUpdate: true });
+  model.anchor.set(0.5, 0.5);
+  model.position.set(640, 360);
+  // fit: naturalH ~ model.height at scale 1
+  const s = 700 / model.height;
+  model.scale.set(s);
+  app.stage.addChild(model);
+  const core = model.internalModel.coreModel;
+
+  // Each step: [label, [ [paramId, value], ... ]]. 4s each, looping.
+  const steps = [
+    ['NONE (baseline)', []],
+    ['ParamMouthOpenY = 1', [['ParamMouthOpenY', 1]]],
+    ['MouthJawOpen = 1', [['MouthJawOpen', 1]]],
+    ['MouthFunnel = 1', [['MouthFunnel', 1]]],
+    ['MouthPucker = 1', [['MouthPucker', 1]]],
+    ['MouthPressLipOpen = 1', [['MouthPressLipOpen', 1]]],
+    ['MouthShrug = 1', [['MouthShrug', 1]]],
+    ['ParamMouthForm = -1', [['ParamMouthForm', -1]]],
+    ['ParamMouthForm = +1', [['ParamMouthForm', 1]]],
+    ['ParamAngleX = 30 (head turn)', [['ParamAngleX', 30]]],
+    ['Param7 = 30 (alt head x)', [['Param7', 30]]],
+    ['ParamAngleZ = 20 (head tilt)', [['ParamAngleZ', 20]]],
+    ['ParamBreath = 1', [['ParamBreath', 1]]],
+    ['ParamEyeLSmile = 1 (smile eyes)', [['ParamEyeLSmile', 1], ['ParamEyeRSmile', 1]]],
+    ['ParamEyeLOpen = 0 (shut)', [['ParamEyeLOpen', 0], ['ParamEyeROpen', 0]]],
+    ['ParamCheek = 1 (blush)', [['ParamCheek', 1]]],
+    ['CheekPuff = 1 (puff)', [['CheekPuff', 1]]],
+    ['ParamBrowLY = -1 (brows up?)', [['ParamBrowLY', -1], ['ParamBrowRY', -1]]],
+  ];
+  const labelEl = document.getElementById('label');
+  let i = 0, nextAt = 0;
+  model.internalModel.on('beforeModelUpdate', () => {
+    const now = performance.now();
+    if (now >= nextAt) {
+      // reset all touched params to 0 first
+      for (const st of steps) for (const [id] of st[1]) core.setParameterValueById(id, 0);
+      i = (i + 1) % steps.length;
+      const [label, sets] = steps[i];
+      for (const [id, v] of sets) core.setParameterValueById(id, v);
+      labelEl.textContent = (i) + ': ' + label;
+      nextAt = now + 4000;
+    }
+  });
+  labelEl.textContent = 'ready';
+})().catch(e => { document.getElementById('label').textContent = 'ERR ' + e.message; });
+</script>
+</body>
+</html>

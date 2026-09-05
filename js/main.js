@@ -76,6 +76,7 @@
   // ---- Dev panel --------------------------------------------------------------------
   window.Settings.buildPanel((key) => {
     if (key === 'scale' || key.endsWith('Fps')) character.applySettings();
+    if (key === 'l2dExpr' && live2d && live2d.ready) live2d.setExpr(window.Settings.settings.l2dExpr);
   });
   character.applySettings();
 

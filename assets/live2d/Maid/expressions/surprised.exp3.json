@@ -1,0 +1,17 @@
+{
+	"Type": "Live2D Expression",
+	"Parameters": [
+		{"Id": "ParamEyeLOpen", "Value": 1.2},
+		{"Id": "ParamEyeROpen", "Value": 1.2},
+		{"Id": "ParamEyeLSmile", "Value": 0},
+		{"Id": "ParamEyeRSmile", "Value": 0},
+		{"Id": "ParamBrowLY", "Value": -1},
+		{"Id": "ParamBrowRY", "Value": -1},
+		{"Id": "ParamBrowLForm", "Value": -1},
+		{"Id": "ParamBrowRForm", "Value": -1},
+		{"Id": "ParamMouthForm", "Value": -1},
+		{"Id": "ParamMouthOpenY", "Value": 1},
+		{"Id": "MouthJawOpen", "Value": 1},
+		{"Id": "CheekPuff", "Value": 0.6}
+	]
+}
