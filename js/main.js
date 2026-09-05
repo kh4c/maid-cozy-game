@@ -40,12 +40,12 @@
     const c = document.createElement('canvas');
     c.width = 640; c.height = 360;
     const g = c.getContext('2d');
-    // SPOTLIGHT: small clear center, everything else effectively black
-    const grad = g.createRadialGradient(320, 180, 40, 320, 180, 380);
+    // SPOTLIGHT: bright center (fully clear), hard black falloff to edges
+    const grad = g.createRadialGradient(320, 180, 60, 320, 180, 360);
     grad.addColorStop(0, 'rgba(1,2,8,0)');
-    grad.addColorStop(0.25, 'rgba(1,2,8,0.55)');
-    grad.addColorStop(0.5, 'rgba(1,2,8,0.88)');
-    grad.addColorStop(0.75, 'rgba(1,2,8,0.985)');
+    grad.addColorStop(0.3, 'rgba(1,2,8,0.25)');
+    grad.addColorStop(0.55, 'rgba(1,2,8,0.8)');
+    grad.addColorStop(0.8, 'rgba(1,2,8,0.99)');
     grad.addColorStop(1, 'rgba(0,0,4,1)');
     g.fillStyle = grad;
     g.fillRect(0, 0, 640, 360);
@@ -60,7 +60,7 @@
     const on = nightOn();
     applyNightBg(on);
     nightOverlay.clear();
-    if (on) nightOverlay.rect(0, 0, app.screen.width, app.screen.height).fill({ color: 0x03040a, alpha: 0.78 });
+    if (on) nightOverlay.rect(0, 0, app.screen.width, app.screen.height).fill({ color: 0x03040a, alpha: 0.35 }); // light blue tint only — vignette owns the darkness
     if (on && !vignette) {
       vignette = new Sprite(makeVignetteTexture());
       app.stage.addChild(vignette); // above the flat wash
