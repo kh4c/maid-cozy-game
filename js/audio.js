@@ -123,16 +123,31 @@ window.Sound = (() => {
   }
 
   // Future SFX: Sound.playSfx('combat', 'hit') — loads assets/sfx/combat_hit.ogg,
-  // plays it once through the named bus. Kept here so the API exists from day one.
-  async function playSfx(busName, file) {
+  // plays it once through the named bus. Buffers are cached (hits come fast),
+  // opts.rate bends pitch (randomize per hit), opts.volume scales loudness.
+  const sfxCache = {}; // url -> AudioBuffer
+  async function playSfx(busName, file, opts) {
     if (!ctx || !buses[busName]) return;
+    const o = opts || {};
     const url = `assets/sfx/${file}`;
     try {
-      const res = await fetch(url);
-      const buf = await ctx.decodeAudioData(await res.arrayBuffer());
+      let buf = sfxCache[url];
+      if (!buf) {
+        const res = await fetch(url);
+        buf = await ctx.decodeAudioData(await res.arrayBuffer());
+        sfxCache[url] = buf;
+      }
       const src = ctx.createBufferSource();
       src.buffer = buf;
-      src.connect(buses[busName]);
+      src.playbackRate.value = o.rate || 1;
+      let out = buses[busName];
+      if (o.volume !== undefined) {
+        const g = ctx.createGain();
+        g.gain.value = Math.max(0, Math.min(1.5, o.volume));
+        g.connect(out);
+        out = g;
+      }
+      src.connect(out);
       src.start(0);
     } catch (e) { console.warn(`SFX failed: ${url}`, e); }
   }

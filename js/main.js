@@ -164,6 +164,10 @@
     // INFINITE world: no bounds clamping — background chunks stream in around the camera
     character.update(a, !!(window.Health && window.Health.dead));
     if (dust) dust.update(dtSec, view.x, view.y, (a.x !== 0 || a.y !== 0), a.x, a.y);
+    if (window.Health) { // damage kicks the camera before it settles
+      const sh = window.Health.shakeAmount();
+      if (sh) camera.shake(sh);
+    }
     camera.update(view.x, view.y, dtSec);
 
     if (background) {
