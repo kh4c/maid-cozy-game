@@ -65,6 +65,7 @@ window.Health = (() => {
     hp = 0;
     pendingShake = 1; // full camera rattle on the killing blow
     sfx('die.ogg', 0.85 + Math.random() * 0.15);
+    try { window.Brain && window.Brain.resetMemory && window.Brain.resetMemory('fainted'); } catch (e) {}
     render();
     setTalkUI(false); // dialog + chat gone while she's out
     const veil = document.getElementById('faint-veil');
@@ -85,6 +86,7 @@ window.Health = (() => {
   function damage(n) {
     if (dead) return hp;
     hp = Math.max(0, hp - (Math.abs(Math.round(Number(n))) || 1));
+    try { window.Brain && window.Brain.note && window.Brain.note('hurt'); } catch (e) {}
     flash();
     pendingShake = Math.max(pendingShake, 0.45); // a proper jolt, not a quake
     sfx(HURT_FILES[(Math.random() * HURT_FILES.length) | 0], 0.9 + Math.random() * 0.25);

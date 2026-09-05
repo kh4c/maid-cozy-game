@@ -247,6 +247,7 @@ window.Gun = (() => {
             dead = true;
             for (const p of res.deaths) burst(p.x, p.y - 14, 12, true); // kill pop
             burst(b.spr.x, b.spr.y, 6, false);                          // hit sparks
+            try { window.Brain && window.Brain.note && window.Brain.note('kill', res.kills); } catch (e) {}
             try { window.Sound.playSfx('combat', 'hit_' + ((Math.random() * 4) | 0) + '.ogg',
               { rate: 0.95 + Math.random() * 0.25, volume: 0.9 }); } catch (e) {}
             if (res.kills > 0) {
