@@ -25,10 +25,10 @@ window.Enemies = (() => {
 
   // ---- rarity randomizer -------------------------------------------------------
   // Every critter rolls size + rarity at spawn. Rarity shows as a colored
-  // outline ring (common = none) and sets coin value + toughness. Tunables:
+  // outline hugging the sprite (common = faint gray) and sets coin value + toughness. Tunables:
   // weights sum to 100; price = coins dropped on kill.
   const RARITY = [
-    { key: 'common',    w: 60, color: null,       price: 2,  size: [0.85, 1.00], hp: 3 },
+    { key: 'common',    w: 60, color: 0x8b93a3,   price: 2,  size: [0.85, 1.00], hp: 3 },
     { key: 'uncommon',  w: 25, color: 0x51d651,   price: 5,  size: [1.00, 1.12], hp: 4 },
     { key: 'rare',      w: 10, color: 0x4aa8ff,   price: 12, size: [1.12, 1.25], hp: 5 },
     { key: 'epic',      w: 4,  color: 0xc26bff,   price: 25, size: [1.25, 1.40], hp: 7 },
@@ -68,18 +68,18 @@ window.Enemies = (() => {
       anim.animationSpeed = 1 / 6;
       anim.play();
       view.addChild(sh, anim);
-      // rarity roll: size + outline ring + value + toughness
+      // rarity roll: size + sprite outline + value + toughness. The outline
+      // hugs the 24x24 sprite (anchor bottom-center: x -12..12, y -24..0),
+      // so it reads as an outline, not a stray circle.
       const rar = rollRarity();
       const sizeMult = rar.size[0] + Math.random() * (rar.size[1] - rar.size[0]);
       const baseScale = SCALE * sizeMult;
       view.scale.set(baseScale);
-      if (rar.color !== null && rar.color !== undefined) {
-        try {
-          const ring = new Graphics();
-          ring.ellipse(0, -30, 21, 25).stroke({ color: rar.color, width: 2.5, alpha: 0.9 });
-          view.addChild(ring);
-        } catch (e) { /* a ringless rare still pays */ }
-      }
+      try {
+        const ring = new Graphics();
+        ring.ellipse(0, -12, 14, 14).stroke({ color: rar.color, width: 1, alpha: rar.key === 'common' ? 0.45 : 0.9 });
+        view.addChild(ring);
+      } catch (e) { /* an outlineless rare still pays */ }
       const ox = (Math.random() - 0.5) * PACK_R * 2;
       const oy = (Math.random() - 0.5) * PACK_R * 2;
       view.position.set(anchor.x + ox, anchor.y + oy);
@@ -323,7 +323,7 @@ window.Enemies = (() => {
   // price list: the single source of truth for critter worth — the snapshot
   // quotes this verbatim so BOTH minds (chat + brain) actually know prices.
   function priceListText() {
-    const ring = { common: 'no ring', uncommon: 'green ring', rare: 'blue ring', epic: 'purple ring', legendary: 'gold ring' };
+    const ring = { common: 'faint gray outline', uncommon: 'green outline', rare: 'blue outline', epic: 'purple outline', legendary: 'gold outline' };
     return 'Critter prices (coins per kill): ' +
       RARITY.map((t) => `${t.key} ${t.price} (${ring[t.key] || ''})`).join(' · ') +
       '. Bigger body = rarer + tougher (3-10hp).';
