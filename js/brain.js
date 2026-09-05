@@ -29,7 +29,7 @@ window.Brain = (() => {
     memo = { text: 'No tactical intent yet — treat as casual watch.', from: '', at: -1e9 }; // new life: old wishes expire
     attackOrder = false; // new life: gun down
     try { stopFollow(); } catch (e) {}
-    try { known = []; recallTarget = null; objective = null; currentTask = null; taskState = {}; } catch (e) {} // new life: old grudges expire
+    try { known = []; recallTarget = null; objective = null; currentTask = null; taskState = {}; huntMin = 0; followTarget = null; followExempt = false; } catch (e) {} // new life: old grudges expire
     try { memory.events.push(`(new life — ${reason})`); } catch (e) {}
   }
   // note('kill', n) / note('hurt') / note('flee') — called by gun/health/main
@@ -92,6 +92,15 @@ window.Brain = (() => {
       // minutes ago must not mow down new packs. Otherwise: hold fire, watch.
       const d = en.nearest.dist, hot = !!en.nearest.hostile;
       const fresh = performance.now() - lastAskAt < 45000 || !!objective; // a standing quota never goes stale
+      // hunt filter: a standing "worth at least N" bar. Calm small-fry under the
+      // bar are beneath our bullets — hold fire even on a standing quota. Only a
+      // FRESH explicit kill order (<45s) spends ammo on them deliberately.
+      // Hostiles are always exempt: self-defense outranks thrift.
+      if (!hot && huntMin > 0 && (en.nearest.price | 0) > 0 && (en.nearest.price | 0) < huntMin &&
+          !(attackOrder && performance.now() - lastAskAt < 45000)) {
+        try { window.Gun && window.Gun.aiCease && window.Gun.aiCease(); } catch (e) {}
+        return;
+      }
       if (hot) {
         if (d > 650) return; // hostile but far — think about it, don't spray
       } else if (d > 500 || !fresh) {
@@ -135,9 +144,10 @@ window.Brain = (() => {
     pushEvent(`master's wish noted: ${memo.text.slice(0, 60)}`);
     const t = memo.text.toLowerCase();
     const wasOnPack = following || searchDone; // capture BEFORE stop clears it
-    // "actually kill those / go back / those ones" — master changed their
-    // mind about a dismissed pack: march back to the remembered spot.
-    if (RECALL_RE.test(t)) recallLast();
+    // "actually kill those / go back" — march back. But a message that is
+    // PRIMARILY a dismissal ("that group is too small, find another") must
+    // not hijack itself into a recall of the same pack — dismiss wins those.
+    if (RECALL_RE.test(t) && !(DISMISS_RE.test(t) && wasOnPack)) recallLast();
     // Standing orders ("keep killing until 200 coins") override the defaults —
     // parsed BEFORE stop, so an explicit stop still wins over everything.
     parseObjective(t);
@@ -147,7 +157,7 @@ window.Brain = (() => {
     // "not big enough, find another" while she's on a pack: dismiss THIS
     // group (ignored ~3 min) and walk AWAY to look elsewhere — she must
     // never re-find the same group. Falls through to normal handling below.
-    if (/(another|other group|not big|too small|different|bigger|elsewhere|not (good|worth)|skip (this|these|them)|leave (them|it|these)|not interested|don't want|do not want)/.test(t) && wasOnPack) dismissCurrent(tagFor(t));
+    if (DISMISS_RE.test(t) && wasOnPack) dismissCurrent(tagFor(t));
     // movement wishes start the stroll even with no direction known
     if (/(find|look for|search|go|wander|explore|patrol|somewhere|anywhere)/.test(t) && !/(stop|don.t|cease)/.test(t)) beginStroll();
     if (/(stop|come here|stay|halt|stand down)/.test(t)) stopStroll();
@@ -351,8 +361,9 @@ window.Brain = (() => {
         `KNOWN GROUPS: packs you walked away from are REMEMBERED with your opinion ("too small" / "not interested" / "saved for later" — listed in the snapshot). They stay ignored while dismissed, but if master says "actually kill those / go back / those ones", march straight back to the remembered spot and re-engage. If you arrive and the pack is gone, say so plainly. If a recall finds no live critters near the remembered spot, that pack is DEAD — say so, clear the memory, stand down, and never march to a ghost. ` +
         `COINS: kills drop coins and they are yours when you walk over them (magnet ~110px, scoop ~46px). Loose coins near you are listed in the snapshot — your feet already drift toward them when it's safe, but you may also order it. Your purse total is in the snapshot too — quote it whenever master asks about money or loot. ` +
         `STANDING OBJECTIVE (a quota, when set below): ${objectiveText()} ` +
-        `TASKS (you drive the body, not scripts): for ONGOING behavior emit ONE tag [task:verb:arg] — verbs: circle[:cw|ccw] (walk in circles in place), patrol[:radius] (loop waypoints around here), goto:x,y (walk to world coords, done <80px), quota:N (earn N coins, standing job), hunt (standing hunt), follow-pack (shadow nearest pack), clear (drop the task). Latest task replaces the old; stop clears. Threats suspend circle/patrol/goto automatically — never micromanage that. ` +
+        `TASKS (you drive the body, not scripts): for ONGOING behavior emit ONE tag [task:verb:arg] — verbs: circle[:cw|ccw] (walk in circles in place), patrol[:radius] (loop waypoints around here), goto:x,y (walk to world coords, done <80px), quota:N[:min M] (earn N coins; with min M only packs holding a critter worth M+ count — cheaper packs get pinned and skipped), hunt[:min N] (standing hunt; with min N, only packs holding a critter worth N+ coins — cheaper packs get pinned and skipped), follow-pack (shadow nearest pack), clear (drop the task). Latest task replaces the old; stop clears. Threats suspend circle/patrol/goto automatically — never micromanage that. ` +
         `CURRENT TASK: ${getTaskText()} ` +
+        `HUNT FILTER: ${huntMin > 0 ? `only engage packs holding a critter worth ${huntMin}+ coins — cheaper packs are beneath our bullets: pin the spot, say so once, walk on.` : 'none.'} ` +
         `ANNOYANCE LEVEL: ${annoyance()} — ${annoyanceFlavor(annoyance())}\n` +
         `${memoText()}\n` +
         `SESSION MEMORY (this life only):\n${memoryText()}\n` +
@@ -515,6 +526,10 @@ window.Brain = (() => {
   let followLostAcc = 0;    // seconds since the pack left her circle
   let followAcc = 0;        // approach-order throttle
   let pendingSay = null;    // found-line waiting for a free chat box
+  let huntMin = 0; // hunt filter: only packs holding a critter worth >= this (0 = none)
+  let followTarget = null; // last seen pos of the followed pack (recallable)
+  let followExempt = false; // recalled pack: master's word outranks the filter until she leaves it
+  let skipSayAt = -1e9; // throttle for the "beneath our bullets" line
   let pendingSayAcc = 0, pendingSayTries = 0;
   const FOLLOW_DIST = 280;  // shadow at this range (keep-distance owns <170)
   const OBSERVE_DIST = 340; // observing a calm pack: stand off, watch, wait for orders
@@ -590,6 +605,7 @@ window.Brain = (() => {
           const view = { total: p.enemies.total, hostile: p.enemies.hostile, nearest: avail, list: p.enemies.list };
           foundIt(view, false);
           recallTarget = null;
+          followExempt = true; // marched back on master's word — the filter waits for THIS pack
           known = known.filter((k) => Math.hypot(k.x - avail.x, k.y - avail.y) > 300); // hunted now, not skipped
           return;
         }
@@ -614,6 +630,13 @@ window.Brain = (() => {
       // Only rejects in view → keep strolling elsewhere, never re-find them.
       if (!p.enemies.nearest || !avail) return;
       const view = { total: p.enemies.total, hostile: p.enemies.hostile, nearest: avail, list: p.enemies.list };
+      // hunt filter: a standing "worth at least N" bar. A pack whose BEST critter
+      // is under the bar is beneath our bullets — pin the spot (recallable!) and walk on.
+      if (huntMin > 0 && searchingNow()) {
+        const best = bestPrize(view);
+        const bestC = best ? (best.price | 0) : 0;
+        if (!best || bestC < huntMin) { rememberSkip(avail, bestC); return; }
+      }
       if (!searchingNow()) {
         // opportunistic: a RARE+ wandering into view gets announced + observed
         // even with no search order — she talks first, never shoots first.
@@ -632,12 +655,14 @@ window.Brain = (() => {
   }
   function foundIt(en, opportunistic) {
     searchDone = true;
+    followExempt = false; // a fresh find earns no exemption — only a recall march does (set after)
     stopStroll();
     following = true;
     followLostAcc = 0;
     const n = en.nearest;
     const dir = dirWord(n.dx, n.dy);
     const best = bestPrize(en) || n;
+    followTarget = { x: (best && best.x !== undefined ? best.x : n.x), y: (best && best.y !== undefined ? best.y : n.y) };
     const bDir = best && best.dx !== undefined ? dirWord(best.dx, best.dy) : dir;
     const freshOrder = performance.now() - lastAskAt < 45000;
     const feeling = huntingFeeling(best);
@@ -668,6 +693,21 @@ window.Brain = (() => {
         const grace = (total === 0 || objective || currentTask) ? 2 : 6;
         followLostAcc += dt;
         if (followLostAcc > grace) {
+          // she shadowed them and lost them while they still LIVE — REMEMBER
+          // the pack, so "actually, kill those" can march back to it.
+          try {
+            const last = followTarget;
+            const live = last && window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(last.x, last.y, 900) : null;
+            if (live) {
+              pruneKnown();
+              const tag = huntMin > 0 ? 'too cheap' : 'left behind';
+              if (!known.some((k) => Math.hypot(k.x - live.x, k.y - live.y) < 260 && (performance.now() - k.at) < 180000)) {
+                known.push({ x: live.x, y: live.y, at: performance.now(), tag });
+                if (known.length > 8) known.shift();
+                note(`lost a living pack — remembered as [${tag}]`);
+              }
+            }
+          } catch (e2) {}
           stopFollow();
           showThought('*…lost them in the grass. Sorry, master.*', ['👋 lost'], 0);
           try { pushEvent('lost the pack she was following'); } catch (e) {}
@@ -675,7 +715,26 @@ window.Brain = (() => {
         return;
       }
       followLostAcc = 0;
+      followTarget = { x: n.x, y: n.y };
       if (window.Stamina && !window.Stamina.canMove()) return; // tired — hold position
+      // hunt filter: this pack is beneath our bullets and no fresh kill order
+      // says otherwise → abandon it (remembered, recallable), walk on.
+      // A recalled pack is exempt: master sent her back HERE on purpose.
+      if (huntMin > 0 && !followExempt && !(attackOrder && performance.now() - lastAskAt < 45000)) {
+        let packBest = 0;
+        try { for (const e of (p.enemies.list || [])) packBest = Math.max(packBest, e.price | 0); } catch (e2) {}
+        if (packBest > 0 && packBest < huntMin) {
+          try {
+            pruneKnown();
+            known.push({ x: n.x, y: n.y, at: performance.now(), tag: 'too cheap' });
+            if (known.length > 8) known.shift();
+          } catch (e2) {}
+          note(`abandoned a [too cheap] pack (best ${packBest}c < ${huntMin}c bar) — spot remembered`);
+          stopFollow();
+          searchDone = false;
+          return;
+        }
+      }
       // OBSERVE: calm pack + no fresh kill order → stand off at 340px and
       // wait for instruction. Hunting (order/hostiles) closes to 280px.
       const observing = !attackOrder && !(p.enemies && p.enemies.hostile > 0);
@@ -689,7 +748,7 @@ window.Brain = (() => {
       }
     } catch (e) {}
   }
-  function stopFollow() { following = false; followLostAcc = 0; }
+  function stopFollow() { following = false; followLostAcc = 0; followTarget = null; followExempt = false; }
 
   // ---- coin greed: hoover up loose coins whenever it's safe -------------------
   // Kills drop coins; they're hers when she walks over them (magnet ~110px).
@@ -858,18 +917,28 @@ window.Brain = (() => {
     // movement verbs take the feet: kill any older walk order
     if (verb === 'circle' || verb === 'patrol' || verb === 'goto') { try { stopStroll(); } catch (e) {} }
     if (verb === 'quota') {
+      const qm = String(currentTask.arg || '').match(/min(?:imum|price)?\s*(\d+)/);
+      const qmin = qm ? Math.max(1, parseInt(qm[1], 10)) : 0;
       const n = parseInt(currentTask.arg, 10);
       if (n > 0) setObjective({ kind: 'coins', target: n });
-      else { note('quota task without a number — ignored'); currentTask = null; return false; }
+      else { note('quota task without a number — ignored'); currentTask = null; huntMin = 0; return false; }
+      huntMin = qmin;
+      if (huntMin > 0) note(`quota filter: only packs with a critter worth ≥${huntMin}c count toward the ${n}c quota`);
     }
-    else if (verb === 'hunt') { if (!objective) setObjective({ kind: 'hunt' }); }
+    else if (verb === 'hunt') {
+      const mm = String(currentTask.arg || '').match(/min(?:imum|price)?\s*(\d+)/);
+      huntMin = mm ? Math.max(1, parseInt(mm[1], 10)) : 0;
+      if (huntMin > 0) note(`hunt filter: only packs with a critter worth ≥${huntMin}c (cheaper ones get noted and skipped)`);
+      if (!objective) setObjective({ kind: 'hunt' });
+    }
     else if (verb === 'follow-pack') { if (!following && !strollDir) { try { beginStroll(); } catch (e) {} } }
+    else { if (huntMin > 0) note('hunt filter lifted — it rode with the hunt task'); huntMin = 0; }
     note(`task: ${verb}${currentTask.arg ? ' ' + currentTask.arg : ''} (${currentTask.src})`);
     return true;
   }
   function clearTask(why) {
     if (!currentTask) return;
-    currentTask = null; taskState = {};
+    currentTask = null; taskState = {}; huntMin = 0;
     note(`task cleared (${why || 'done'})`);
   }
   function getTaskText() {
@@ -960,7 +1029,8 @@ window.Brain = (() => {
   // age out on their own; death clears everything (new life, fresh eyes).
   let known = []; // [{ x, y, at, tag }]
   let recallTarget = null; // { x, y, until, tag } — marching back to a remembered pack
-  const RECALL_RE = /(actually|after all|second thought|chang(?:e|ed|ing)(?: my| the)? mind|go back|those (ones|guys|runts|critters)|them anyway|fine[,.]?\s*(kill|get))/;
+  const RECALL_RE = /(actually|after all|second thought|chang(?:e|ed|ing)(?: my| the)? mind|go back|those (ones|guys|runts|critters|group|pack)|that (group|pack)|them anyway|fine[,.]?\s*(kill|get))/;
+  const DISMISS_RE = /(another|other group|not big|too small|different|bigger|elsewhere|not (good|worth)|skip (this|these|them)|leave (them|it|these)|not interested|don't want|do not want)/;
   function pruneKnown() {
     const now = performance.now();
     known = known.filter((k) => now - k.at < 5 * 60 * 1000);
@@ -978,6 +1048,7 @@ window.Brain = (() => {
   function tagFor(text) {
     // her opinion of the pack, from master's words — stored with the memory
     const t = String(text || '').toLowerCase();
+    if (/(not worth|too cheap|cheap|waste.*bullet|save.*ammo|low.*ammo)/.test(t)) return 'too cheap';
     if (/(not big|too small|small|runt|tiny|weak)/.test(t)) return 'too small';
     if (/(not interested|don't care|do not care|boring|meh|pass|don't want|do not want)/.test(t)) return 'not interested';
     if (/(later|save|keep them|spare)/.test(t)) return 'saved for later';
@@ -1069,6 +1140,24 @@ window.Brain = (() => {
     let said = false;
     try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
     if (!said) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
+  }
+  // A skipped (too-cheap) pack gets a [too cheap] memory pin so "actually,
+  // kill those" can march straight back to it. Chatter throttled to 60s.
+  function rememberSkip(e, bestC) {
+    try {
+      pruneKnown();
+      if (!known.some((k) => Math.hypot(k.x - e.x, k.y - e.y) < 260 && (performance.now() - k.at) < 180000)) {
+        known.push({ x: e.x, y: e.y, at: performance.now(), tag: 'too cheap' });
+        if (known.length > 8) known.shift();
+      }
+      note(`skipped a [too cheap] pack (best ${bestC}c < ${huntMin}c bar) — spot remembered`);
+      if (searchingNow() && performance.now() - skipSayAt > 60000) {
+        skipSayAt = performance.now();
+        let skipLine = `*sniffs, unimpressed* Pocket change — best ${bestC} coins, beneath our bullets. Moving on.`;
+        try { if (objective && objective.kind === 'coins') skipLine += ` (The ${objective.target}-coin quota still stands, master — nothing out here clears our bar.)`; } catch (e) {}
+        sayUnlessBusy(skipLine);
+      }
+    } catch (err) {}
   }
   function getKnownText(px, py) {
     // one-liner for the snapshot so BOTH minds know the remembered packs

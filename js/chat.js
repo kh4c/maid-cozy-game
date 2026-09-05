@@ -143,8 +143,8 @@ window.Chat = (() => {
   // model names it from a closed verb vocabulary — no regexes on our side.
   function buildTaskInstr() {
     return (
-      '[TASK: if the master wants an ONGOING behavior — not chat, not a one-shot move — also output one final line task=[[verb args]] using ONLY this vocabulary: circle [cw|ccw], patrol [radius px], goto [x y world coords], quota [N coins], hunt, follow-pack, clear. ' +
-      'E.g. "just keep circling" → task=[[circle cw]]. "earn 200 coins" → task=[[quota 200]]. "come here" is one-shot ([move] tag), not a task. Pure chat: omit the line. This line is stripped from the dialog.]'
+      '[TASK: if the master wants an ONGOING behavior — not chat, not a one-shot move — also output one final line task=[[verb args]] using ONLY this vocabulary: circle [cw|ccw], patrol [radius px], goto [x y world coords], quota [N coins] [min M coins], hunt [min N coins], follow-pack, clear. ' +
+      'E.g. "just keep circling" → task=[[circle cw]]. "earn 200 coins" → task=[[quota 200]]. "earn 300, only prey worth 5+, we are low on ammo" → task=[[quota 300 min 5]]. "only prey worth 5+ coins" → task=[[hunt min 5]]. "come here" is one-shot ([move] tag), not a task. Pure chat: omit the line. This line is stripped from the dialog.]'
     );
   }
   function extractTask(reply) {

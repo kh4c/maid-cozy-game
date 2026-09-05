@@ -4,6 +4,16 @@ Chronological record of what was built and why. Newest entries at the top.
 
 ---
 
+## 2026-09-06 — Overall goal vs current task: hunt filter (min worth), no more tactic-vs-filter fights
+
+**Problem:** "we are low on ammo — only prey worth 5+, toward our 300 quota" needed TWO ideas at once (overall goal + current filter), and the new filter fought the old tactics three ways: (1) a standing quota keeps `combatDrive` fresh forever → the gun kept shredding the 2-coin commons the filter just rejected; (2) a recalled-then-exempt pack got instantly re-abandoned on arrival; (3) the filter outlived the hunt task that set it.
+**Fix (`js/brain.js`, `js/chat.js`):**
+- `task=[[quota 300 min 5]]` — the quota verb carries its own bar; `hunt min 5` coexists with a standing quota objective (goal vs task split: objective survives task replacement).
+- Trigger obeys the bar: calm small-fry under it get `aiCease` even on a standing quota; only a FRESH explicit kill order (<45s) or hostility spends ammo.
+- Recalled packs are `followExempt` — master's "go back THERE" outranks the bar until she leaves; arrival no longer re-abandons.
+- Filter lifecycle: rides with the hunt task (movement verbs lift it, stop/death clears); quota-starved skips say the quota still stands.
+- Harness `hfilter.js`: 23/23 (skip+pin, rare passes, recall re-engages, dismiss beats recall, mid-follow abandon, exemption holds, trigger holds/spends, quota-min parse).
+
 ## 2026-09-05 (evening) — Maid autonomy: survival brain, stamina, coins, found-and-follow
 
 **Goal:** stop driving the maid yourself — she senses the field (position, weapon, nearby enemies, stamina), fights or flees on her own judgment via the local LLM, and obeys chat orders in-character. You oversee; she acts.
