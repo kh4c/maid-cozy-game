@@ -66,6 +66,7 @@
   // ---- Camera ---------------------------------------------------------------------
   const camera = window.Camera.create(world, app);
   camera.snap(character.view.x, character.view.y);
+  window.__maidCamera = camera; // the brain's "look at that" focus (lookAt)
 
   // ---- Sunrays + dust motes (screen-space overlay, above character) -----------------
   let effects;

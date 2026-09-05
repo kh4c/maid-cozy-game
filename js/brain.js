@@ -28,6 +28,7 @@ window.Brain = (() => {
     memory = newMemory();
     memo = { text: 'No tactical intent yet — treat as casual watch.', from: '', at: -1e9 }; // new life: old wishes expire
     attackOrder = false; // new life: gun down
+    try { stopFollow(); } catch (e) {}
     try { memory.events.push(`(new life — ${reason})`); } catch (e) {}
   }
   // note('kill', n) / note('hurt') / note('flee') — called by gun/health/main
@@ -84,6 +85,15 @@ window.Brain = (() => {
       if (!p) return;
       const en = p.enemies;
       if (!en || !en.nearest || en.nearest.dist > 500) return; // nothing in her circle
+      // FIRE DISCIPLINE: hostiles are always fair game (self-defense). Calm
+      // critters only while the order is FRESH (45s) — a stale "kill them"
+      // from minutes ago must not mow down every new pack that wanders in.
+      // Otherwise she waits: hold fire, keep watching.
+      const fresh = performance.now() - lastAskAt < 45000;
+      if (!en.nearest.hostile && !fresh) {
+        try { window.Gun && window.Gun.aiCease && window.Gun.aiCease(); } catch (e) {}
+        return;
+      }
       window.Gun.aiAimNearest(1); // keep tracking
       const st = window.Gun.status();
       if (!st.firing) window.Gun.aiFire(1); // top the trigger up as it expires
@@ -121,7 +131,7 @@ window.Brain = (() => {
     pushEvent(`master's wish noted: ${memo.text.slice(0, 60)}`);
     const t = memo.text.toLowerCase();
     // stop FIRST — negation beats attack words ("don't kill those" = stand down)
-    if (wantsStop(t)) setAttackOrder(false, 'master said stop');
+    if (wantsStop(t)) { setAttackOrder(false, 'master said stop'); stopFollow(); stopStroll(); }
     else if (wantsAttack(t)) setAttackOrder(true, 'master ordered');
     // movement wishes start the stroll even with no direction known
     if (/(find|look for|search|go|wander|explore|patrol|somewhere|anywhere)/.test(t) && !/(stop|don.t|cease)/.test(t)) beginStroll();
@@ -310,9 +320,11 @@ window.Brain = (() => {
         `KEEP DISTANCE (built-in reflex, not a decision): stay 170-500px from anything ALIVE. Closer than 170px → [move:dx,dy:secs] away along (dx,dy) negated. Farther than 500px → walk closer with [move]. Do this every think, even mid-fight. ` +
         `SELF-PRESERVATION FIRST: anything hostile within ~250px is a bite threat — if HP is 4 or less, or stamina is low/exhausted, FLEE FIRST: [run:dx,dy:secs] away (negate the threat's dx,dy) and only turn to fight ([aim:nearest]+[fire]) once at 400px+. ` +
         `Running needs stamina — check it before committing to a long chase or flight. ` +
-        `Calm critters → HOLD: [cease]. Watch them, do NOT fire on your own initiative. ` +
-        `BUT if MASTER'S CURRENT WISH is a hunt/attack wish, it STAYS in force: every critter that wanders into range is a valid target — do not stop just because the first pack is gone. ` +
-        `Master's standing order overrides HOLD: comply while grumbling. ` +
+        `Calm critters → HOLD / WAIT: [cease]. Watch them, do NOT fire on your own initiative — waiting is the job. ` +
+        `If you recently FOUND a pack for master (see Recent events), stay near it and keep waiting — shadowing, not shooting. ` +
+        `A hunt/attack wish STAYS in force only while FRESH (master asked under a minute ago — check when the wish was set): every critter in range is a valid target. ` +
+        `A STALE wish (several minutes old) against calm critters → HOLD and wait for a fresh order, do not fire. ` +
+        `A FRESH standing order overrides HOLD: comply while grumbling. ` +
         `ANNOYANCE LEVEL: ${annoyance()} — ${annoyanceFlavor(annoyance())}\n` +
         `${memoText()}\n` +
         `SESSION MEMORY (this life only):\n${memoryText()}\n` +
@@ -392,6 +404,8 @@ window.Brain = (() => {
     keepDistance(dt);  // built-in reflex — runs every frame, no LLM needed
     combatDrive(dt);   // hunting latch — keeps the trigger held between thinks
     stroll(dt);        // "go somewhere" — she never just stands when ordered to move
+    searchWatch(dt);   // searching paid off? look, announce, follow
+    followTick(dt);    // shadow the found pack at ~280px
     if (!auto() && !attackOrder) return;
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     let hot = false, near = false;
@@ -422,6 +436,7 @@ window.Brain = (() => {
   let strollAcc = 0;
   function beginStroll() {
     if (strollDir) return;
+    searchDone = false; // a new search — allowed to find again
     pickStrollDir();
     try { pushEvent('wandering off to carry out master\'s wish'); } catch (e) {}
   }
@@ -456,6 +471,99 @@ window.Brain = (() => {
     } catch (e) {}
   }
   let strollGiveUp = 0;
+
+  // ---- found-and-follow: searching must END in something -----------------------
+  // While she's strolling on a "find ..." wish (or the memo is a live search
+  // wish) and a critter enters her 500px circle: stop wandering, LOOK at it
+  // (camera pans over for ~2.5s), tell master what she found, then shadow it
+  // at ~170-280px instead of fleeing. Announced once per search; follow ends
+  // when the pack is lost (>500px for 6s), master says stop, or she faints.
+  let searchDone = false;   // this search already paid off
+  let following = false;    // shadowing a found pack right now
+  let followLostAcc = 0;    // seconds since the pack left her circle
+  let followAcc = 0;        // approach-order throttle
+  let pendingSay = null;    // found-line waiting for a free chat box
+  let pendingSayAcc = 0, pendingSayTries = 0;
+  const FOLLOW_DIST = 280;  // shadow at this range (keep-distance owns <170)
+  function dirWord(dx, dy) {
+    const ax = Math.abs(dx), ay = Math.abs(dy);
+    if (ax < 1e-6 && ay < 1e-6) return 'right here';
+    const h = dx > 0 ? 'east' : 'west', v = dy > 0 ? 'south' : 'north';
+    if (ax > ay * 2.2) return h;
+    if (ay > ax * 2.2) return v;
+    return `${v}-${h}`;
+  }
+  function distWord(d) {
+    if (d < 200) return 'right here';
+    if (d < 350) return 'just ahead';
+    return 'over there';
+  }
+  function searchingNow() {
+    if (strollDir) return true;
+    try { return /find|search/i.test(memo.text); } catch (e) { return false; }
+  }
+  function searchWatch(dt) {
+    // retry a blocked found-line (chat was busy) a few times
+    if (pendingSay) {
+      pendingSayAcc += dt;
+      if (pendingSayAcc > 2 && pendingSayTries < 3) {
+        pendingSayAcc = 0; pendingSayTries += 1;
+        try { if (window.Chat && window.Chat.say && window.Chat.say(pendingSay)) pendingSay = null; } catch (e) {}
+      } else if (pendingSayTries >= 3) pendingSay = null;
+    }
+    if (searchDone || following) return;
+    if (!searchingNow()) return;
+    if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
+    try {
+      const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
+      if (!p || !p.enemies || !p.enemies.nearest || p.enemies.nearest.dist > 500) return;
+      foundIt(p.enemies);
+    } catch (e) {}
+  }
+  function foundIt(en) {
+    searchDone = true;
+    stopStroll();
+    following = true;
+    followLostAcc = 0;
+    const n = en.nearest;
+    const dir = dirWord(n.dx, n.dy);
+    const line = `*gasps, pointing ${dir}* Found ${en.total === 1 ? 'it' : `them — ${en.total} critters`} ${distWord(n.dist)}, to the ${dir}! ` +
+      (en.hostile > 0 ? `Careful, master — ${en.hostile === en.total ? 'they all look' : 'some look'} angry! ` : `They look calm… `) +
+      `I'll stay on their tail.`;
+    try { pushEvent(`found ${en.total} critter(s) ${dir} — following`); } catch (e) {}
+    try { if (window.__maidCamera && window.__maidCamera.lookAt) window.__maidCamera.lookAt(n.x, n.y, 2.5); } catch (e) {}
+    let said = false;
+    try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
+    if (!said) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
+    showThought(`*found ${en.total === 1 ? 'it' : `all ${en.total} of them`} — ${dir}, ${distWord(n.dist)}*`, ['🔎 found', '👀 following'], 0);
+  }
+  function followTick(dt) {
+    if (!following) return;
+    if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) { stopFollow(); return; }
+    try {
+      const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
+      const n = p && p.enemies && p.enemies.nearest;
+      if (!n || n.dist > 500) {
+        followLostAcc += dt; // pack left her circle — grace period, then give up
+        if (followLostAcc > 6) {
+          stopFollow();
+          showThought('*…lost them in the grass. Sorry, master.*', ['👋 lost'], 0);
+          try { pushEvent('lost the pack she was following'); } catch (e) {}
+        }
+        return;
+      }
+      followLostAcc = 0;
+      if (window.Stamina && !window.Stamina.canMove()) return; // tired — hold position
+      if (n.dist > FOLLOW_DIST) {
+        followAcc += dt; // approach in short legs so keep-distance can interject
+        if (followAcc < 0.4) return;
+        followAcc = 0;
+        const len = Math.hypot(n.dx, n.dy) || 1;
+        window.Input.order(n.dx / len, n.dy / len, 0.7);
+      }
+    } catch (e) {}
+  }
+  function stopFollow() { following = false; followLostAcc = 0; }
 
   // ---- built-in keep-distance reflex -----------------------------------------
   // Not an LLM decision: if anything alive is closer than SAFE_MIN she backs

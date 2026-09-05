@@ -231,6 +231,23 @@ window.Chat = (() => {
     }
   }
 
+  // ---- Maid speaks on her own (no LLM call) ------------------------------------
+  // say(text): the survival brain (or anyone) puts words in her mouth —
+  // "found them!" moments, warnings, breathless asides. Same typewriter +
+  // face + history treatment as a chat reply. Returns false while a chat
+  // exchange is in flight (caller should retry later, not clobber it).
+  function say(text) {
+    const t = String(text || '').trim().slice(0, 220);
+    if (!t || busy) return false;
+    if (window.Health && window.Health.dead) return false;
+    clearInterval(typeTimer);
+    history.push({ role: 'assistant', content: t });
+    if (history.length > 20) history = history.slice(-20);
+    setMood(moodFromReply(t));
+    typewriter(t);
+    return true;
+  }
+
   function init() {
     const input = $('chat-input');
     if (!input) return;
@@ -241,5 +258,5 @@ window.Chat = (() => {
     });
   }
 
-  return { init, send, rerender };
+  return { init, send, say, rerender };
 })();

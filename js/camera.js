@@ -13,17 +13,34 @@ window.Camera = (() => {
     const DEAD = { w: 0.18, h: 0.22 };
     let swayX = 0, swayY = 0, swayW = 0, t = 0; // idle drift inside the box
 
+    // lookAt(x, y, secs): "look at that for a moment" — the follow point blends
+    // toward a world spot (e.g. a found critter pack) while the focus holds,
+    // then eases back to her. Purely cosmetic; never moves the character.
+    let focus = null; // { x, y, until }
+    function lookAt(x, y, secs) {
+      const s = Math.max(0.5, Math.min(8, Number(secs) || 2.5));
+      focus = { x: Number(x) || 0, y: Number(y) || 0, until: performance.now() + s * 1000 };
+    }
+
     function update(targetX, targetY, dtSec) {
       t += dtSec;
+      // focus blend: while a lookAt holds, meet it 55% of the way
+      let fX = targetX, fY = targetY;
+      try {
+        if (focus && performance.now() < focus.until) {
+          fX = targetX + (focus.x - targetX) * 0.55;
+          fY = targetY + (focus.y - targetY) * 0.55;
+        } else focus = null;
+      } catch (e) { focus = null; }
+      const aimY = fY - cfg.camAimHeightPx * window.Settings.settings.scale;
       // strip last frame's sway so it never feeds back into the clamp math
       worldContainer.x -= swayX;
       worldContainer.y -= swayY;
       // pivot is at the FEET — aim at the sprite's visual middle instead
-      const aimY = targetY - cfg.camAimHeightPx * window.Settings.settings.scale;
       const cx = app.screen.width / 2, cy = app.screen.height / 2;
       const dw = app.screen.width * DEAD.w / 2, dh = app.screen.height * DEAD.h / 2;
       // her on-screen position right now (camera offset + world pos)
-      const sx = worldContainer.x + targetX, sy = worldContainer.y + aimY;
+      const sx = worldContainer.x + fX, sy = worldContainer.y + aimY;
       // clamp her into the box — camera moves only by the overshoot
       const qx = Math.max(cx - dw, Math.min(cx + dw, sx));
       const qy = Math.max(cy - dh, Math.min(cy + dh, sy));
@@ -52,7 +69,7 @@ window.Camera = (() => {
       worldContainer.y = app.screen.height / 2 - aimY;
     }
 
-    return { update, snap, shake };
+    return { update, snap, shake, lookAt };
   }
   return { create };
 })();
