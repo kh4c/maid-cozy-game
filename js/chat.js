@@ -113,7 +113,14 @@ window.Chat = (() => {
   // ignores it — empty legs stay locked till they recover.
   function parseUrge(text) {
     const t = String(text || '').toLowerCase();
-    if (!/\b(keep\s+(going|working|running|moving|at\s+it)|don'?t\s+(rest|stop)|get\s+up|back\s+to\s+work|on\s+your\s+feet|no\s+resting)\b/.test(t)) return false;
+    // full phrases match anywhere ("keep going", "back to work", "don't rest")
+    const phrase = /\b(keep\s+(going|working|running|moving|at\s+it)|don'?t\s+(rest|stop)|get\s+up|back\s+to\s+work|on\s+your\s+feet|no\s+resting)\b/.test(t);
+    // bare verbs only when the message is SHORT ("move!", "work!", "go!") —
+    // a long sentence mentioning work shouldn't yank her off rest. Leave-words
+    // ("leave them", "go away") never count as urge.
+    const leaving = /\b(leave|away)\b/.test(t);
+    const bare = !leaving && t.length < 24 && /\b(work|move|walk|run|go|keep)\b/.test(t);
+    if (!phrase && !bare) return false;
     try { window.Input && window.Input.pushFor && window.Input.pushFor(6); } catch (e) {}
     try { window.Stamina && window.Stamina.kick && window.Stamina.kick(); } catch (e) {}
     return true;

@@ -581,11 +581,12 @@ window.Brain = (() => {
     try { window.Input.order(strollDir.x, strollDir.y, 2.0); } catch (e) {} // move at once
   }
   function stopStroll() { strollDir = null; }
-  // playerOnFeet: master's words own her feet right now (click pin, pushed
-  // chat order, "keep going!" window) — auto legs yield: no new orders AND
-  // no cancelling hers. Flee reflex never yields (survival first).
+  // playerOnFeet: master gave her a DIRECTION (click pin / pushed chat order)
+  // — auto legs yield: no new orders AND no cancelling hers. A bare "keep
+  // going!" window is NOT feet: the brain keeps issuing auto legs under
+  // pushed cover (stamina bills them as pushed). Flee reflex never yields.
   function playerOnFeet() {
-    try { return !!(window.Input && window.Input.pushedActive && window.Input.pushedActive()); } catch (e) { return false; }
+    try { return !!(window.Input && window.Input.directedPush && window.Input.directedPush()); } catch (e) { return false; }
   }
   function stroll(dt) {
     if (!strollDir) return;

@@ -43,10 +43,21 @@ window.Input = (() => {
   // Auto-run (brain legs) never counts.
   let pushWindowUntil = 0;
   function pushFor(secs) { pushWindowUntil = performance.now() + Math.max(1, Math.min(12, Number(secs) || 6)) * 1000; }
+  function pushWindowLive() { return performance.now() <= pushWindowUntil; }
   function pushedActive() {
     if (!!clickMove && performance.now() <= clickMove.until) return true;
     if (chatMove && performance.now() <= chatMove.until && chatMove.push) return true;
-    if (performance.now() <= pushWindowUntil) return true;
+    if (pushWindowLive()) return true;
+    return false;
+  }
+  // directedPush: the player gave her a DIRECTION (click pin / pushed chat
+  // order) — auto legs must not overwrite or cancel it. A bare "keep going!"
+  // window does NOT count: during it the brain SHOULD keep issuing auto legs
+  // (that's the whole point — she works on your word), stamina just bills
+  // those legs as pushed so they can run past quarter.
+  function directedPush() {
+    if (!!clickMove && performance.now() <= clickMove.until) return true;
+    if (chatMove && performance.now() <= chatMove.until && chatMove.push) return true;
     return false;
   }
 
@@ -95,5 +106,5 @@ window.Input = (() => {
     return q;
   }
 
-  return { axis, order, stopWalk, clickTo, manualActive, pushedActive, pushFor, bindCanvas, attackPressed };
+  return { axis, order, stopWalk, clickTo, manualActive, pushedActive, directedPush, pushFor, bindCanvas, attackPressed };
 })();
