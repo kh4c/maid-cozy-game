@@ -41,7 +41,8 @@ window.Enemies = (() => {
   }
 
   let frames = null;
-  const groups = []; // { anchor:{x,y}, dir, retarget, members:[{view,anim,x,y,vx,vy,ox,oy,hostile,lastHit}] }
+  let gid = 0; // pack identity — the brain dismisses whole groups ("find another")
+  const groups = []; // { id, anchor:{x,y}, dir, retarget, members:[...] }
   let spawnAcc = 0;
 
   async function init(world) {
@@ -57,7 +58,7 @@ window.Enemies = (() => {
     const a = Math.random() * Math.PI * 2;
     const r = SPAWN_R_MIN + Math.random() * (SPAWN_R_MAX - SPAWN_R_MIN);
     const anchor = { x: px + Math.cos(a) * r, y: py + Math.sin(a) * r };
-    const g = { anchor, dir: Math.random() * Math.PI * 2, retarget: 0, members: [], alerted: false };
+    const g = { id: ++gid, anchor, dir: Math.random() * Math.PI * 2, retarget: 0, members: [], alerted: false };
     for (let i = 0; i < n; i++) {
       const view = new Container();
       const sh = new Graphics();
@@ -298,7 +299,7 @@ window.Enemies = (() => {
       for (const m of g.members) {
         const dx = m.x - px, dy = m.y - py;
         const d = Math.hypot(dx, dy);
-        if (d < bd && d <= cap) { bd = d; best = { x: m.x, y: m.y, dist: d, dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2 }; }
+        if (d < bd && d <= cap) { bd = d; best = { x: m.x, y: m.y, dist: d, dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2, pack: g.id }; }
       }
     }
     return best;
@@ -312,12 +313,21 @@ window.Enemies = (() => {
       for (const m of g.members) {
         const dx = m.x - px, dy = m.y - py;
         const d = Math.hypot(dx, dy);
-        if (d <= cap) list.push({ x: m.x, y: m.y, dist: d, dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2 });
+        if (d <= cap) list.push({ x: m.x, y: m.y, dist: d, dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2, pack: g.id });
       }
     }
     list.sort((a, b) => a.dist - b.dist);
     return { total: list.length, hostile: list.filter((e) => e.hostile).length, nearest: list[0] || null, list };
   }
 
-  return { init, update, hostileCount, playerAttack, damageAt, nearest, sense, debugGroups: () => groups };
+  // price list: the single source of truth for critter worth — the snapshot
+  // quotes this verbatim so BOTH minds (chat + brain) actually know prices.
+  function priceListText() {
+    const ring = { common: 'no ring', uncommon: 'green ring', rare: 'blue ring', epic: 'purple ring', legendary: 'gold ring' };
+    return 'Critter prices (coins per kill): ' +
+      RARITY.map((t) => `${t.key} ${t.price} (${ring[t.key] || ''})`).join(' · ') +
+      '. Bigger body = rarer + tougher (3-10hp).';
+  }
+
+  return { init, update, hostileCount, playerAttack, damageAt, nearest, sense, priceListText, debugGroups: () => groups };
 })();

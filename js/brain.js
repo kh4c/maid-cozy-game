@@ -29,6 +29,7 @@ window.Brain = (() => {
     memo = { text: 'No tactical intent yet — treat as casual watch.', from: '', at: -1e9 }; // new life: old wishes expire
     attackOrder = false; // new life: gun down
     try { stopFollow(); } catch (e) {}
+    try { dismissed = []; } catch (e) {} // new life: old grudges expire
     try { memory.events.push(`(new life — ${reason})`); } catch (e) {}
   }
   // note('kill', n) / note('hurt') / note('flee') — called by gun/health/main
@@ -133,6 +134,10 @@ window.Brain = (() => {
     // stop FIRST — negation beats attack words ("don't kill those" = stand down)
     if (wantsStop(t)) { setAttackOrder(false, 'master said stop'); stopFollow(); stopStroll(); }
     else if (wantsAttack(t)) setAttackOrder(true, 'master ordered');
+    // "not big enough, find another" while she's on a pack: dismiss THIS
+    // group (ignored ~3 min) and walk AWAY to look elsewhere — she must
+    // never re-find the same group. Falls through to normal handling below.
+    if (/(another|other group|not big|too small|different|bigger|elsewhere|not (good|worth)|skip (this|these|them)|leave (them|it|these))/.test(t) && (following || searchDone)) dismissCurrent();
     // movement wishes start the stroll even with no direction known
     if (/(find|look for|search|go|wander|explore|patrol|somewhere|anywhere)/.test(t) && !/(stop|don.t|cease)/.test(t)) beginStroll();
     if (/(stop|come here|stay|halt|stand down)/.test(t)) stopStroll();
@@ -325,6 +330,7 @@ window.Brain = (() => {
         `A hunt/attack wish STAYS in force only while FRESH (master asked under a minute ago — check when the wish was set): every critter in range is a valid target. ` +
         `A STALE wish (several minutes old) against calm critters → HOLD and wait for a fresh order, do not fire. ` +
         `Critters have RARITY with coin value (common / uncommon-green / RARE-blue / EPIC-purple / LEGENDARY-gold — the snapshot lists it). Rare+ finds are announced to master already; still WAIT for orders before firing calm ones, however shiny. ` +
+        `Price list, KNOW it cold (coins per kill): common 2 · uncommon 5 · rare 12 · epic 25 · legendary 60. Quote values when you report or discuss a find. ` +
         `A FRESH standing order overrides HOLD: comply while grumbling. ` +
         `ANNOYANCE LEVEL: ${annoyance()} — ${annoyanceFlavor(annoyance())}\n` +
         `${memoText()}\n` +
@@ -542,21 +548,31 @@ window.Brain = (() => {
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
-      if (!p || !p.enemies || !p.enemies.nearest || p.enemies.nearest.dist > 500) return;
+      if (!p || !p.enemies || !p.enemies.nearest) return;
+      // dismissed groups don't count — first non-dismissed critter in 500px.
+      // Only runts in view → keep strolling elsewhere, never re-find them.
+      let avail = null;
+      try {
+        for (const e of (p.enemies.list || [])) {
+          if (e.dist <= 500 && !isDismissed(e.x, e.y)) { avail = e; break; }
+        }
+      } catch (e) {}
+      if (!avail) return;
+      const view = { total: p.enemies.total, hostile: p.enemies.hostile, nearest: avail, list: p.enemies.list };
       if (!searchingNow()) {
         // opportunistic: a RARE+ wandering into view gets announced + observed
         // even with no search order — she talks first, never shoots first.
         // (NOT gated by searchDone — old searches must not mute new shinies.)
-        const best = bestPrize(p.enemies);
+        const best = bestPrize(view);
         const rank = RANK[(best && best.rarity) || 'common'] || 0;
         if (rank >= 2 && performance.now() - lastRareNote > 90000) {
           lastRareNote = performance.now();
-          foundIt(p.enemies, true);
+          foundIt(view, true);
         }
         return;
       }
       if (searchDone) return;
-      foundIt(p.enemies, false);
+      foundIt(view, false);
     } catch (e) {}
   }
   function foundIt(en, opportunistic) {
@@ -575,9 +591,9 @@ window.Brain = (() => {
       : (attackOrder && freshOrder)
         ? `Engaging as ordered!`
         : `I'll hold here and watch — say the word, master.`;
-    const line = `*gasps, pointing ${bDir}* Found ${en.total === 1 ? 'it' : `them — ${en.total} critters`} ${distWord(n.dist)}, to the ${dir}! ` +
+    const line = `*gasps, pointing ${bDir}* Found ${en.total === 1 ? 'it' : `them — ${en.total} critters`} ${distWord(n.dist)}, to the ${bDir}! ` +
       `${feeling} ${stance}`;
-    try { pushEvent(`found ${en.total} critter(s) ${dir} — best ${best.rarity} (~${packValue(en)} coins)`); } catch (e) {}
+    try { pushEvent(`found ${en.total} critter(s) ${bDir} — best ${best.rarity} (~${packValue(en)} coins)`); } catch (e) {}
     try { if (window.__maidCamera && window.__maidCamera.lookAt) window.__maidCamera.lookAt(best.x || n.x, best.y || n.y, 2.5); } catch (e) {}
     let said = false;
     try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
@@ -590,7 +606,7 @@ window.Brain = (() => {
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       const n = p && p.enemies && p.enemies.nearest;
-      if (!n || n.dist > 500) {
+      if (!n || n.dist > 500 || isDismissed(n.x, n.y)) {
         followLostAcc += dt; // pack left her circle — grace period, then give up
         if (followLostAcc > 6) {
           stopFollow();
@@ -615,6 +631,37 @@ window.Brain = (() => {
     } catch (e) {}
   }
   function stopFollow() { following = false; followLostAcc = 0; }
+
+  // ---- dismissed groups: "not big enough, find another" -----------------------
+  // Dismissed spots are ignored by search/follow for ~3 min, so she can never
+  // re-find the pack she just rejected. Old entries age out on their own.
+  let dismissed = []; // [{ x, y, at }]
+  function isDismissed(x, y) {
+    const now = performance.now();
+    dismissed = dismissed.filter((d) => now - d.at < 180000);
+    return dismissed.some((d) => Math.hypot(d.x - x, d.y - y) < 260);
+  }
+  function dismissCurrent() {
+    try {
+      const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
+      const n = p && p.enemies && p.enemies.nearest;
+      if (n) dismissed.push({ x: n.x, y: n.y, at: performance.now() });
+      stopFollow();
+      searchDone = false; // re-arm: allowed to find a DIFFERENT group
+      // walk AWAY from the runts, then keep strolling elsewhere
+      if (p && n) {
+        let dx = p.px - n.x, dy = p.py - n.y;
+        const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
+        strollDir = { x: dx, y: dy }; strollAcc = 0;
+        try { window.Input.order(dx, dy, 2.5); } catch (e) {}
+      } else beginStroll();
+      const line = `*turns up her nose* These runts? As you wish — leaving them behind. I'll find bigger fish!`;
+      let said = false;
+      try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
+      if (!said) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
+      try { pushEvent('dismissed a too-small pack — looking elsewhere'); } catch (e) {}
+    } catch (e) {}
+  }
 
   // ---- built-in keep-distance reflex -----------------------------------------
   // Not an LLM decision: if anything alive is closer than SAFE_MIN she backs

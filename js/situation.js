@@ -78,11 +78,15 @@ window.Situation = (() => {
       lines.push(`Enemies: ${enemies.total} critter(s), ${enemies.hostile} hostile.`);
       const shown = (enemies.list || []).slice(0, 4);
       shown.forEach((e, i) => {
-        const appraise = e.rarity && e.rarity !== 'common' ? `, ${String(e.rarity).toUpperCase()} (~${e.price || '?'} coins)` : '';
-        lines.push(`  #${i + 1}: ${Math.round(e.dist)}px ${dirName(e.dx, e.dy)} (dx ${Math.round(e.dx)}, dy ${Math.round(e.dy)}) — ${e.hostile ? 'HOSTILE, will bite' : 'calm, milling around'}${e.hp !== undefined ? `, ${e.hp}hp` : ''}${appraise}.`);
+        const rare = e.rarity && e.rarity !== 'common' ? `, ${String(e.rarity).toUpperCase()}` : '';
+        lines.push(`  #${i + 1}: ${Math.round(e.dist)}px ${dirName(e.dx, e.dy)} (dx ${Math.round(e.dx)}, dy ${Math.round(e.dy)}) — ${e.hostile ? 'HOSTILE, will bite' : 'calm, milling around'}${e.hp !== undefined ? `, ${e.hp}hp` : ''}${rare} worth ~${e.price || 2} coins.`);
       });
       if (enemies.total > shown.length) lines.push(`  (+${enemies.total - shown.length} more further out)`);
     }
+    // price list so she actually KNOWS critter worth (chat + brain read this)
+    try {
+      if (window.Enemies && typeof window.Enemies.priceListText === 'function') lines.push(window.Enemies.priceListText());
+    } catch (e) { /* she appraises from memory then */ }
     return { px: p.x, py: p.y, hp, max, dead, weapon, enemies, text: lines.join('\n') };
   }
 
