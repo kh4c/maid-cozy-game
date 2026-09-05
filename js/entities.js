@@ -64,15 +64,16 @@ window.Entities = (() => {
   // Caller adds dust.layer to the world BEFORE the character so puffs render
   // under her feet. update() spawns while moving, each puff drifting up/back,
   // expanding and fading for ~half a second before recycling.
-  function createFootDust(world, texture) {
+  function createFootDust(world, textures) {
     const { Container: C, Sprite } = PIXI;
+    const texs = Array.isArray(textures) ? textures : [textures];
     const layer = new C();
     world.addChild(layer);
 
-    const POOL = 26;
+    const POOL = 40;
     const puffs = [];
     for (let i = 0; i < POOL; i++) {
-      const s = new Sprite(texture);
+      const s = new Sprite(texs[0]);
       s.anchor.set(0.5);
       s.visible = false;
       layer.addChild(s);
@@ -87,22 +88,23 @@ window.Entities = (() => {
         const len = Math.hypot(dx, dy) || 1;
         const nx = dx / len, ny = dy / len;
         spawnAcc += dtSec;
-        while (spawnAcc > 0.09) {
-          spawnAcc -= 0.09;
+        while (spawnAcc > 0.05) {
+          spawnAcc -= 0.05;
           const p = puffs[idx];
           idx = (idx + 1) % POOL;
-          p.max = p.life = 0.45 + Math.random() * 0.25;
+          p.max = p.life = 0.6 + Math.random() * 0.3;
+          p.s.texture = texs[(Math.random() * texs.length) | 0];
           p.s.visible = true;
           // spawn at the feet, kicked slightly opposite the travel direction
           p.s.position.set(
             x - nx * 10 + (Math.random() * 16 - 8),
             y - 4 + (Math.random() * 6 - 3)
           );
-          p.s.scale.set(0.25 + Math.random() * 0.2);
+          p.s.scale.set(0.35 + Math.random() * 0.25);
           p.grow = 0.9 + Math.random() * 0.5;
           p.vx = -nx * 24 + (Math.random() * 20 - 10);
           p.vy = -26 - Math.random() * 18;
-          p.s.alpha = 0.85;
+          p.s.alpha = 1;
         }
       } else {
         spawnAcc = 0;
@@ -117,7 +119,7 @@ window.Entities = (() => {
         p.vx *= (1 - 2 * dtSec);
         p.vy *= (1 - 2 * dtSec);
         p.s.scale.set(p.s.scale.x + p.grow * dtSec);
-        p.s.alpha = 0.85 * (1 - t);
+        p.s.alpha = 1 - t;
       }
     }
 

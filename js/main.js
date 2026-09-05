@@ -42,8 +42,11 @@
   // if the texture fails, the game runs fine without dust.
   let dust = null;
   try {
-    const dustTex = await PIXI.Assets.load('assets/dust.png');
-    dust = window.Entities.createFootDust(world, dustTex);
+    const dustTexs = await Promise.all([
+      PIXI.Assets.load('assets/dust.png'),
+      PIXI.Assets.load('assets/dust_puff.png'),
+    ]);
+    dust = window.Entities.createFootDust(world, dustTexs);
   } catch (err) {
     reportError('dust failed: ' + err.message);
   }
