@@ -641,6 +641,14 @@ window.Brain = (() => {
         const bestC = best ? (best.price | 0) : 0;
         if (!best || bestC < huntMin) { rememberSkip(avail, bestC); return; }
       }
+      // FEET OWNERSHIP: a movement task (circle/patrol/goto) owns her feet —
+      // a wander-in pack must NOT hijack it into a FOUND + shadow (approach
+      // orders would fight the performance every 0.5s, goto could never
+      // arrive). Reflexes (combatDrive/keep-distance) still guard her, the
+      // snapshot still lists every visible pack for the think-model, and the
+      // skip-memory above keeps pinning cheap packs. Order [task:clear] or a
+      // kill to engage instead.
+      if (movingTask()) return;
       if (!searchingNow()) {
         // opportunistic: a RARE+ wandering into view gets announced + observed
         // even with no search order — she talks first, never shoots first.
@@ -679,7 +687,10 @@ window.Brain = (() => {
     const line = `*gasps, pointing ${bDir}* Found ${en.total === 1 ? 'it' : `them — ${en.total} critters`} ${distWord(n.dist)}, to the ${bDir}! ` +
       `${feeling} ${stance}`;
     try { pushEvent(`found ${en.total} critter(s) ${bDir} — best ${best.rarity} (~${packValue(en)} coins)`); } catch (e) {}
-    try { if (window.__maidCamera && window.__maidCamera.lookAt) window.__maidCamera.lookAt(best.x || n.x, best.y || n.y, 2.5); } catch (e) {}
+    // NOTE: no camera pan here anymore. Rect-eyes mean the found pack is
+    // on-screen by construction — panning would shove OTHER visible packs out
+    // of the rect (phantom "lost") and yank the click-to-move surface.
+    // Direction words ("to the north-east") carry the where.
     let said = false;
     try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
     if (!said) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
@@ -941,8 +952,10 @@ window.Brain = (() => {
     if (!TASK_DEFS[verb]) { note(`unknown task verb "${verb}" — ignored`); return false; }
     currentTask = { verb, arg: String(arg || '').trim(), at: performance.now(), src: src || 'model' };
     taskState = {};
-    // movement verbs take the feet: kill any older walk order
-    if (verb === 'circle' || verb === 'patrol' || verb === 'goto') { try { stopStroll(); } catch (e) {} }
+    // movement verbs take the feet: kill any older walk order — including an
+    // active shadow. The task IS the latest command; the pack stays listed in
+    // the snapshot so the think-model can still order an engagement.
+    if (verb === 'circle' || verb === 'patrol' || verb === 'goto') { try { stopStroll(); } catch (e) {} try { stopFollow(); } catch (e) {} }
     if (verb === 'quota') {
       const qm = String(currentTask.arg || '').match(/min(?:imum|price)?\s*(\d+)/);
       const qmin = qm ? Math.max(1, parseInt(qm[1], 10)) : 0;
@@ -966,12 +979,19 @@ window.Brain = (() => {
   function clearTask(why) {
     if (!currentTask) return;
     currentTask = null; taskState = {}; huntMin = 0;
+    searchDone = false; // feet are free again — a visible pack may re-found
     note(`task cleared (${why || 'done'})`);
+  }
+  function movingTask() {
+    // feet-owning performance verbs — while one stands, searchWatch must not
+    // FOUND hijack it, and a recall march clears it (latest command wins feet)
+    return !!(currentTask && /^(circle|patrol|goto)$/.test(currentTask.verb));
   }
   function getTaskText() {
     if (!currentTask) return 'none — body is hers minute to minute.';
     const age = Math.max(0, Math.round((performance.now() - currentTask.at) / 1000));
-    return `${currentTask.verb}${currentTask.arg ? ' ' + currentTask.arg : ''} (set ${age}s ago by ${currentTask.src})`;
+    const busy = movingTask() ? ' — feet are busy performing; visible packs will NOT auto-found (reflexes still guard her), order or clear to engage' : '';
+    return `${currentTask.verb}${currentTask.arg ? ' ' + currentTask.arg : ''} (set ${age}s ago by ${currentTask.src})${busy}`;
   }
   function taskTick(dt) {
     if (!currentTask) return;
@@ -1163,6 +1183,7 @@ window.Brain = (() => {
     }
     recallTarget = { x: g.x, y: g.y, until: performance.now() + 90000, tag: g.tag };
     stopFollow(); stopStroll(); searchDone = false;
+    if (movingTask()) clearTask('recall march takes the feet'); // latest explicit command wins feet
     note(`recalling the [${g.tag}] group — marching back`);
     const line = `Those ${g.tag} ones? I remember where they den — turning back, master!`;
     let said = false;

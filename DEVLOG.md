@@ -4,6 +4,30 @@ Chronological record of what was built and why. Newest entries at the top.
 
 ---
 
+## 2026-09-06 — Found-system vs new-system: 3 real contradictions fixed (feet ownership)
+
+Audit of the founding found-and-follow layer against goals/tasks/filter/click-move:
+
+1. **FOUND camera pan REMOVED.** `foundIt` used to yank the camera to the pack
+for 2.5s. With rect-eyes the found pack is on-screen by construction, so the
+pan only shoved OTHER visible packs out of the rect (phantom "lost" verdicts)
+and yanked the click-to-move surface mid-click. Direction words ("to the
+north-east") carry the where now. `camera.lookAt` stays exported, unused.
+2. **Movement tasks own the feet.** A wander-in pack no longer FOUND-hijacks an
+active circle/patrol/goto (approach orders fought the performance every 0.5s;
+goto could never arrive). `searchWatch` returns early under a movement task —
+reflexes (trigger/keep-distance) still guard her, the snapshot still lists
+every pack for the think-model, skip-memory still pins cheap packs. Setting a
+movement task also drops a live shadow; clearing one re-arms the search.
+3. **Recall wins feet.** "Actually kill those" now clears an active movement
+task when the march arms (latest explicit command wins feet); quota/hunt
+objectives stand untouched.
+NOT contradictions (verified, left alone): quota trigger-freshness (`|| !!objective`,
+F-test pins filter > quota), click-pin vs follow orders (axis merge already
+prioritizes the pin), wiped-vs-lost verdict.
+Harness `hfound.js`: 14/14 (J1 pan-gone, J2 no-hijack, J3 reflex-fire, J4
+recall-clears-task, J5 task-preempts-shadow); all legacy suites still green.
+
 ## 2026-09-06 — Screen-rect eyes (no more circle lies) + click-to-move replaces WASD
 
 **Rect eyes:** the old 750px SEE circle lied both ways — it missed screen corners
