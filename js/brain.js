@@ -51,6 +51,9 @@ window.Brain = (() => {
       } else if (kind === 'rested') {
         pushEvent('caught her breath and is moving again');
         genLine('rested', {}, `*straightening up, breathing easy* Breath caught, master — back on my feet.`);
+      } else if (kind === 'resting') {
+        pushEvent('parked at a quarter tank to rest her legs');
+        genLine('resting', {}, `*easing off, hands on knees* Legs are getting heavy, master — resting a moment before I run them empty.`);
       }
     } catch (e) { /* memory is cosmetic */ }
   }
@@ -1119,7 +1122,7 @@ window.Brain = (() => {
   function fleeReflex(dt) {
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     try { if (!window.Gun || window.Gun.getAimMode() !== 'ai') return; } catch (e) { return; }
-    if (window.Stamina && !window.Stamina.canMove()) return; // nothing left to run on
+    if (window.Stamina && !window.Stamina.canMove(true)) return; // nothing left to run on (flee pushes — quarter rest never blocks escape)
     fleeAcc += dt;
     if (fleeAcc < 0.4) return;
     fleeAcc = 0;
@@ -1134,7 +1137,7 @@ window.Brain = (() => {
       try { const st = window.Stamina && window.Stamina.state ? window.Stamina.state() : null; tired = !!(st && st.pct < 0.3); } catch (e2) {}
       if (hp > 4 && !tired) return; // strong enough to stand — flinch + gun handle it
       const len = Math.hypot(n.dx, n.dy) || 1;
-      window.Input.order(-n.dx / len, -n.dy / len, 1.2);
+      window.Input.order(-n.dx / len, -n.dy / len, 1.2, true); // flee pushes past quarter — survival first
       try { note('flee reflex: weak + hostile close — running'); } catch (e2) {}
     } catch (e) { /* reflexes fail silently */ }
   }

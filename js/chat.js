@@ -103,7 +103,7 @@ window.Chat = (() => {
     else if (/\ba (little|bit)\b/.test(t)) secs = 1;
     else if (/(a lot|far|over there)\b/.test(t)) secs = 4;
     const len = Math.hypot(x, y) || 1;
-    try { window.Input.order(x / len, y / len, secs); } catch (e) { /* walk is cosmetic */ }
+    try { window.Input.order(x / len, y / len, secs, true); } catch (e) { /* walk is cosmetic */ }
     return { x: x / len, y: y / len, secs };
   }
 
@@ -245,7 +245,7 @@ window.Chat = (() => {
       // they never show in the dialog. *walks left* phrasing is a fallback.
       const tagMoves = [...reply.matchAll(/\[move\s*:\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)(?:\s*:\s*([\d.]+))?\]/gi)];
       for (const tm of tagMoves) {
-        try { window.Input.order(parseFloat(tm[1]), parseFloat(tm[2]), parseFloat(tm[3]) || 2); } catch (e) { /* walk is cosmetic */ }
+        try { window.Input.order(parseFloat(tm[1]), parseFloat(tm[2]), parseFloat(tm[3]) || 2, true); } catch (e) { /* walk is cosmetic */ }
       }
       reply = reply.replace(/\[move\s*:[^\]]*\]/gi, '').trim();
       parseWalk(reply);
@@ -327,6 +327,7 @@ window.Chat = (() => {
         chatter: `you have been working quietly for a while — report in to master NOW in your own voice: 1 short sentence, in-character, *action* allowed. Mention how the job feels (boring, tense, nice day for it). No new events happened — do not invent any.`,
         tired: `you just RAN OUT OF BREATH mid-work and your legs locked — you must stand still and rest. Tell master NOW in your own voice: 1 short sentence, in-character, *action* allowed. Breathless, annoyed at your own legs, tsundere about needing the break. No numbers.`,
         rested: `you just CAUGHT YOUR BREATH after being forced to rest and can move again. Tell master NOW in your own voice: 1 short sentence, in-character, *action* allowed. Relieved, a little embarrassed, ready to go. No numbers.`,
+        resting: `your legs got heavy so YOU chose to pause at low stamina before running dry — a smart breather, not a collapse. Tell master NOW in your own voice: 1 short sentence, in-character, *action* allowed. A little sheepish, framing it as pacing yourself. No numbers.`,
       };
       let sysText = (s.chatSystem || 'You are Cosette, a tsundere maid game companion.') +
         `\n\n[EVENT — ${EV[f.event] || EV.found} ` +

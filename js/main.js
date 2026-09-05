@@ -278,16 +278,22 @@
     let moved = false;
     if (window.Stamina) {
       try {
-        window.Stamina.update(dtSec, wantsMove && window.Stamina.canMove());
-        if (window.Stamina.exhausted && wantsMove) { a.x = 0; a.y = 0; } // too tired
+        // pushed = player-owned feet (click pin / player chat order): may drain
+        // past quarter to empty. Auto legs park at 1/4 and resume at ~half.
+        const pushed = !!(window.Input && window.Input.pushedActive && window.Input.pushedActive());
+        window.Stamina.update(dtSec, wantsMove, pushed);
+        if (wantsMove && !window.Stamina.canMove(pushed)) { a.x = 0; a.y = 0; } // parked or out
         if (window.Stamina.justExhausted) {
           try { window.Brain && window.Brain.note && window.Brain.note('tired'); } catch (e) {}
           try { window.Live2D && window.Live2D.setMood && window.Live2D.setMood('sleepy'); } catch (e) {}
         }
+        if (window.Stamina.justRested) {
+          try { window.Brain && window.Brain.note && window.Brain.note('resting'); } catch (e) {}
+        }
         if (window.Stamina.justRecovered) {
           try { window.Brain && window.Brain.note && window.Brain.note('rested'); } catch (e) {}
         }
-        moved = wantsMove && window.Stamina.canMove();
+        moved = wantsMove && window.Stamina.canMove(pushed);
       } catch (err) { moved = wantsMove; }
     } else {
       moved = wantsMove;

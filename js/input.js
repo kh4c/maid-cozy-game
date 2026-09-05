@@ -18,10 +18,13 @@ window.Input = (() => {
 
   // Chat/brain-ordered walking: order(x, y, secs) sets a timed direction
   // vector; axis() merges it and drops it on expiry. stopWalk() cancels.
-  let chatMove = null; // { x, y, until }
-  function order(x, y, secs) {
+  // push=true = the PLAYER told her (chat words / move tag) — these legs may
+  // drain the tank past quarter to empty. push=false (default) = her own
+  // auto-run (brain strolls/follows) — parks at 1/4 to rest instead.
+  let chatMove = null; // { x, y, until, push }
+  function order(x, y, secs, push) {
     const s = Math.max(0.3, Math.min(8, Number(secs) || 2));
-    chatMove = { x: Number(x) || 0, y: Number(y) || 0, until: performance.now() + s * 1000 };
+    chatMove = { x: Number(x) || 0, y: Number(y) || 0, until: performance.now() + s * 1000, push: !!push };
   }
   function stopWalk() { chatMove = null; }
 
@@ -35,6 +38,13 @@ window.Input = (() => {
     clickMove = { x: wx, y: wy, until: performance.now() + CLICK_SECS * 1000 };
   }
   function manualActive() { return !!clickMove && performance.now() <= clickMove.until; }
+  // pushedActive: player-owned feet RIGHT NOW — live click pin, or a live
+  // player-pushed chat order. Auto-run (brain legs) never counts.
+  function pushedActive() {
+    if (!!clickMove && performance.now() <= clickMove.until) return true;
+    if (chatMove && performance.now() <= chatMove.until && chatMove.push) return true;
+    return false;
+  }
 
   function bindCanvas(canvas) {
     if (!canvas || canvas._clickMoveBound) return;
@@ -81,5 +91,5 @@ window.Input = (() => {
     return q;
   }
 
-  return { axis, order, stopWalk, clickTo, manualActive, bindCanvas, attackPressed };
+  return { axis, order, stopWalk, clickTo, manualActive, pushedActive, bindCanvas, attackPressed };
 })();
