@@ -29,7 +29,7 @@ window.Brain = (() => {
     memo = { text: 'No tactical intent yet — treat as casual watch.', from: '', at: -1e9 }; // new life: old wishes expire
     attackOrder = false; // new life: gun down
     try { stopFollow(); } catch (e) {}
-    try { known = []; recallTarget = null; } catch (e) {} // new life: old grudges expire
+    try { known = []; recallTarget = null; objective = null; } catch (e) {} // new life: old grudges expire
     try { memory.events.push(`(new life — ${reason})`); } catch (e) {}
   }
   // note('kill', n) / note('hurt') / note('flee') — called by gun/health/main
@@ -91,7 +91,7 @@ window.Brain = (() => {
       // only to 500px AND on a FRESH order (45s). A stale "kill them" from
       // minutes ago must not mow down new packs. Otherwise: hold fire, watch.
       const d = en.nearest.dist, hot = !!en.nearest.hostile;
-      const fresh = performance.now() - lastAskAt < 45000;
+      const fresh = performance.now() - lastAskAt < 45000 || !!objective; // a standing quota never goes stale
       if (hot) {
         if (d > 650) return; // hostile but far — think about it, don't spray
       } else if (d > 500 || !fresh) {
@@ -138,8 +138,11 @@ window.Brain = (() => {
     // "actually kill those / go back / those ones" — master changed their
     // mind about a dismissed pack: march back to the remembered spot.
     if (RECALL_RE.test(t)) recallLast();
+    // Standing orders ("keep killing until 200 coins") override the defaults —
+    // parsed BEFORE stop, so an explicit stop still wins over everything.
+    parseObjective(t);
     // stop FIRST — negation beats attack words ("don't kill those" = stand down)
-    if (wantsStop(t)) { setAttackOrder(false, 'master said stop'); stopFollow(); stopStroll(); }
+    if (wantsStop(t)) { setAttackOrder(false, 'master said stop'); stopFollow(); stopStroll(); clearObjective(); }
     else if (wantsAttack(t) && (performance.now() > recallDeadUntil || !RECALL_RE.test(t))) { setAttackOrder(true, 'master ordered'); lastAskAt = performance.now(); } // memo wish counts as fresh intent — unless it recalls the dead
     // "not big enough, find another" while she's on a pack: dismiss THIS
     // group (ignored ~3 min) and walk AWAY to look elsewhere — she must
@@ -342,6 +345,7 @@ window.Brain = (() => {
         `A FRESH standing order overrides HOLD: comply while grumbling. ` +
         `KNOWN GROUPS: packs you walked away from are REMEMBERED with your opinion ("too small" / "not interested" / "saved for later" — listed in the snapshot). They stay ignored while dismissed, but if master says "actually kill those / go back / those ones", march straight back to the remembered spot and re-engage. If you arrive and the pack is gone, say so plainly. If a recall finds no live critters near the remembered spot, that pack is DEAD — say so, clear the memory, stand down, and never march to a ghost. ` +
         `COINS: kills drop coins and they are yours when you walk over them (magnet ~110px, scoop ~46px). Loose coins near you are listed in the snapshot — your feet already drift toward them when it's safe, but you may also order it. Your purse total is in the snapshot too — quote it whenever master asks about money or loot. ` +
+        `STANDING OBJECTIVE (a quota, when set below): ${objectiveText()} ` +
         `ANNOYANCE LEVEL: ${annoyance()} — ${annoyanceFlavor(annoyance())}\n` +
         `${memoText()}\n` +
         `SESSION MEMORY (this life only):\n${memoryText()}\n` +
@@ -424,6 +428,7 @@ window.Brain = (() => {
     searchWatch(dt);   // searching paid off? look, announce, follow
     followTick(dt);    // shadow the found pack at ~280px
     coinSeek(dt);      // loose coins — hoover them up whenever it's safe
+    objectiveTick(dt); // standing quota — never idle, never stale, finish it
     if (!auto() && !attackOrder) return;
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     let hot = false, near = false;
@@ -701,6 +706,95 @@ window.Brain = (() => {
     } catch (e) { /* butterfingers fail silently */ }
   }
 
+  // ---- standing objectives: quotas override the defaults ------------------------
+  // "keep finding and killing until we earn 200 coins" is not a mood, it is a
+  // JOB. While it stands: freshness never expires, the search re-arms after
+  // every wiped pack, and the purse is checked actively. Completes itself at
+  // target (stands down + reports); an explicit stop or death drops it.
+  // Hierarchy: latest explicit command > standing objective > defaults.
+  let objective = null; // { kind: 'coins', target } | { kind: 'hunt' }
+  function purseNow() {
+    try { return (window.Inventory && window.Inventory.state ? window.Inventory.state().coins : 0) | 0; } catch (e) { return 0; }
+  }
+  function sayUnlessBusy(line) {
+    // mid-exchange the LLM reply carries the news; otherwise speak / queue.
+    let chatBusy = false;
+    try { chatBusy = !!(window.Chat && window.Chat.isBusy && window.Chat.isBusy()); } catch (e) {}
+    if (chatBusy) return;
+    let said = false;
+    try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
+    if (!said) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
+  }
+  function setObjective(o) {
+    objective = o;
+    if (!objective) return;
+    setAttackOrder(true, 'standing objective');
+    lastAskAt = performance.now();
+    searchDone = false;
+    const line = objective.kind === 'coins'
+      ? `*cracks her knuckles* ${objective.target} coins? Quota accepted — I'll keep hunting till the purse says ${objective.target}, master!`
+      : `*cracks her knuckles* A standing hunt? I won't stop till you say so, master!`;
+    note(`standing objective set: ${objective.kind === 'coins' ? 'earn ' + objective.target + ' coins' : 'hunt indefinitely'}`);
+    sayUnlessBusy(line);
+  }
+  function clearObjective() {
+    if (!objective) return;
+    objective = null;
+    note('standing objective dropped — master said stop');
+  }
+  function parseObjective(t) {
+    // "keep finding and killing until we earn 200 coins" / "hunt till 50 coins"
+    const m = String(t || '').toLowerCase().match(/(\d+)\s*coins?/);
+    if (m && /(until|earn|quota|till|to\s+\d+\s*coins)/.test(t) && /(until|earn|make|get|reach|quota|till|keep)/.test(t)) {
+      const target = Math.max(1, parseInt(m[1], 10));
+      if (!objective || objective.kind !== 'coins' || objective.target !== target) setObjective({ kind: 'coins', target });
+      return;
+    }
+    if (/(keep|continue)\s+\w*\s*(finding|killing|hunting|searching)/.test(t)) {
+      if (!objective || objective.kind !== 'hunt') setObjective({ kind: 'hunt' });
+    }
+  }
+  function objectiveTick(dt) {
+    if (!objective) return;
+    if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
+    try {
+      if (objective.kind === 'coins') {
+        const purse = purseNow();
+        if (purse >= objective.target) {
+          const done = objective.target; objective = null;
+          setAttackOrder(false, 'quota filled');
+          stopFollow(); stopStroll();
+          note(`quota filled — purse at ${purse}, standing down`);
+          sayUnlessBusy(`*counts coins, grinning* ${done} coins! Quota filled, master — standing down.`);
+          return;
+        }
+      }
+      // standing order never idles: re-arm the search after every wiped pack
+      if (!following && !recallTarget) {
+        searchDone = false;
+        if (!strollDir && window.Stamina && window.Stamina.canMove()) beginStroll();
+      }
+    } catch (e) {}
+  }
+  function objectiveText() {
+    // long form for the think prompt — the LLM reasons AND talks quota progress
+    if (!objective) return 'No standing objective — one pack at a time, defaults apply.';
+    if (objective.kind === 'coins') {
+      const purse = purseNow(), need = Math.max(0, objective.target - purse);
+      return `EARN ${objective.target} COINS — purse now ${purse}, ${need} to go. This OVERRIDES the defaults: keep finding + killing pack after pack until filled; do NOT stop after one group; freshness never expires while the quota stands. When filled: stand down, report, stop firing.`;
+    }
+    return 'KEEP FINDING + KILLING indefinitely until master says stop — overrides one-pack defaults; re-arm the search after every wipe; freshness never expires.';
+  }
+  function getObjectiveText() {
+    // short form for the snapshot (both minds) — '' when nothing stands
+    if (!objective) return '';
+    if (objective.kind === 'coins') {
+      const purse = purseNow(), need = Math.max(0, objective.target - purse);
+      return `earn ${objective.target} coins (purse ${purse}, ${need} to go) — keep hunting pack after pack.`;
+    }
+    return 'keep finding + killing until told to stop.';
+  }
+
   // ---- known groups: dismissed packs are REMEMBERED, not forgotten -----------
   // "not interested / too small, find another" tags the pack with her opinion
   // and ignores it ~3 min — but the spot stays in memory ~5 min, so "actually,
@@ -896,5 +990,5 @@ window.Brain = (() => {
     if (t && !t.textContent) t.textContent = 'field is quiet… press 💭 and I’ll size it up.';
   }
 
-  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, note, resetMemory, setMemo, getKnownText, recallStatus, get thinking() { return thinking; } };
+  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, note, resetMemory, setMemo, getKnownText, recallStatus, getObjectiveText, get thinking() { return thinking; } };
 })();

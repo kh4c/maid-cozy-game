@@ -101,6 +101,11 @@ window.Situation = (() => {
             : (st.drops > 0 ? `${st.drops} loose coin(s) still on the ground further out.` : 'No loose coins lying around.')));
       }
     } catch (e) { /* pockets uncounted */ }
+    // standing quota (both minds track it — the brain enforces, chat reports)
+    try {
+      const ot = window.Brain && typeof window.Brain.getObjectiveText === 'function' ? window.Brain.getObjectiveText() : '';
+      if (ot) lines.push('Objective: ' + ot);
+    } catch (e) { /* no orders standing */ }
     // remembered packs (dismissed earlier, with her opinion of them)
     try {
       const kt = window.Brain && typeof window.Brain.getKnownText === 'function' ? window.Brain.getKnownText(p.x, p.y) : '';
