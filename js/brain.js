@@ -495,7 +495,7 @@ window.Brain = (() => {
         `Bite = 1 heart at 42px. She outruns them (300 vs 95). Open grassland, no cover.\n` +
         `Rules: HOSTILE critters in range with aim mode AI → ENGAGE: [aim:nearest:secs] + [fire:secs]. ` +
         `Obey MASTER'S CURRENT WISH below — it is the master's intent, translated from their chat; pursue it when it is safe to do so (if it says attack, [aim:nearest]+[fire]; if it says stop/come, [cease]+[stop]). ` +
-        `KEEP DISTANCE (built-in reflex, not a decision): stay 170-500px from anything ALIVE. Closer than 170px → [move:dx,dy:secs] away along (dx,dy) negated. Farther than 500px → walk closer with [move]. Do this every think, even mid-fight. ` +
+        `KEEP DISTANCE (built-in reflex, not a decision): stay 170-500px from anything ALIVE. Closer than 170px → [move:dx,dy:secs] away along (dx,dy) negated — UNLESS you're deliberately shadowing that pack and it's calm (then hold your ground, no yo-yo). Farther than 500px → walk closer with [move]. Do this every think, even mid-fight. ` +
         `SIGHT vs REACH: you SEE every on-screen critter (screen rect, corners included — all listed above) but your REACH is shorter — hostiles 650px, calm 500px and only on fresh orders. Never fire past reach. ` +
         `A named-color kill (Target line above, or master's "kill the blue one") is SURGICAL: track ONLY that color with [aim:<color|rarity|id>:secs] — never [aim:nearest] (nearest may be a protected green). The gun holds the latch itself; your tags just help aim, or [target:<color>] to set it / [target:clear] to release it. Bullets splash ~44px: a neighbor shoulder-to-shoulder may catch sparks — that is ballistics, not disobedience; warn master if it happens. No target color listed → [cease]. ` +
         `SELF-PRESERVATION FIRST: anything hostile within ~250px is a bite threat — if HP is 4 or less, or stamina is low/exhausted, FLEE FIRST: [run:dx,dy:secs] away (negate the threat's dx,dy) and only turn to fight ([aim:nearest]+[fire]) once at 400px+. ` +
@@ -713,7 +713,7 @@ window.Brain = (() => {
   }
   let followTarget = null; // last seen pos of the followed pack (recallable)
   let followKills0 = 0; // kill count when the shadow started — wiped = kills since
-  const FOLLOW_DIST = 280;  // shadow at this range (keep-distance owns <170)
+  const FOLLOW_DIST = 280;  // shadow at this range (the flinch stands down for calm packs she shadows)
   const OBSERVE_DIST = 340; // observing a calm pack: stand off, watch, wait for orders
   const RANK = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 };
   const RING_WORD = { uncommon: 'green', rare: 'blue', epic: 'purple', legendary: 'gold' };
@@ -929,7 +929,7 @@ window.Brain = (() => {
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       const n = p && p.enemies && p.enemies.nearest;
-      if (!n || n.dist > 700 || isDismissed(n.x, n.y)) {
+      if (!n || n.dist > 900 || isDismissed(n.x, n.y)) {
         // WIPED or lost? Check for survivors near where she last saw them.
         // No one breathing there → she KILLED them, not lost them: say so at
         // once (no grace-staring), with the body count. Survivors → grace, below.
@@ -1468,8 +1468,11 @@ window.Brain = (() => {
       } catch (e) { n = null; }
       if (!n) return;
       const dx = n.dx, dy = n.dy;
-      if (n.dist < SAFE_MIN) {
-        // too close — slide directly away, faster than the critter
+      if (n.dist < SAFE_MIN && !(following && !n.hostile)) {
+        // too close — slide directly away, faster than the critter.
+        // Exception: a pack she's DELIBERATELY shadowing and that's calm —
+        // she walked up to it on purpose, so hold ground instead of yo-yoing.
+        // Hostiles always trigger the flinch, shadowing or not.
         const len = Math.hypot(dx, dy) || 1;
         window.Input.order(-dx / len, -dy / len, 0.9);
       } else if (n.hostile && n.dist > 500) {

@@ -2,6 +2,17 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — The shadow holds (no more approach-flinch yo-yo)
+- **The awkward dance explained:** followTick walked her in with 210px legs while keepDistance
+  independently shoved her out of anything inside 170px — approach, overshoot, flinch back,
+  repeat. Now the flinch stands down while she's deliberately shadowing a CALM pack (she
+  walked up on purpose — hold ground). Hostile shadows still flinch, and unshadowed
+  bump-ins still flinch. Think-prompt KEEP DISTANCE carries the same exception.
+- **Stickier track:** the shadow drops at 900px now (was 700, matching the recall anchor),
+  so a wandering pack doesn't end the follow the moment it steps out.
+- Tests: new hshadow (holds at 120px calm, flinches at 120px hostile, still closing at
+  750px). 10/10 suites green.
+
 ## 2026-09-06 — Pan returns (off-screen only) + no more pixel-talk
 - **Pan is back, but conditional.** `camera.viewRect()` + brain `panIfOffscreen()`: on-screen
   finds never move the camera (direction words carry them); recall marches glance 2.5s at the
