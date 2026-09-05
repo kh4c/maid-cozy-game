@@ -138,6 +138,21 @@ window.Chat = (() => {
     const m = String(reply || '').match(/intent=\[\[([\s\S]*?)\]\]/i);
     return m ? m[1].trim().slice(0, 240) : null;
   }
+  // ---- Chat intent -> model-commanded task --------------------------------------
+  // Same trick, second line: when the master wants an ONGOING behavior the
+  // model names it from a closed verb vocabulary — no regexes on our side.
+  function buildTaskInstr() {
+    return (
+      '[TASK: if the master wants an ONGOING behavior — not chat, not a one-shot move — also output one final line task=[[verb args]] using ONLY this vocabulary: circle [cw|ccw], patrol [radius px], goto [x y world coords], quota [N coins], hunt, follow-pack, clear. ' +
+      'E.g. "just keep circling" → task=[[circle cw]]. "earn 200 coins" → task=[[quota 200]]. "come here" is one-shot ([move] tag), not a task. Pure chat: omit the line. This line is stripped from the dialog.]'
+    );
+  }
+  function extractTask(reply) {
+    const m = String(reply || '').match(/task=\[\[([\s\S]*?)\]\]/i);
+    if (!m) return null;
+    const parts = m[1].trim().split(/\s+/);
+    return { verb: (parts[0] || '').toLowerCase(), arg: parts.slice(1).join(' ') };
+  }
 
   async function send(userText) {
     const text = (userText || '').trim();
@@ -196,6 +211,7 @@ window.Chat = (() => {
       }
       sysText += '\n\n[Movement: the game sprite walks when you emit [move:x,y:secs] — left=[-1,0] right=[1,0] up=[0,-1] down=[0,1], secs 0.5-8. When the user asks you to go/walk/move somewhere, write a *walking action* AND append the matching tag, e.g. *walks left* [move:-1,0:2]. The tag is stripped before display, so keep it exact. One tag per reply.]';
       sysText += '\n\n' + buildIntentInstr();
+      sysText += '\n\n' + buildTaskInstr();
       const res = await fetch(s.chatUrl.replace(/\/$/, '') + '/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -218,8 +234,14 @@ window.Chat = (() => {
       try {
         const intent = extractIntent(reply);
         if (intent && window.Brain && typeof window.Brain.setMemo === 'function') window.Brain.setMemo(intent, text);
+        // Model-commanded task: "keep circling" → circle, no regex on our side.
+        const task = extractTask(reply);
+        if (task && task.verb && window.Brain && typeof window.Brain.setTask === 'function') {
+          try { window.Brain.setTask(task.verb, task.arg, 'chat'); } catch (e) {}
+        }
       } catch (e) { /* memo is best-effort */ }
       reply = reply.replace(/intent=\[\[[\s\S]*?\]\]/gi, '').trim(); // never display
+      reply = reply.replace(/task=\[\[[\s\S]*?\]\]/gi, '').trim(); // never display
       // Explicit [move:x,y:secs] tags drive the sprite, then are stripped so
       // they never show in the dialog. *walks left* phrasing is a fallback.
       const tagMoves = [...reply.matchAll(/\[move\s*:\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)(?:\s*:\s*([\d.]+))?\]/gi)];

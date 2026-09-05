@@ -29,7 +29,7 @@ window.Brain = (() => {
     memo = { text: 'No tactical intent yet — treat as casual watch.', from: '', at: -1e9 }; // new life: old wishes expire
     attackOrder = false; // new life: gun down
     try { stopFollow(); } catch (e) {}
-    try { known = []; recallTarget = null; objective = null; } catch (e) {} // new life: old grudges expire
+    try { known = []; recallTarget = null; objective = null; currentTask = null; taskState = {}; } catch (e) {} // new life: old grudges expire
     try { memory.events.push(`(new life — ${reason})`); } catch (e) {}
   }
   // note('kill', n) / note('hurt') / note('flee') — called by gun/health/main
@@ -142,7 +142,7 @@ window.Brain = (() => {
     // parsed BEFORE stop, so an explicit stop still wins over everything.
     parseObjective(t);
     // stop FIRST — negation beats attack words ("don't kill those" = stand down)
-    if (wantsStop(t)) { setAttackOrder(false, 'master said stop'); stopFollow(); stopStroll(); clearObjective(); }
+    if (wantsStop(t)) { setAttackOrder(false, 'master said stop'); stopFollow(); stopStroll(); clearObjective(); clearTask('master said stop'); }
     else if (wantsAttack(t) && (performance.now() > recallDeadUntil || !RECALL_RE.test(t))) { setAttackOrder(true, 'master ordered'); lastAskAt = performance.now(); } // memo wish counts as fresh intent — unless it recalls the dead
     // "not big enough, find another" while she's on a pack: dismiss THIS
     // group (ignored ~3 min) and walk AWAY to look elsewhere — she must
@@ -280,12 +280,17 @@ window.Brain = (() => {
       if (/\[stop\]/i.test(reply)) {
         try { window.Input.stopWalk(); chips.push('🛑 stop'); } catch (e) {}
       }
+      // [task:verb:arg] — ongoing behavior the model commands directly
+      // (circle / patrol / goto / quota / hunt / follow-pack / clear)
+      for (const m of reply.matchAll(/\[task\s*:\s*([a-z-]+)(?::\s*([^\]]+))?\]/gi)) {
+        try { if (setTask(m[1], (m[2] || '').trim(), 'think')) chips.push(`📋 task ${(m[1] || '').toLowerCase()}`); } catch (e) {}
+      }
     } catch (e) { /* orders are cosmetic — never break the loop */ }
     return chips;
   }
   function stripTags(s) {
     return (s || '')
-      .replace(/\[(?:aim|fire|shoot|cease|run|move|stop)[^\]]*\]/gi, '')
+      .replace(/\[(?:aim|fire|shoot|cease|run|move|stop|task)[^\]]*\]/gi, '')
       .replace(/\s{2,}/g, ' ').trim();
   }
 
@@ -346,6 +351,8 @@ window.Brain = (() => {
         `KNOWN GROUPS: packs you walked away from are REMEMBERED with your opinion ("too small" / "not interested" / "saved for later" — listed in the snapshot). They stay ignored while dismissed, but if master says "actually kill those / go back / those ones", march straight back to the remembered spot and re-engage. If you arrive and the pack is gone, say so plainly. If a recall finds no live critters near the remembered spot, that pack is DEAD — say so, clear the memory, stand down, and never march to a ghost. ` +
         `COINS: kills drop coins and they are yours when you walk over them (magnet ~110px, scoop ~46px). Loose coins near you are listed in the snapshot — your feet already drift toward them when it's safe, but you may also order it. Your purse total is in the snapshot too — quote it whenever master asks about money or loot. ` +
         `STANDING OBJECTIVE (a quota, when set below): ${objectiveText()} ` +
+        `TASKS (you drive the body, not scripts): for ONGOING behavior emit ONE tag [task:verb:arg] — verbs: circle[:cw|ccw] (walk in circles in place), patrol[:radius] (loop waypoints around here), goto:x,y (walk to world coords, done <80px), quota:N (earn N coins, standing job), hunt (standing hunt), follow-pack (shadow nearest pack), clear (drop the task). Latest task replaces the old; stop clears. Threats suspend circle/patrol/goto automatically — never micromanage that. ` +
+        `CURRENT TASK: ${getTaskText()} ` +
         `ANNOYANCE LEVEL: ${annoyance()} — ${annoyanceFlavor(annoyance())}\n` +
         `${memoText()}\n` +
         `SESSION MEMORY (this life only):\n${memoryText()}\n` +
@@ -429,6 +436,7 @@ window.Brain = (() => {
     followTick(dt);    // shadow the found pack at ~280px
     coinSeek(dt);      // loose coins — hoover them up whenever it's safe
     objectiveTick(dt); // standing quota — never idle, never stale, finish it
+    taskTick(dt);      // model-commanded task — circle/patrol/goto steering
     if (!auto() && !attackOrder) return;
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     let hot = false, near = false;
@@ -762,6 +770,7 @@ window.Brain = (() => {
         const purse = purseNow();
         if (purse >= objective.target) {
           const done = objective.target; objective = null;
+          if (currentTask && currentTask.verb === 'quota') clearTask('quota filled');
           setAttackOrder(false, 'quota filled');
           stopFollow(); stopStroll();
           note(`quota filled — purse at ${purse}, standing down`);
@@ -793,6 +802,93 @@ window.Brain = (() => {
       return `earn ${objective.target} coins (purse ${purse}, ${need} to go) — keep hunting pack after pack.`;
     }
     return 'keep finding + killing until told to stop.';
+  }
+
+  // ---- tasks: the MODEL drives the body, not regexes -----------------------------
+  // Closed verb vocabulary the LLM may command via [task:verb:arg] (think tags)
+  // or task=[[verb args]] (chat intent line). Latest task replaces the old;
+  // stop clears. circle/patrol/goto steer the feet every 0.5s; quota/hunt/
+  // follow-pack wire into the existing standing systems. Threats suspend the
+  // movement verbs automatically — survival first, performance later.
+  const TASK_DEFS = { circle: 1, patrol: 1, goto: 1, quota: 1, hunt: 1, 'follow-pack': 1 };
+  let currentTask = null; // { verb, arg, at, src }
+  let taskState = {};     // per-task runtime (circle angle, patrol waypoints…)
+  let taskAcc = 0;
+  function setTask(verb, arg, src) {
+    verb = String(verb || '').toLowerCase().trim();
+    if (verb === 'clear') { clearTask('ordered'); return true; }
+    if (!TASK_DEFS[verb]) { note(`unknown task verb "${verb}" — ignored`); return false; }
+    currentTask = { verb, arg: String(arg || '').trim(), at: performance.now(), src: src || 'model' };
+    taskState = {};
+    // movement verbs take the feet: kill any older walk order
+    if (verb === 'circle' || verb === 'patrol' || verb === 'goto') { try { stopStroll(); } catch (e) {} }
+    if (verb === 'quota') {
+      const n = parseInt(currentTask.arg, 10);
+      if (n > 0) setObjective({ kind: 'coins', target: n });
+      else { note('quota task without a number — ignored'); currentTask = null; return false; }
+    }
+    else if (verb === 'hunt') { if (!objective) setObjective({ kind: 'hunt' }); }
+    else if (verb === 'follow-pack') { if (!following && !strollDir) { try { beginStroll(); } catch (e) {} } }
+    note(`task: ${verb}${currentTask.arg ? ' ' + currentTask.arg : ''} (${currentTask.src})`);
+    return true;
+  }
+  function clearTask(why) {
+    if (!currentTask) return;
+    currentTask = null; taskState = {};
+    note(`task cleared (${why || 'done'})`);
+  }
+  function getTaskText() {
+    if (!currentTask) return 'none — body is hers minute to minute.';
+    const age = Math.max(0, Math.round((performance.now() - currentTask.at) / 1000));
+    return `${currentTask.verb}${currentTask.arg ? ' ' + currentTask.arg : ''} (set ${age}s ago by ${currentTask.src})`;
+  }
+  function taskTick(dt) {
+    if (!currentTask) return;
+    if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
+    if (window.Stamina && !window.Stamina.canMove()) return;
+    const v = currentTask.verb;
+    if (v === 'quota' || v === 'hunt') return; // objective system drives those
+    if (v === 'follow-pack') {
+      // standing behavior like a quota: re-arm after every wipe
+      if (!following && !recallTarget) {
+        searchDone = false;
+        if (!strollDir && window.Stamina.canMove()) { try { beginStroll(); } catch (e) {} }
+      }
+      return;
+    }
+    try {
+      const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
+      if (!p) return;
+      if (p.enemies && p.enemies.hostile > 0) return; // threats suspend performance
+      const n = p.enemies && p.enemies.nearest;
+      if (n && n.dist < 220) return; // too close — reflexes own the feet
+      taskAcc += dt;
+      if (taskAcc < 0.5) return;
+      taskAcc = 0;
+      if (v === 'circle') {
+        const dir = /ccw|counter/.test(currentTask.arg) ? -1 : 1;
+        taskState.a = (taskState.a || 0) + dir * 0.7;
+        window.Input.order(Math.cos(taskState.a), Math.sin(taskState.a), 0.6);
+      } else if (v === 'patrol') {
+        if (!taskState.cx) { taskState.cx = p.px; taskState.cy = p.py; taskState.wi = 0; }
+        const r = Math.max(120, parseInt(currentTask.arg, 10) || 300);
+        const wps = [[1, 0], [0, 1], [-1, 0], [0, -1]].map(([x, y]) => [taskState.cx + x * r, taskState.cy + y * r]);
+        const wp = wps[taskState.wi % 4];
+        const dx = wp[0] - p.px, dy = wp[1] - p.py, len = Math.hypot(dx, dy) || 1;
+        if (len < 80) { taskState.wi++; return; }
+        window.Input.order(dx / len, dy / len, 0.6);
+      } else if (v === 'goto') {
+        const m = currentTask.arg.match(/(-?\d+)\s*[,\s]\s*(-?\d+)/);
+        if (!m) { clearTask('bad coordinates'); return; }
+        const dx = (+m[1]) - p.px, dy = (+m[2]) - p.py, len = Math.hypot(dx, dy) || 1;
+        if (len < 80) {
+          clearTask('arrived');
+          sayUnlessBusy('*stops, looking around* Here, master — right where you pointed.');
+          return;
+        }
+        window.Input.order(dx / len, dy / len, 0.6);
+      }
+    } catch (e) {}
   }
 
   // ---- known groups: dismissed packs are REMEMBERED, not forgotten -----------
@@ -990,5 +1086,5 @@ window.Brain = (() => {
     if (t && !t.textContent) t.textContent = 'field is quiet… press 💭 and I’ll size it up.';
   }
 
-  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, note, resetMemory, setMemo, getKnownText, recallStatus, getObjectiveText, get thinking() { return thinking; } };
+  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, note, resetMemory, setMemo, getKnownText, recallStatus, getObjectiveText, setTask, clearTask, getTaskText, get thinking() { return thinking; } };
 })();

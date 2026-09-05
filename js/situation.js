@@ -106,6 +106,11 @@ window.Situation = (() => {
       const ot = window.Brain && typeof window.Brain.getObjectiveText === 'function' ? window.Brain.getObjectiveText() : '';
       if (ot) lines.push('Objective: ' + ot);
     } catch (e) { /* no orders standing */ }
+    // model-commanded task (both minds track it)
+    try {
+      const tt = window.Brain && typeof window.Brain.getTaskText === 'function' ? window.Brain.getTaskText() : '';
+      if (tt) lines.push('Current task: ' + tt);
+    } catch (e) { /* body is hers */ }
     // remembered packs (dismissed earlier, with her opinion of them)
     try {
       const kt = window.Brain && typeof window.Brain.getKnownText === 'function' ? window.Brain.getKnownText(p.x, p.y) : '';
