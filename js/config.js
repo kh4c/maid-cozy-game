@@ -40,7 +40,7 @@ window.CONFIG = {
     l2dExpr: 0,     // 0 = auto-cycle expressions; 1..6 = pin happy/soft_smile/surprised/smug/pouty/sleepy
     // Maid chat (Chat tab in dev panel; edited live, persisted like the rest).
     chatUrl: 'http://127.0.0.1:1234',
-    chatModel: 'dirk-qwen3.8-27b',
+    chatModel: 'l3-8b-stheno-v3.2-iq-imatrix',
     chatTokens: 600,  // thinking model: reasoning eats tokens first, answer needs room after
     chatTemp: 0.8,
     chatActions: 1, // 0 = hide *action* text, 1 = show highlighted

@@ -75,6 +75,21 @@ window.Chat = (() => {
     } catch (e) { /* face is cosmetic — never break chat */ }
   }
 
+  // Recent history capped by BOTH count and characters (~4 chars/token):
+  // 6000 chars ≈ 1500 tokens keeps system + history + reply inside small
+  // (8k) context windows. Always keeps at least the latest exchange.
+  function recentHistory() {
+    const BUDGET = 6000;
+    const out = [];
+    let total = 0;
+    for (let i = history.length - 1; i >= 0 && out.length < 11; i--) {
+      total += history[i].content.length;
+      if (total > BUDGET && out.length >= 2) break;
+      out.unshift(history[i]);
+    }
+    return out;
+  }
+
   async function send(userText) {
     const text = (userText || '').trim();
     if (!text || busy) return;
@@ -89,7 +104,7 @@ window.Chat = (() => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: s.chatModel,
-          messages: [{ role: 'system', content: s.chatSystem }, ...history.slice(-11)],
+          messages: [{ role: 'system', content: system }, ...recentHistory()],
           max_tokens: Number(s.chatTokens) || 600,
           temperature: (s.chatTemp === undefined || s.chatTemp === '' ? 0.8 : Number(s.chatTemp)),
         }),
