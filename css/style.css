@@ -107,16 +107,19 @@ canvas { display: block; }
 #chat-input:focus { border-color: rgba(157, 148, 255, 0.7); }
 
 /* ---- Health: pixel hearts HUD, hurt flash, faint veil ------------------------- */
-/* Hearts are single-path SVGs (crisp pixel silhouette, black outline) drawn
-   by health.js — no image files. Panel is transparent: floating hearts. */
+/* Hearts are real Kenney art (board-game-icons suit_hearts + broken for
+   lost). Panel stays transparent; white rim reads on grass, dark grounding. */
 #hearts {
   position: absolute; top: 46px; left: 12px; z-index: 5;
-  display: flex; gap: 6px; padding: 0; background: none;
+  display: flex; gap: 4px; padding: 0; background: none;
   pointer-events: none; user-select: none;
 }
-#hearts svg { display: block; width: 40px; height: 35px; shape-rendering: crispEdges; }
-#hearts .hp-on  { color: #ff5d73; }
-#hearts .hp-off { color: rgba(255, 255, 255, 0.13); }
+#hearts img {
+  width: 34px; height: 34px; object-fit: contain;
+  filter: drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff)
+          drop-shadow(0 1px 0 #fff) drop-shadow(0 -1px 0 #fff)
+          drop-shadow(0 2px 2px rgba(0, 0, 0, 0.45));
+}
 #hurt-flash {
   position: absolute; inset: 0; z-index: 30; pointer-events: none; opacity: 0;
   background: radial-gradient(ellipse at center, rgba(255, 30, 60, 0.12) 40%, rgba(255, 30, 60, 0.5) 100%);

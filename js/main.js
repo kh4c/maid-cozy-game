@@ -87,6 +87,13 @@
     reportError('live2d failed: ' + err.message);
   }
 
+  // ---- Enemy packs (shadow critters; wander, hunt close, despawn far) --------
+  try {
+    window.Enemies && await window.Enemies.init(world);
+  } catch (err) {
+    reportError('enemies failed: ' + err.message);
+  }
+
   // ---- Dev panel --------------------------------------------------------------------
   window.Settings.buildPanel((key) => {
     if (key === 'scale' || key.endsWith('Fps')) character.applySettings();
@@ -163,6 +170,10 @@
 
     // INFINITE world: no bounds clamping — background chunks stream in around the camera
     character.update(a, !!(window.Health && window.Health.dead));
+    if (window.Enemies) {
+      try { window.Enemies.update(dtSec, view.x, view.y); }
+      catch (err) { /* one bad tick must not kill the loop */ }
+    }
     if (dust) dust.update(dtSec, view.x, view.y, (a.x !== 0 || a.y !== 0), a.x, a.y);
     if (window.Health) { // damage kicks the camera before it settles
       const sh = window.Health.shakeAmount();
