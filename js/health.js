@@ -77,6 +77,7 @@ window.Health = (() => {
     if (!dead) return;
     dead = false;
     hp = MAX;
+    try { window.Stamina && window.Stamina.reset && window.Stamina.reset(); } catch (e) {}
     render();
     const veil = document.getElementById('faint-veil');
     if (veil) veil.style.display = 'none';

@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <title>Maid Cozy Game</title>
 <link rel="stylesheet" href="css/style.css" />
+<link rel="stylesheet" href="css/stamina.css" />
 <script src="vendor/pixi.min.js"></script>
 <!-- Cubism runtime + pixi-live2d5 (PixiJS v8 / Cubism 5 fork) — order matters -->
 <script src="vendor/live2dcubismcore.min.js"></script>
@@ -21,6 +22,7 @@
 <script src="js/editmode.js"></script>
 <script src="js/chat.js"></script>
 <script src="js/health.js"></script>
+<script src="js/stamina.js"></script>
 <script src="js/enemies.js"></script>
 <script src="js/gun.js"></script>
 <script src="js/situation.js"></script>
@@ -47,6 +49,7 @@
   <div id="chat-row"><input id="chat-input" type="text" placeholder="talk to her… (Enter)" autocomplete="off" maxlength="300" /></div>
 
   <div id="hearts" title="9/9"></div>
+  <div id="stamina-wrap"><div id="stamina-bar"><div id="stamina-fill"></div></div><span id="stamina-label"></span></div>
   <div id="hurt-flash"></div>
   <div id="faint-veil"><span class="big">SHE FAINTED</span><span class="sub">respawning…</span></div>
 

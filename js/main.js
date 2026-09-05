@@ -144,6 +144,13 @@
     reportError('audio failed: ' + err.message);
   }
 
+  // ---- Stamina (she walks until tired, then rests until recovered) ---------------
+  try {
+    window.Stamina && window.Stamina.init();
+  } catch (err) {
+    reportError('stamina failed: ' + err.message);
+  }
+
   // ---- Edit mode (E): move/resize gear, HUD, dev panel + maid outline -----------------
   try {
     window.EditMode.init({
@@ -186,6 +193,24 @@
     const a = (window.EditMode.active || (window.Health && window.Health.dead))
       ? { x: 0, y: 0 } // fainted: no control until respawn
       : window.Input.axis();
+    // STAMINA: moving drains the tank; at empty she plants her feet and rests
+    // (control locked — WASD, chat walks AND brain runs all stop) until she
+    // catches her breath. Moving into exhaustion is allowed; moving after isn't.
+    const wantsMove = (a.x !== 0 || a.y !== 0);
+    let moved = false;
+    if (window.Stamina) {
+      try {
+        window.Stamina.update(dtSec, wantsMove && window.Stamina.canMove());
+        if (window.Stamina.exhausted && wantsMove) { a.x = 0; a.y = 0; } // too tired
+        if (window.Stamina.justExhausted) {
+          try { window.Brain && window.Brain.note && window.Brain.note('tired'); } catch (e) {}
+          try { window.Live2D && window.Live2D.setMood && window.Live2D.setMood('sleepy'); } catch (e) {}
+        }
+        moved = wantsMove && window.Stamina.canMove();
+      } catch (err) { moved = wantsMove; }
+    } else {
+      moved = wantsMove;
+    }
     const view = character.view;
     view.x += a.x * s.speed * dtSec;
     view.y += a.y * s.speed * dtSec;
@@ -219,7 +244,7 @@
         }
       }
     }
-    if (dust) dust.update(dtSec, view.x, view.y, (a.x !== 0 || a.y !== 0), a.x, a.y);
+    if (dust) dust.update(dtSec, view.x, view.y, moved, a.x, a.y);
     if (window.Health) { // damage kicks the camera before it settles
       const sh = window.Health.shakeAmount();
       if (sh) camera.shake(sh);

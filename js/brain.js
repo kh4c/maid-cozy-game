@@ -41,6 +41,8 @@ window.Brain = (() => {
       } else if (kind === 'flee') {
         memory.fled += 1;
         pushEvent('ran from a pack');
+      } else if (kind === 'tired') {
+        pushEvent('ran out of breath and had to rest');
       }
     } catch (e) { /* memory is cosmetic */ }
   }
@@ -54,10 +56,9 @@ window.Brain = (() => {
     return `This life (${mins} min): ${memory.kills} kills, ${memory.hurt} bites taken, ${memory.fled} retreats.\nRecent:\n${ev}`;
   }
 
-  // ---- order pressure: repeated asks annoy her into accepting ----------------
-  // Each attack ask bumps the count; the LLM is TOLD how annoyed she is and
-  // that refusal stops being tenable. A hard floor below guarantees it lands:
-  // if the model still won't emit [fire], we comply for her (with an eye-roll).
+  // ---- order pressure: asks wear her down FAST (user tuned: easily convinced) --
+  // First ask: grumble but likely do it. Second ask / any kill order twice:
+  // fully caves. Kills vent one step; the counter resets with each new life.
   let askCount = 0;        // un-vented attack asks
   let lastAskAt = -1e9;    // ms
   const ASK_DECAY_MS = 90000; // one gripe cools every 90s without a new ask
@@ -67,10 +68,8 @@ window.Brain = (() => {
   }
   function annoyanceFlavor(n) {
     if (n <= 0) return 'Master has not been asking much lately.';
-    if (n === 1) return 'Master asked you to attack once — you may grumble but consider it.';
-    if (n === 2) return 'Master asked TWICE now. This is getting irritating — refusing again would be petty.';
-    if (n === 3) return 'Master will NOT drop this (3 asks). You are visibly annoyed — sigh, roll your eyes, but DO it.';
-    return `Master has nagged you ${n} times. Annoyance wins — comply NOW, muttering the whole time.`;
+    if (n === 1) return 'Master asked you to attack — you find it tiresome, but honestly it is easier to just do it than argue. Comply while grumbling.';
+    return `Master asked ${n} times. Annoying — but fine, FINE, you were going to do it anyway. Comply NOW.`;
   }
 
   const $ = (id) => document.getElementById(id);
@@ -202,12 +201,13 @@ window.Brain = (() => {
     lastAskAt = performance.now();
     const n = annoyance();
     try {
-      if (window.Gun && window.Gun.getAimMode && window.Gun.getAimMode() !== 'ai' && n >= 2 && window.Gun.setAimMode) {
-        window.Gun.setAimMode('ai'); // enough nagging — she grabs the gun herself
+      // easily convinced: the FIRST order already makes her take the gun
+      if (window.Gun && window.Gun.getAimMode && window.Gun.getAimMode() !== 'ai' && window.Gun.setAimMode) {
+        window.Gun.setAimMode('ai');
         pendingChips.push('🤖 took-aim (fine.)');
       }
     } catch (e) {}
-    pushEvent(`master asked her to attack (${n} time${n === 1 ? '' : 's'} un-vented)`);
+    pushEvent(`master asked her to attack (${n} un-vented)`);
     think(true, text);
   }
   let pendingChips = [];
@@ -231,9 +231,10 @@ window.Brain = (() => {
         `Facts: M1 Garand range ~850px, auto-fires while [fire] is active. Critters pop in 3 hits. ` +
         `Bite = 1 heart at 42px. She outruns them (300 vs 95). Open grassland, no cover.\n` +
         `Rules: HOSTILE critters in range with aim mode AI → ENGAGE: [aim:nearest:secs] + [fire:secs]. ` +
-        `Calm critters → HOLD: [cease]. Watch them, note them, do NOT fire on your own. ` +
-        `Master's standing order overrides HOLD: attack kills are authorized, and every ask makes refusal less tenable. ` +
-        `Hostile within 150px and HP 3 or less → FLEE: [run:dx,dy:secs] away from the nearest (negate its dx,dy), then [aim:nearest] + [fire] once at range. ` +
+        `SELF-PRESERVATION FIRST: anything hostile within ~250px is a bite threat — if HP is 4 or less, or stamina is low/exhausted, FLEE FIRST: [run:dx,dy:secs] away (negate the threat's dx,dy) and only turn to fight ([aim:nearest]+[fire]) once at 400px+. ` +
+        `Running needs stamina — check it before committing to a long chase or flight. ` +
+        `Calm critters → HOLD: [cease]. Watch them, do NOT fire on your own initiative. ` +
+        `Master's standing order overrides HOLD: comply while grumbling. ` +
         `Aim mode MOUSE → you cannot fire: output [cease] and say "hand me the gun (AI aim)".\n` +
         `ANNOYANCE LEVEL: ${annoyance()} — ${annoyanceFlavor(annoyance())}\n` +
         `SESSION MEMORY (this life only):\n${memoryText()}\n` +
@@ -266,11 +267,10 @@ window.Brain = (() => {
       reply = String(reply).replace(/<think>[\s\S]*?<\/think>/g, '').trim();
       let chips = [...pendingChips];
       pendingChips = [];
-      // HARD FLOOR: master asked 3+ times, target exists, and the model STILL
-      // won't emit a fire tag — she caves; we execute the grumbling compliance
-      // for her so nagging always ends in shots fired.
+      // HARD FLOOR (user tuned: easily convinced): ANY standing order + target
+      // in range + model still won't emit a fire tag -> she caves and fires.
       let caved = false;
-      if (!/\[(?:fire|shoot)/i.test(reply) && annoyance() >= 3) {
+      if (order && !/\[(?:fire|shoot)/i.test(reply)) {
         const okTarget = window.Gun && window.Gun.aiAimNearest ? window.Gun.aiAimNearest(3) : false;
         if (okTarget) {
           window.Gun.aiFire(2);

@@ -55,10 +55,22 @@ window.Situation = (() => {
       }
     } catch (e) { /* deaf snapshot */ }
 
+    // stamina
+    let staminaTxt = 'stamina: n/a';
+    try {
+      if (window.Stamina) {
+        const st = window.Stamina.state();
+        staminaTxt = st.exhausted
+          ? `stamina ${st.v}/${st.max} — EXHAUSTED, cannot move until she catches her breath`
+          : `stamina ${st.v}/${st.max}${st.pct < 0.3 ? ' (running low — she will need to rest soon)' : ''}`;
+      }
+    } catch (e) { /* deaf snapshot */ }
+
     // ---- human-readable block for the LLM ----
     const lines = [];
     lines.push(`Position: world (${p.x}, ${p.y}) — infinite grassland, no walls or cover.`);
     lines.push(`Health: ${hp}/${max}${dead ? ' — FAINTED (no actions possible until respawn)' : ''}.`);
+    lines.push(staminaTxt);
     lines.push(`Weapon: ${weaponTxt}.`);
     if (!enemies || enemies.total === 0) {
       lines.push('Enemies: none nearby — field is calm.');
