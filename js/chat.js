@@ -187,8 +187,12 @@ window.Chat = (() => {
       // AUTO awareness: her real position / weapon / nearby enemies are injected
       // every message (read-only context — combat DECISIONS live in Brain, not here).
       let sysText = s.chatSystem || '';
+      // Macro guard: persona text pasted from SillyTavern may contain {{user}}/
+      // {{char}} — the game never substitutes those, so the model would COPY
+      // them into its replies ("killed by {{user}}"). Replace before it ships.
+      sysText = sysText.replace(/\{\{\s*user\s*\}\}/gi, 'master').replace(/\{\{\s*char\s*\}\}/gi, 'Cosette');
       const sit = (s.chatStatus || '').trim();
-      if (sit) sysText += '\n\n[Manual note: ' + sit + ']';
+      sysText += sit ? '\n\n[Manual note: ' + sit + ']' : '';
       try {
         if (window.Situation && typeof window.Situation.snapshot === 'function') {
           const snap = window.Situation.snapshot();

@@ -226,7 +226,50 @@ window.Brain = (() => {
     // "go wander" also releases heel (feet free again).
     if (/(find|look for|search|go|wander|explore|patrol|somewhere|anywhere)/.test(t) && !/(stop|don.t|cease)/.test(t)) { if (objective && objective.kind === 'heel') clearObjective(); beginStroll(); }
     if (/(stop|come here|stay|halt|stand down)/.test(t)) stopStroll();
+    checkPointOut(t);
   }
+
+  // ---- POINT-OUT: "on your left!" / "I found a group north side" ----------------
+  // Master is ALWAYS nearby watching the same field (topdown game) — when they
+  // call out a direction or a pack she doesn't see, the RIGHT response is
+  // curiosity: turn and CHECK. No posture change, no attack latch — just eyes
+  // (and feet, when safe). The next searchWatch/think then does the talking.
+  const POINT_RE = /(on your (left|right)|to your (left|right)|(left|right|north|south|east|west|north-east|north-west|south-east|south-west|ahead|behind|front)(\s+side)?)/;
+  function pointDir(t) {
+    const m = t.match(/(north-east|north-west|south-east|south-west|north|south|east|west|left|right|ahead|front|behind)/);
+    if (!m) return null;
+    const w = m[1];
+    // master's frame ≈ maid's frame (they stand beside her): left/right are HERS
+    const map = {
+      'north': [0, -1], 'south': [0, 1], 'east': [1, 0], 'west': [-1, 0],
+      'north-east': [0.7, -0.7], 'north-west': [-0.7, -0.7], 'south-east': [0.7, 0.7], 'south-west': [-0.7, 0.7],
+      'left': [-1, 0], 'right': [1, 0], 'ahead': [0, -1], 'front': [0, -1],
+      'behind': [0, 1],
+    };
+    return map[w] ? { x: map[w][0], y: map[w][1], word: w } : null;
+  }
+  let pointUntil = 0;           // looking this way until (ms)
+  let pointDirVec = null;       // the direction she's checking
+  function checkPointOut(t) {
+    const mentions = /(group|pack|critters?|enem(y|ies)|monsters?|movement|something|them|there)/.test(t);
+    const dir = pointDir(t);
+    if (!dir || (!mentions && !/(look|check|see|watch|careful)/.test(t))) return;
+    if (objective && objective.kind === 'heel') {
+      // heel holds feet, but her EYES still snap over + she says so
+      sayUnlessBusy(`*eyes snap ${dir.word}, feet planted* I see which way you mean — watching that side.`);
+      return;
+    }
+    pointDirVec = dir;
+    pointUntil = performance.now() + 6000; // check this side for ~6s
+    stopStroll(); // feet belong to the check now
+    const leg = 1.6;
+    try { window.Input.order(dir.x, dir.y, leg); } catch (e) {}
+    note(`master pointed ${dir.word} — going to look`);
+    sayUnlessBusy(`*turns toward the ${dir.word}, squinting* On it — let's see what you spotted, master.`);
+    searchDone = false; // a fresh look may find — allowed to announce again
+  }
+  // stroll/searchWatch respect an active point-out: walk THAT way until it expires
+  function pointingNow() { return pointDirVec && performance.now() < pointUntil ? pointDirVec : null; }
   function memoText() {
     const ageMin = Math.round((performance.now() - memo.at) / 60000);
     const when = memo.at === -1e9 ? '' : ` (set ${ageMin <= 0 ? 'just now' : ageMin + ' min ago'})`;
