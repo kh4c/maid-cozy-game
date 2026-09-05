@@ -67,6 +67,7 @@ window.Brain = (() => {
   let askCount = 0;        // un-vented attack asks
   let lastAskAt = -1e9;    // ms
   const ASK_DECAY_MS = 90000; // one gripe cools every 90s without a new ask
+  let lastKillWordAt = -1e9; // last EXPLICIT kill word ("kill them", "shoot it", "kill the blue") — only THESE spend ammo under the hunt bar; standing objectives re-arming freshness does NOT
 
   // ---- attack-mode latch ------------------------------------------------------
   // A kill order (or an attack wish in the memo) flips this on: while ANY
@@ -105,6 +106,7 @@ window.Brain = (() => {
     // blanket never inherits it ("take down" isn't even in ATTACK_RE)
     setAttackOrder(true, 'surgical order');
     lastAskAt = performance.now();
+    lastKillWordAt = performance.now(); // explicit word: spends under the bar
     attackScope = 'surgical';
     note(`surgical target: only the ${word} (${rarity}) — rest of the pack lives`);
     sayUnlessBusy(`*narrows her eyes, tracking* The ${word} one? She's mine, master — the rest can run.`);
@@ -162,7 +164,7 @@ window.Brain = (() => {
             if (!best || dd < best.dist) best = e;
           }
         } catch (e) {}
-        const freshSame = attackOrder && performance.now() - lastAskAt < 45000;
+        const freshSame = attackOrder && performance.now() - lastKillWordAt < 45000; // explicit word spends under the bar
         if (best && !(!best.hostile && huntMin > 0 && (best.price | 0) < huntMin && !freshSame)) {
           target.seen = true;
           try { window.Gun && window.Gun.aiAimAt && window.Gun.aiAimAt(best.x, best.y, 1); } catch (e) {}
@@ -192,10 +194,11 @@ window.Brain = (() => {
       if (!target && attackScope === 'surgical') return;
       // hunt filter: a standing "worth at least N" bar. Calm small-fry under the
       // bar are beneath our bullets — hold fire even on a standing quota. Only a
-      // FRESH explicit kill order (<45s) spends ammo on them deliberately.
+      // FRESH EXPLICIT kill word (<45s) spends ammo on them deliberately (a
+      // standing objective re-arming freshness does NOT — thrift outlives it).
       // Hostiles are always exempt: self-defense outranks thrift.
       if (!hot && huntMin > 0 && (en.nearest.price | 0) > 0 && (en.nearest.price | 0) < huntMin &&
-          !(attackOrder && performance.now() - lastAskAt < 45000)) {
+          !(attackOrder && performance.now() - lastKillWordAt < 45000)) {
         try { window.Gun && window.Gun.aiCease && window.Gun.aiCease(); } catch (e) {}
         return;
       }
@@ -254,13 +257,26 @@ window.Brain = (() => {
     const gotTarget = parseTarget(t);
     // stop FIRST — negation beats attack words ("don't kill those" = stand down)
     if (wantsStop(t)) { setAttackOrder(false, 'master said stop'); stopFollow(); stopStroll(); clearObjective(); clearTask('master said stop'); target = null; }
-    else if (wantsAttack(t) && (performance.now() > recallDeadUntil || !RECALL_RE.test(t)) && !quotaSatisfied(t)) { setAttackOrder(true, 'master ordered'); lastAskAt = performance.now(); attackScope = gotTarget ? 'surgical' : 'blanket'; if (!gotTarget) target = null; } // memo wish counts as fresh intent — unless it recalls the dead or re-orders a filled quota; a blanket order drops any surgical latch
+    else if (wantsAttack(t) && (performance.now() > recallDeadUntil || !RECALL_RE.test(t)) && !quotaSatisfied(t)) { setAttackOrder(true, 'master ordered'); lastAskAt = performance.now(); lastKillWordAt = performance.now(); attackScope = gotTarget ? 'surgical' : 'blanket'; if (!gotTarget) target = null; } // memo wish counts as fresh intent — unless it recalls the dead or re-orders a filled quota; a blanket order drops any surgical latch
     // "not big enough, find another" while she's on a pack: dismiss THIS
     // group (ignored ~3 min) and walk AWAY to look elsewhere — she must
     // never re-find the same group. Falls through to normal handling below.
     if (DISMISS_RE.test(t) && wasOnPack) dismissCurrent(tagFor(t));
     // movement wishes start the stroll even with no direction known
     if (/(find|look for|search|go|wander|explore|patrol|somewhere|anywhere)/.test(t) && !/(stop|don.t|cease)/.test(t)) beginStroll();
+    // plain "find some critters" defaults to a thrifty standing hunt: worth≥5
+    // (uncommon+) + hunt objective ON. An explicit quota/objective wins; a
+    // "min N" stays untouched; "anything/commons" lifts the bar to 0.
+    // (Master's norm: low ammo, every bullet must earn.)
+    if (/(find|look for|search)/.test(t) && !objective && !/\bmin\b/.test(t)) {
+      if (/(anything|any critter|commons?|everything|whatever|don't care|do not care)/.test(t)) {
+        if (huntMin !== 0) { huntMin = 0; note('hunt bar lifted — anything goes'); }
+      } else {
+        huntMin = 5;
+        setObjective({ kind: 'hunt' });
+        note('default hunt: worth ≥5c + standing hunt ON (plain find request)');
+      }
+    }
     if (/(stop|come here|stay|halt|stand down)/.test(t)) stopStroll();
   }
   function memoText() {
@@ -451,6 +467,7 @@ window.Brain = (() => {
   function orderAttack(text) {
     askCount += 1;
     lastAskAt = performance.now();
+    lastKillWordAt = performance.now(); // explicit command: spends under the bar
     setAttackOrder(true, 'ordered'); // latch: keep shooting at new spawns too
     attackScope = 'blanket'; // explicit attack commands are pack-wide
     const n = annoyance();
@@ -828,9 +845,20 @@ window.Brain = (() => {
     // on-screen by construction — panning would shove OTHER visible packs out
     // of the rect (phantom "lost") and yank the click-to-move surface.
     // Direction words ("to the north-east") carry the where.
-    let said = false;
-    try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
-    if (!said) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
+    // Generated found-line: the CHAT voice announces from these facts; the
+    // template `line` below is the safety net (model down/busy/dead).
+    try {
+      if (window.Chat && typeof window.Chat.announce === 'function') {
+        const facts = { total: en.total, dir: bDir, dist: distWord(n.dist), bestRarity: best.rarity || 'common', bestColor: rarityWord(best.rarity || 'common'), bestPrice: best.price || 2, hostile: en.hostile, ordered: !!(attackOrder && performance.now() - lastAskAt < 45000) };
+        window.Chat.announce(facts, line)
+          .then((ok) => { if (!ok) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; } })
+          .catch(() => { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; });
+      } else if (window.Chat && window.Chat.say) {
+        let said = false;
+        try { said = window.Chat.say(line); } catch (e) { said = false; }
+        if (!said) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
+      }
+    } catch (e) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
     showThought(`*found ${en.total === 1 ? 'it' : `all ${en.total} of them`} — best is ${best.rarity}*`, ['🔎 found', `💰 ~${packValue(en)}`, '👀 waiting orders'], 0);
   }
   function followTick(dt) {
@@ -895,7 +923,7 @@ window.Brain = (() => {
       // hunt filter: this pack is beneath our bullets and no fresh kill order
       // says otherwise → abandon it (remembered, recallable), walk on.
       // A recalled pack is exempt: master sent her back HERE on purpose.
-      if (huntMin > 0 && !followExempt && !(attackOrder && performance.now() - lastAskAt < 45000)) {
+      if (huntMin > 0 && !followExempt && !(attackOrder && performance.now() - lastKillWordAt < 45000)) {
         let packBest = 0;
         try { for (const e of (p.enemies.list || [])) packBest = Math.max(packBest, e.price | 0); } catch (e2) {}
         if (packBest > 0 && packBest < huntMin) {
@@ -1106,8 +1134,8 @@ window.Brain = (() => {
     }
     else if (verb === 'hunt') {
       const mm = String(currentTask.arg || '').match(/min(?:imum|price)?\s*(\d+)/);
-      huntMin = mm ? Math.max(1, parseInt(mm[1], 10)) : 0;
-      if (huntMin > 0) note(`hunt filter: only packs with a critter worth ≥${huntMin}c (cheaper ones get noted and skipped)`);
+      huntMin = mm ? Math.max(1, parseInt(mm[1], 10)) : 5; // bare hunt defaults to the thrifty bar
+      if (huntMin > 0) note(mm ? `hunt filter: only packs with a critter worth ≥${huntMin}c (cheaper ones get noted and skipped)` : 'hunt filter: default bar worth ≥5c (say "anything" to lift it)');
       if (!objective) setObjective({ kind: 'hunt' });
     }
     else if (verb === 'follow-pack') { if (!following && !strollDir) { try { beginStroll(); } catch (e) {} } }

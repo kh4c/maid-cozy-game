@@ -2,6 +2,24 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Generated found-lines + default hunt min-5
+- **Found-line is generated now, not templated.** `Chat.announce(facts, template)`: the CHAT voice
+  receives the facts (count, dir, dist, best color/rarity/value, hostile?, ordered?) plus the live
+  snapshot and announces in 1-2 sentences in her own voice — must quote figures exactly (grounding
+  rule rides along). Template survives as the safety net (model down/busy/dead → news still
+  arrives via pendingSay retry). Tags stripped defensively. (M-suite: generated speaks, fallback
+  speaks, 4/4.)
+- **Plain "find some critters" = hunt min-5 + hunt ON.** setMemo find-words (no quota/objective/min)
+  → `huntMin = 5` + objective hunt (goal HUD reads `🎯 hunt on · min 5+`); bare `hunt` task same
+  default. "find anything/commons/whatever" lifts the bar to 0; explicit quota/min never stomped.
+- **Trigger split: objectives don't spend ammo, kill words do.** `lastKillWordAt` (explicit "kill/
+  shoot/take-down-X" only) now gates the under-bar exemption in combatDrive + follow-abandon;
+  setObjective freshness still authorizes REACH but a standing hunt no longer machine-guns 2c
+  commons by accident. (L-suite 13/13: skip, hold fire, engage 5c, bar-lift, quota-keeps-2c, bare-
+  hunt-5, fresh-word-fires.)
+- Legacy updated to the new default: E1/H/J1/J5 packs now qualifying 5c uncommons; E2 raises the
+  bar to min-12 (same abandon/recall arc).
+
 ---
 
 ## 2026-09-06 — Surgical color targets: "kill the blue one" kills ONLY the blue

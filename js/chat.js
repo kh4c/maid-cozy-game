@@ -302,5 +302,49 @@ window.Chat = (() => {
     });
   }
 
-  return { init, send, say, rerender, newLife, isBusy: () => busy };
+  // ---- Proactive announcement (generated, not templated) ----------------------
+  // The brain found something and wants the CHAT voice to announce it — facts
+  // in, her words out. Falls back to the brain's template when the model is
+  // unreachable/busy (reliability: the news must still arrive, generated or not).
+  async function announce(facts, fallback) {
+    const fb = String(fallback || '').slice(0, 220);
+    try {
+      if (busy) return false; // user exchange in flight — caller queues a retry
+      if (window.Health && window.Health.dead) return false;
+      const s = window.Settings.settings;
+      const url = (s.chatUrl || '').replace(/\/$/, '');
+      if (!url) throw new Error('no chat url');
+      const f = facts || {};
+      let sysText = (s.chatSystem || 'You are Cosette, a tsundere maid game companion.') +
+        `\n\n[EVENT — you just SPOTTED critters in the field. Announce it to master NOW in your own voice: 1-2 short sentences, in-character, *action* allowed. ` +
+        `Facts (quote EXACTLY, never invent or round): ${f.total || 1} critter(s) ${f.dist || 'nearby'}, to the ${f.dir || 'east'}. Best one: ${f.bestColor || ''} ${f.bestRarity || 'common'} worth ~${f.bestPrice || 2} coins. ` +
+        `${(f.hostile | 0) > 0 ? 'Some look HOSTILE (angry).' : (f.ordered ? 'Master ordered the engagement.' : 'You will HOLD and watch — say you await orders.')} ` +
+        `No combat/move/intent/task tags — just the announcement. This is proactive, not a reply to master.]`;
+      try {
+        if (window.Situation && typeof window.Situation.snapshot === 'function') {
+          const snap = window.Situation.snapshot();
+          sysText += '\n\n[Live situation:\n' + snap.text + ']';
+        }
+      } catch (e) { /* announce deaf too */ }
+      const res = await fetch(url + '/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: s.chatModel,
+          messages: [{ role: 'system', content: sysText }],
+          max_tokens: 120,
+          temperature: (s.chatTemp === undefined || s.chatTemp === '' ? 0.8 : Number(s.chatTemp)),
+        }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      let line = ((data.choices && data.choices[0] && data.choices[0].message.content) || '').trim();
+      line = line.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+      line = line.replace(/intent=\[\[[\s\S]*?\]\]/gi, '').replace(/task=\[\[[\s\S]*?\]\]/gi, '').replace(/\[move\s*:[^\]]*\]/gi, '').trim();
+      if (!line) throw new Error('empty line');
+      return say(line.slice(0, 220));
+    } catch (e) { try { return say(fb); } catch (e2) { return false; } }
+  }
+
+  return { init, send, say, announce, rerender, newLife, isBusy: () => busy };
 })();
