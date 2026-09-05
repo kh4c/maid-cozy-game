@@ -49,7 +49,7 @@ window.Situation = (() => {
     let enemies = { total: 0, hostile: 0, nearest: null, list: [] };
     try {
       if (window.Enemies && typeof window.Enemies.sense === 'function') {
-        enemies = window.Enemies.sense(p.x, p.y);
+        enemies = window.Enemies.sense(p.x, p.y, 700); // awareness cap: ~one screen
       } else if (window.Enemies && typeof window.Enemies.hostileCount === 'function') {
         enemies.hostile = window.Enemies.hostileCount();
       }

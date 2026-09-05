@@ -147,6 +147,14 @@ window.Chat = (() => {
     clearInterval(typeTimer);
     history.push({ role: 'user', content: text });
     parseWalk(text); // "go left" walks her at once; she still replies in character
+    // If the brain is waiting on a kill confirmation, "yes/no" resolves it and
+    // never reaches the chat persona.
+    try {
+      if (window.Brain && typeof window.Brain.chatConfirm === 'function' &&
+          /^(yes|y|yeah|yep|yeah|no|n|nope|do it|sure|cancel|stop)\b/i.test(text.trim())) {
+        if (window.Brain.chatConfirm(text)) return;
+      }
+    } catch (e) {}
     // Combat orders ("attack them!", "shoot it") go to the survival brain, not
     // the chat persona — she takes the gun (AI aim) and thinks immediately.
     try {
@@ -155,14 +163,14 @@ window.Chat = (() => {
         window.Brain.orderAttack(text);
       }
     } catch (e) { /* orders are cosmetic — never break chat */ }
-    // Non-combat intents ("stop shooting", "come here", "leave them alone") —
+    // Non-combat intents ("stop shooting", "come here", "find critters") —
     // pre-seed the brain's memo at once so the NEXT auto-think obeys even
-    // before this chat reply (with its intent= line) comes back.
+    // before this chat reply (with its intent= line) comes back. Broad move/
+    // search wishes also start her stroll immediately — she never just stands.
     try {
       if (window.Brain && typeof window.Brain.setMemo === 'function' &&
-          /(stop|cease|don.t|do not|leave (them|it)|come|follow|rest|relax|calm)/i.test(text) &&
           !/(attack|shoot|kill|fire|fight|hunt|destroy|blast)/i.test(text)) {
-        window.Brain.setMemo('Master seems to want her to stand down / stay close: ' + text, text);
+        window.Brain.setMemo('Master said: "' + text + '"', text);
       }
     } catch (e) {}
     setText('…');

@@ -260,27 +260,30 @@ window.Enemies = (() => {
   }
 
   // ---- situation queries (for Situation.js / Brain) -------------------------
-  // nearest(px,py) -> closest critter or null:
-  //   { x, y, dist, dx, dy, hostile, hp }
-  function nearest(px, py) {
+  // nearest(px,py,[maxDist]) -> closest critter within maxDist (default 700),
+  // the maid's circle of awareness — bullets never fly at off-screen ghosts.
+  function nearest(px, py, maxDist) {
+    const cap = maxDist || 700;
     let best = null, bd = Infinity;
     for (const g of groups) {
       for (const m of g.members) {
         const dx = m.x - px, dy = m.y - py;
         const d = Math.hypot(dx, dy);
-        if (d < bd) { bd = d; best = { x: m.x, y: m.y, dist: d, dx, dy, hostile: !!m.hostile, hp: m.hp }; }
+        if (d < bd && d <= cap) { bd = d; best = { x: m.x, y: m.y, dist: d, dx, dy, hostile: !!m.hostile, hp: m.hp }; }
       }
     }
     return best;
   }
 
-  // sense(px,py) -> { total, hostile, nearest, list[] } — list sorted near-first
-  function sense(px, py) {
+  // sense(px,py,[maxDist]) -> { total, hostile, nearest, list[] } within cap
+  function sense(px, py, maxDist) {
+    const cap = maxDist || 700;
     const list = [];
     for (const g of groups) {
       for (const m of g.members) {
         const dx = m.x - px, dy = m.y - py;
-        list.push({ x: m.x, y: m.y, dist: Math.hypot(dx, dy), dx, dy, hostile: !!m.hostile, hp: m.hp });
+        const d = Math.hypot(dx, dy);
+        if (d <= cap) list.push({ x: m.x, y: m.y, dist: d, dx, dy, hostile: !!m.hostile, hp: m.hp });
       }
     }
     list.sort((a, b) => a.dist - b.dist);

@@ -24,31 +24,29 @@ window.Gun = (() => {
   let px = 0, py = 0;                            // her feet (world), set each frame
 
   // ---- aim authority: 'mouse' (you) vs 'ai' (the maid) ----------------------
-  // Your button flips this. In 'ai' mode mouse clicks are IGNORED — only the
-  // Brain's aiAimAt/aiFire drive the gun. Persisted via Settings.aimMode.
-  let aimMode = 'mouse';
+  // The maid owns the gun by DEFAULT now — cursor aim is gone. setAimMode is
+  // kept for programmatic use but the game always runs in 'ai'.
+  let aimMode = 'ai';
   let aiAim = null;        // { x, y, until } world point — Brain's aim order
   let aiFireUntil = 0;     // performance.now() ms — hold trigger until then
   try { if (window.CONFIG && window.CONFIG.defaults && window.CONFIG.defaults.aimMode) aimMode = window.CONFIG.defaults.aimMode; } catch (e) {}
   try {
     const raw = localStorage.getItem('maid-test-settings');
-    if (raw) { const p = JSON.parse(raw); if (p.aimMode === 'ai' || p.aimMode === 'mouse') aimMode = p.aimMode; }
+    if (raw) { const p = JSON.parse(raw); } // legacy saves may hold aimMode — ignored, always 'ai'
   } catch (e) { /* fresh save */ }
 
   function setAimMode(m) {
-    aimMode = (m === 'ai') ? 'ai' : 'mouse';
+    aimMode = 'ai'; // cursor aim removed — she always owns the gun
     if (aimMode === 'mouse') { aiAim = null; aiFireUntil = 0; }
-    else holding = false; // entering AI: drop any mouse hold
     try {
       if (window.Settings && window.Settings.settings) {
-        window.Settings.settings.aimMode = aimMode;
-        window.Settings.saveSoon ? window.Settings.saveSoon() : window.Settings.save();
+        window.Settings.settings.aimMode = 'ai';
       }
     } catch (e) { /* persistence is cosmetic */ }
     try { refreshAimBtn(); } catch (e) {}
     return aimMode;
   }
-  function toggleAim() { return setAimMode(aimMode === 'ai' ? 'mouse' : 'ai'); }
+  function toggleAim() { return aimMode; } // kept for compat — no toggle anymore
   function getAimMode() { return aimMode; }
 
   // Brain orders: aim at a world point / direction for `secs`
@@ -169,6 +167,9 @@ window.Gun = (() => {
     rig.addChild(gunSpr, flash);
     world.addChild(rig); // after enemies -> renders above them
 
+    // coins render between enemies and the gun
+    try { window.InventoryLayer = new window.PIXI.Container(); world.addChild(window.InventoryLayer); } catch (e) {}
+
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerdown', onDown);
     window.addEventListener('pointerup', onUp);
@@ -248,6 +249,10 @@ window.Gun = (() => {
             for (const p of res.deaths) burst(p.x, p.y - 14, 12, true); // kill pop
             burst(b.spr.x, b.spr.y, 6, false);                          // hit sparks
             try { window.Brain && window.Brain.note && window.Brain.note('kill', res.kills); } catch (e) {}
+            // loot: each kill scatters a coin or two (Inventory handles pickup)
+            try {
+              for (const d of res.deaths) window.Inventory && window.Inventory.drop(d.x, d.y, 1 + ((Math.random() * 2) | 0));
+            } catch (e) {}
             try { window.Sound.playSfx('combat', 'hit_' + ((Math.random() * 4) | 0) + '.ogg',
               { rate: 0.95 + Math.random() * 0.25, volume: 0.9 }); } catch (e) {}
             if (res.kills > 0) {

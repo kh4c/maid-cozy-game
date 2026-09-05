@@ -116,6 +116,38 @@ canvas { display: block; }
 #thought-box.flash { animation: thought-pop 0.35s ease-out; }
 @keyframes thought-pop { from { border-color: rgba(103,232,249,0.9); } to { border-color: rgba(103,232,249,0.35); } }
 
+/* ---- Inventory: bag button + panel ------------------------------------------ */
+#bag-btn {
+  position: absolute; right: 12px; bottom: 12px; z-index: 9;
+  cursor: pointer; user-select: none;
+  background: rgba(20, 18, 34, 0.9); color: #ffd9a0;
+  border: 1px solid #3a3560; border-radius: 8px;
+  font: 16px/1 monospace; padding: 8px 10px;
+}
+#bag-btn:hover { background: rgba(40, 36, 72, 0.95); }
+#inv-count {
+  font-size: 11px; color: #fff; margin-left: 5px;
+  display: inline-block; min-width: 14px; text-align: right;
+}
+#inv-count.bump { animation: inv-bump 0.35s ease-out; }
+@keyframes inv-bump { 0% { transform: scale(1.6); color: #ffd24a; } 100% { transform: scale(1); } }
+#inv-panel {
+  position: absolute; right: 12px; bottom: 56px; z-index: 9;
+  display: none; width: 236px;
+  background: rgba(20, 18, 34, 0.94); border: 1px solid #3a3560;
+  border-radius: 8px; padding: 10px 12px;
+  font: 12px/1.4 monospace; color: #cfc9ff; user-select: none;
+}
+#inv-panel .title { font-weight: bold; color: #ffd9a0; margin-bottom: 8px; }
+#inv-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+#inv-grid .slot {
+  width: 24px; height: 24px; border-radius: 4px;
+  background: rgba(0, 0, 0, 0.35); border: 1px solid #3a3560;
+  display: flex; align-items: center; justify-content: center; font-size: 13px;
+}
+#inv-grid .slot.has { border-color: #8a6d1f; background: rgba(80, 60, 10, 0.4); }
+#inv-meta { margin-top: 8px; font-size: 10px; color: #8d86b8; }
+
 /* ---- Combat bar: sense readout + aim/auto/think buttons -------------------- */
 #combat-bar {
   position: absolute; top: 88px; left: 12px; z-index: 9;

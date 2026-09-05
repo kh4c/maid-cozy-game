@@ -144,6 +144,12 @@
     reportError('audio failed: ' + err.message);
   }
 
+  try {
+    window.Inventory && window.Inventory.init();
+  } catch (err) {
+    reportError('inventory failed: ' + err.message);
+  }
+
   // ---- Stamina (she walks until tired, then rests until recovered) ---------------
   try {
     window.Stamina && window.Stamina.init();
@@ -221,7 +227,7 @@
       try { window.Enemies.update(dtSec, view.x, view.y); }
       catch (err) { /* one bad tick must not kill the loop */ }
     }
-    // hover gun: mouse aim (you) or AI aim (her brain) — mode on the 🎯 button
+    // hover gun: the maid always aims/fires herself now (cursor aim removed)
     if (window.Gun) {
       try { window.Gun.update(dtSec, view.x, view.y); }
       catch (err) { /* a gun hiccup must not kill the loop */ }
@@ -230,6 +236,11 @@
     if (window.Brain) {
       try { window.Brain.tick(dtSec); }
       catch (err) { /* a scared brain must not kill the loop */ }
+    }
+    // coin drops: magnet toward her feet + pickup
+    if (window.Inventory) {
+      try { window.Inventory.update(dtSec, view.x, view.y); }
+      catch (err) { /* loot is cosmetic */ }
     }
     // player swing (Space/J): whoosh always, thump + pack retaliation on hits
     if (window.Input.attackPressed && window.Input.attackPressed()) {
