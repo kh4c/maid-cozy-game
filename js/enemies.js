@@ -109,15 +109,25 @@ window.Enemies = (() => {
         for (const m of g.members) m.hostile = false;
       }
 
-      // the pack shadows you: inside interest range the anchor sidles to a
-      // trailing point ~FOLLOW_R away and dogs your steps; outside it, the
-      // pack just drifts on its own. Never hostile on proximity alone.
-      const FOLLOW_R = 300, INTEREST_R = 700;
-      if (!playerDead && ad < INTEREST_R && ad > FOLLOW_R) {
+      // the pack shadows you ONLY when alerted (you shot them or got REALLY
+      // close). Unalerted packs ignore the player entirely — they mill where
+      // they spawned. Never hostile on proximity alone.
+      const SHADOW_R = 120; // walk this close to an unalerted pack and it starts trailing you
+      if (!playerDead && g.alerted) {
+        // trailing point ~FOLLOW_R off the player
+        const FOLLOW_R = 300;
         const nx = (g.anchor.x - px) / (ad || 1), ny = (g.anchor.y - py) / (ad || 1);
         const k = Math.min(1, 1.2 * dt);
         g.anchor.x += ((px + nx * FOLLOW_R) - g.anchor.x) * k;
         g.anchor.y += ((py + ny * FOLLOW_R) - g.anchor.y) * k;
+      } else if (!playerDead && ad < SHADOW_R && ad > 1) {
+        // spooked: start trailing (but not attacking)
+        g.spooked = true;
+        const nx = (g.anchor.x - px) / (ad || 1), ny = (g.anchor.y - py) / (ad || 1);
+        const k = Math.min(1, 0.8 * dt);
+        const R = 320;
+        g.anchor.x += ((px + nx * R) - g.anchor.x) * k;
+        g.anchor.y += ((py + ny * R) - g.anchor.y) * k;
       } else {
         // anchor wanders slowly, retargeting every few seconds
         g.retarget -= dt;

@@ -27,6 +27,7 @@ window.Brain = (() => {
   function resetMemory(reason) {
     memory = newMemory();
     memo = { text: 'No tactical intent yet — treat as casual watch.', from: '', at: -1e9 }; // new life: old wishes expire
+    attackOrder = false; // new life: gun down
     try { memory.events.push(`(new life — ${reason})`); } catch (e) {}
   }
   // note('kill', n) / note('hurt') / note('flee') — called by gun/health/main
@@ -63,6 +64,35 @@ window.Brain = (() => {
   let askCount = 0;        // un-vented attack asks
   let lastAskAt = -1e9;    // ms
   const ASK_DECAY_MS = 90000; // one gripe cools every 90s without a new ask
+
+  // ---- attack-mode latch ------------------------------------------------------
+  // A kill order (or an attack wish in the memo) flips this on: while ANY
+  // critter is alive in range she keeps aiming + firing WITHOUT waiting for
+  // the LLM — so packs that wander in mid-slaughter get shot too, not
+  // politely ignored until the next think. Cleared by a stop-memo or death.
+  let attackOrder = false;
+  let atkAcc = 0;
+  function combatDrive(dt) {
+    if (!attackOrder) return;
+    if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
+    try { if (!window.Gun || window.Gun.getAimMode() !== 'ai') return; } catch (e) { return; }
+    atkAcc += dt;
+    if (atkAcc < 0.25) return; // 4x/sec is plenty to keep the trigger held
+    atkAcc = 0;
+    try {
+      const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
+      if (!p) return;
+      const en = p.enemies;
+      if (!en || !en.nearest || en.nearest.dist > 900) return; // nothing to shoot
+      window.Gun.aiAimNearest(1); // keep tracking
+      const st = window.Gun.status();
+      if (!st.firing) window.Gun.aiFire(1); // top the trigger up as it expires
+    } catch (e) {}
+  }
+  function setAttackOrder(v, why) {
+    attackOrder = !!v;
+    try { pushEvent(v ? `hunting mode ON (${why || 'ordered'})` : 'hunting mode OFF'); } catch (e) {}
+  }
   function annoyance() {
     const cooled = Math.floor((performance.now() - lastAskAt) / ASK_DECAY_MS);
     return Math.max(0, askCount - cooled);
@@ -81,6 +111,10 @@ window.Brain = (() => {
   function setMemo(text, from) {
     memo = { text: String(text || '').slice(0, 240), from: String(from || '').slice(0, 120), at: performance.now() };
     pushEvent(`master's wish noted: ${memo.text.slice(0, 60)}`);
+    // attack wishes latch hunting mode; stop wishes clear it
+    const t = memo.text.toLowerCase();
+    if (/(kill|attack|shoot|hunt|fire|destroy|wipe|clear)/.test(t)) setAttackOrder(true, 'master ordered');
+    if (/(stop|cease|don.t shoot|no more|leave them|stand down|come here|rest)/.test(t)) setAttackOrder(false, 'master said stop');
   }
   function memoText() {
     const ageMin = Math.round((performance.now() - memo.at) / 60000);
@@ -224,6 +258,7 @@ window.Brain = (() => {
   function orderAttack(text) {
     askCount += 1;
     lastAskAt = performance.now();
+    setAttackOrder(true, 'ordered'); // latch: keep shooting at new spawns too
     const n = annoyance();
     try {
       // easily convinced: the FIRST order already makes her take the gun
@@ -261,6 +296,7 @@ window.Brain = (() => {
         `SELF-PRESERVATION FIRST: anything hostile within ~250px is a bite threat — if HP is 4 or less, or stamina is low/exhausted, FLEE FIRST: [run:dx,dy:secs] away (negate the threat's dx,dy) and only turn to fight ([aim:nearest]+[fire]) once at 400px+. ` +
         `Running needs stamina — check it before committing to a long chase or flight. ` +
         `Calm critters → HOLD: [cease]. Watch them, do NOT fire on your own initiative. ` +
+        `BUT if MASTER'S CURRENT WISH is a hunt/attack wish, it STAYS in force: every critter that wanders into range is a valid target — do not stop just because the first pack is gone. ` +
         `Master's standing order overrides HOLD: comply while grumbling. ` +
         `Aim mode MOUSE → you cannot fire: output [cease] and say "hand me the gun (AI aim)".\n` +
         `ANNOYANCE LEVEL: ${annoyance()} — ${annoyanceFlavor(annoyance())}\n` +
@@ -337,8 +373,9 @@ window.Brain = (() => {
   // called every frame from main.js — decides WHEN to think
   function tick(dt) {
     syncHudThrottle(dt);
-    keepDistance(dt); // built-in reflex — runs every frame, no LLM needed
-    if (!auto() || thinking) return;
+    keepDistance(dt);  // built-in reflex — runs every frame, no LLM needed
+    combatDrive(dt);   // hunting latch — keeps the trigger held between thinks
+    if (!auto() && !attackOrder) return;
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     let hot = false, near = false;
     try {
@@ -364,8 +401,8 @@ window.Brain = (() => {
   // away every frame (shoots on the move — the gun doesn't care). Flee still
   // overrides this when the brain decides to run. Does nothing in edit mode,
   // while fainted, or when she's exhausted (Stamina blocks movement anyway).
-  const SAFE_MIN = 300;  // back away inside this
-  const SAFE_MAX = 520;  // stroll closer beyond this
+  const SAFE_MIN = 170; // back away inside this (bite is 42px — plenty of margin)
+  const SAFE_MAX = 650; // stroll closer beyond this (gun range ~850)
   let kdAcc = 0;
   function keepDistance(dt) {
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
@@ -386,7 +423,7 @@ window.Brain = (() => {
         // too close — slide directly away, faster than the critter
         const len = Math.hypot(dx, dy) || 1;
         window.Input.order(-dx / len, -dy / len, 0.9);
-      } else if (n.dist > SAFE_MAX && n.dist < 900) {
+      } else if (n.dist > SAFE_MAX && n.dist < 950) {
         // too far to matter — drift a bit closer so the gun stays in range
         const len = Math.hypot(dx, dy) || 1;
         window.Input.order(dx / len * 0.7, dy / len * 0.7, 0.8);
