@@ -133,6 +133,7 @@ window.Chat = (() => {
       'State the goal, the target, and the duration/condition, e.g. intent=[[Master wants her to hunt down and kill the calm pack to the south-east, keep firing until they are all gone]] ' +
       'or intent=[[Master wants her to stop shooting and just walk beside him]] or intent=[[No tactical intent, casual chat]]. ' +
       'PRESERVE color/rarity words (blue/green/purple/gold/gray, common/uncommon/rare/epic/legendary) for FLAVOR — but the brain never aims by them: "kill the blue one" kills the whole pack, by doctrine. Never promise to spare the rest of the pack. ' +
+      'WORLD FACTS for the memo: this is a topdown 2D game; master and maid share ONE field, always a few screens apart; master sees the HUD and watches over her. Translate "split up / you go there I go here" as SPLITTING THE WORK (e.g. "master watches while she hunts the pack she found"), NEVER as physically separating or traveling to another area. She cannot leave the field, enter buildings, or go anywhere master cannot see. ' +
       'Base it ONLY on the master\'s latest message. This line is stripped from the dialog.]'
     );
   }
