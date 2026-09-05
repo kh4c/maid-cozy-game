@@ -33,14 +33,16 @@ window.Enemies = (() => {
   const LONER_MAX = 1;                 // never more than this many hunting her
   const LONER_AGGRO = 450;             // proximity fuse — she must stay this close to provoke it
   const LONER_SPEED = 150;             // outrunnable (she runs 300), but pressing
-  const LONER_HP = 8;                  // epic-tough
-  const LONER_PRICE = 15;              // pays like a small treasure
-  const LONER_SIZE = 1.45;             // body multiplier over SCALE
-  const LONER_COLOR = 0xff5040;        // hunter-red outline (hit-flash is pinkish; this is deeper)
+  const LONER_GRIT = 4;                // extra HP over its rolled tier — hunters are built tougher
+  const LONER_BOUNTY = 10;             // extra coins over its rolled tier — folk pay for the menace
+  const LONER_BULK = 1.3;              // extra body over its rolled tier — reads dangerous at a glance
+  const LONER_COLOR = 0xff5040;        // hunter-red outline = SPECIES mark (tier shows in size, not ring)
 
   // ---- rarity randomizer -------------------------------------------------------
-  // Every critter rolls size + rarity at spawn. Rarity shows as a colored
-  // outline hugging the sprite (common = faint gray) and sets coin value + toughness. Tunables:
+  // Every MONSTER rolls size + rarity at spawn — pack critters AND lone
+  // hunters. Rarity is a tier, not a species: it sets toughness, body size
+  // and coin value. Species shows in the OUTLINE (tier colors on packs,
+  // hunter-red on hunters) and in behavior.
   // weights sum to 100; price = coins dropped on kill.
   const RARITY = [
     { key: 'common',    w: 60, color: 0x8b93a3,   price: 2,  size: [0.85, 1.00], hp: 3 },
@@ -128,7 +130,11 @@ window.Enemies = (() => {
     anim.animationSpeed = 1 / 6;
     anim.play();
     view.addChild(sh, anim);
-    const baseScale = SCALE * LONER_SIZE;
+    // hunters roll rarity like everything else — tier sets the base, the
+    // species piles grit + bounty + bulk on top. Red ring always (species).
+    const rar = rollRarity();
+    const sizeMult = rar.size[0] + Math.random() * (rar.size[1] - rar.size[0]);
+    const baseScale = SCALE * sizeMult * LONER_BULK;
     view.scale.set(baseScale);
     try {
       const ring = new Graphics();
@@ -136,8 +142,8 @@ window.Enemies = (() => {
       view.addChild(ring);
     } catch (e) {}
     const m = { view, anim, id: 'l' + (++lonerId), x: px + Math.cos(a) * r, y: py + Math.sin(a) * r, vx: 0, vy: 0,
-      hostile: false, lastHit: 0, hp: LONER_HP, flashT: 0, // born CALM — the fuse (below) turns it, permanently
-      rarity: 'hunter', price: LONER_PRICE, baseScale, lone: true, dir: Math.random() * Math.PI * 2, retarget: 0 };
+      hostile: false, lastHit: 0, hp: rar.hp + LONER_GRIT, flashT: 0, // born CALM — the fuse (below) turns it, permanently
+      rarity: rar.key, price: rar.price + LONER_BOUNTY, baseScale, lone: true, dir: Math.random() * Math.PI * 2, retarget: 0 };
     view.position.set(m.x, m.y);
     m.ax = m.x; m.ay = m.y; // anchor it mills around until provoked
     world.addChild(view);
@@ -408,7 +414,12 @@ window.Enemies = (() => {
   // ---- situation queries (for Situation.js / Brain) -------------------------
   // nearest(px,py,[maxDist]) -> closest critter within maxDist (default 500),
   // the maid's circle of awareness — bullets never fly at off-screen ghosts.
-  // Loners ride along: same entry shape, pack:'lone', rarity:'hunter'.
+  // Loners ride along: same entry shape, pack:'lone', rolled tier rarity.
+  // Every entry carries outline (species-aware ring word) — brains and
+  // snapshots read e.outline, never guess color from tier.
+  // ring words: SPECIES beats tier — a rare hunter wears a red ring, not blue
+  const RING = { common: 'gray', uncommon: 'green', rare: 'blue', epic: 'purple', legendary: 'gold' };
+  function ringWord(m) { try { if (m && m.lone) return 'red'; } catch (e) {} return RING[(m && m.rarity) || 'common'] || 'gray'; }
   const LONE_PACK = { id: 'lone' };
   function nearest(px, py, maxDist) {
     const cap = maxDist || 500;
@@ -418,7 +429,7 @@ window.Enemies = (() => {
       for (const m of g.members) {
         const dx = m.x - px, dy = m.y - py;
         const d = Math.hypot(dx, dy);
-        if (d < bd && d <= cap) { bd = d; best = { id: m.id || null, x: m.x, y: m.y, dist: d, dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2, pack: g.id }; }
+        if (d < bd && d <= cap) { bd = d; best = { id: m.id || null, x: m.x, y: m.y, dist: d, dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2, pack: g.id, outline: ringWord(m) }; }
       }
     }
     for (const m of loners) consider(viewEntry(LONE_PACK, m, px, py));
@@ -433,7 +444,7 @@ window.Enemies = (() => {
       for (const m of g.members) {
         const dx = m.x - px, dy = m.y - py;
         const d = Math.hypot(dx, dy);
-        if (d <= cap) list.push({ id: m.id || null, x: m.x, y: m.y, dist: d, dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2, pack: g.id });
+        if (d <= cap) list.push({ id: m.id || null, x: m.x, y: m.y, dist: d, dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2, pack: g.id, outline: ringWord(m) });
       }
     }
     for (const m of loners) {
@@ -451,7 +462,7 @@ window.Enemies = (() => {
   function inView(x, y, cx, cy, hw, hh) { return Math.abs(x - cx) <= hw && Math.abs(y - cy) <= hh; }
   function viewEntry(g, m, px, py) {
     const dx = m.x - px, dy = m.y - py;
-    return { id: m.id || null, x: m.x, y: m.y, dist: Math.hypot(dx, dy), dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2, pack: g.id };
+    return { id: m.id || null, x: m.x, y: m.y, dist: Math.hypot(dx, dy), dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2, pack: g.id, outline: ringWord(m) };
   }
   // senseView(mx,my,cx,cy,hw,hh): SEE — everything on screen, dist from the maid
   function senseView(mx, my, cx, cy, hw, hh) {
@@ -479,45 +490,52 @@ window.Enemies = (() => {
   }
   function priceListText() {
     const ring = { common: 'faint gray outline', uncommon: 'green outline', rare: 'blue outline', epic: 'purple outline', legendary: 'gold outline' };
-    return 'Critter prices (coins per kill): ' +
-      RARITY.map((t) => `${t.key} ${t.price} (${ring[t.key] || ''})`).join(' · ') +
-      `. Bigger body = rarer + tougher (3-10hp). Lone hunter ${LONER_PRICE} (red outline, always alone, always hostile, ${LONER_HP}hp).`;
+    return 'Tiers — EVERY monster rolls one (packs and hunters alike): ' +
+      RARITY.map((t) => `${t.key} ${t.price}c base, ${t.hp}hp (${ring[t.key] || ''})`).join(' · ') +
+      `. Hunters add +${LONER_BOUNTY}c bounty and +${LONER_GRIT}hp on top (red outline, always alone). Bigger body = rarer + tougher.`;
   }
 
   // ---- bestiary: world knowledge, one source of truth ------------------------
-  // Both the 📖 journal panel and the maid herself read from here, so player
-  // lore and her lore answers can never disagree. Stats come straight from
-  // the tuning constants above — retune there, both update.
-  const LORE = {
-    common: 'The gray grazer. Harmless, everywhere, bothering nobody — folk leave it be.',
-    uncommon: 'Green-backed forager. A placid grazer; its hide is just worth a little more.',
-    rare: 'Blue-ringed watcher. Shy and scarce; most folk never see one.',
-    epic: 'Violet wanderer of the tall grass. Big, gentle, and famously hard to fell.',
-    legendary: 'Gold-crowned wonder. Rare as eclipses; folk call seeing one good luck.',
-    hunter: 'The red-ringed invader. Harmful, aggressive, and unwelcome — folk hunt it on sight, and so does she.',
+  // Two SPECIES (critter: harmless pack grazer; hunter: harmful lone invader),
+  // five TIERS rolled by every monster of either species. Stats come straight
+  // from the tuning constants — retune there, journal + her answers update.
+  const CRITTER_LORE = 'Harmless grazers, milling in packs. Folk leave them be.';
+  const HUNTER_LORE = 'The red-ringed invader. Harmful, aggressive, and unwelcome — folk hunt it on sight, and so does she.';
+  const TIER_LORE = {
+    common: 'The everyday tier. Small, frail, worth little.',
+    uncommon: 'A sturdier tier. Noticeably tougher, noticeably richer.',
+    rare: 'The shiny tier. Scarce, coveted, priced like it.',
+    epic: 'The terror tier. Big trouble, big payout.',
+    legendary: 'The eclipse tier. Almost never seen; never forgotten.',
   };
   const PACK_HABIT = 'Harmless millers in groups of 3-5. They want nothing from anyone — but cornered or shot, the pack panics: the brave lash out, the cowardly bolt.';
-  const HUNTER_HABIT = `Harmful and invasive — this one is quarry, not wildlife. Solitary. Mills calmly until provoked (~${LONER_AGGRO}px), then hunts forever; it never calms down. Outrun it (you are faster) or put it down fast.`;
+  const HUNTER_HABIT = `Harmful and invasive — this one is quarry, not wildlife. Solitary. Mills calmly until provoked (~${LONER_AGGRO}px), then hunts forever; it never calms down. Outrun it (you are faster) or put it down fast. Every hunter rolls a tier, like any monster — shinier ones are tougher and worth more.`;
+  const TIER_HABIT = `Every monster rolls a tier — hunters add +${LONER_GRIT} HP and +${LONER_BOUNTY} coins of bounty on top of these numbers.`;
+  const TIER_HP = RARITY.map((t) => t.hp), TIER_PRICE = RARITY.map((t) => t.price);
+  const RANGE = (a, b) => `${a}–${b}`;
+  const CRITTER_HP = RANGE(Math.min(...TIER_HP), Math.max(...TIER_HP));
+  const CRITTER_BOUNTY = RANGE(Math.min(...TIER_PRICE), Math.max(...TIER_PRICE));
+  const HUNTER_HP = RANGE(Math.min(...TIER_HP) + LONER_GRIT, Math.max(...TIER_HP) + LONER_GRIT);
+  const HUNTER_BOUNTY = RANGE(Math.min(...TIER_PRICE) + LONER_BOUNTY, Math.max(...TIER_PRICE) + LONER_BOUNTY);
+  // journal rows: SPECIES only — tiers are a roll, not a species, so the book
+  // shows two entries and the tier ladder stays one line in her head
   function bestiary() {
     const hex = (c) => '#' + (c | 0).toString(16).padStart(6, '0');
-    const list = RARITY.map((t) => ({
-      key: t.key, name: t.key[0].toUpperCase() + t.key.slice(1) + ' critter',
-      kind: 'Pack critter', icon: 'assets/enemy.png', color: hex(t.color),
-      hp: t.hp, bounty: t.price, habit: PACK_HABIT, lore: LORE[t.key] || '',
-    }));
-    list.push({
-      key: 'hunter', name: 'Lone hunter', kind: 'Lone hunter',
-      icon: 'assets/hunter.png', color: hex(LONER_COLOR),
-      hp: LONER_HP, bounty: LONER_PRICE, habit: HUNTER_HABIT, lore: LORE.hunter,
-    });
-    return list;
+    return [
+      { key: 'critter', name: 'Critter', kind: 'Harmless species', icon: 'assets/enemy.png', color: hex(RARITY[0].color),
+        hp: CRITTER_HP, bounty: CRITTER_BOUNTY, habit: PACK_HABIT, lore: CRITTER_LORE },
+      { key: 'hunter', name: 'Lone hunter', kind: 'Invasive species', icon: 'assets/hunter.png', color: hex(LONER_COLOR),
+        hp: HUNTER_HP, bounty: HUNTER_BOUNTY, habit: HUNTER_HABIT, lore: HUNTER_LORE },
+    ];
   }
-  // one breathless paragraph for the snapshot — she answers lore from this
+  // one breathless paragraph for the snapshot — she answers lore from this.
+  // Species get sentences; the tier ladder stays one compact line.
   function bestiaryText() {
-    const bits = RARITY.map((t) => `${t.key} (${t.hp}hp, ${t.price}c): ${LORE[t.key]}`);
-    bits.push(`lone hunter (${LONER_HP}hp, ${LONER_PRICE}c): ${LORE.hunter}`);
-    return 'Bestiary — the field guide, TRUE of this world (answer questions about monsters from this, in your own voice): ' +
-      bits.join(' ') + ` Packs: ${PACK_HABIT} Hunter: ${HUNTER_HABIT}`;
+    const ladder = RARITY.map((t) => `${t.key} ${t.hp}hp/${t.price}c`).join(' · ');
+    return 'Bestiary — the field guide, TRUE of this world (answer questions about monsters from this, in your own voice). ' +
+      `Two species: CRITTER — harmless pack grazer (bounty ${CRITTER_BOUNTY}c, ${CRITTER_HP}hp): ${CRITTER_LORE} ${PACK_HABIT} ` +
+      `HUNTER — harmful invasive loner (bounty ${HUNTER_BOUNTY}c, ${HUNTER_HP}hp): ${HUNTER_LORE} ${HUNTER_HABIT} ` +
+      `Tiers, rolled by every monster: ${ladder} — hunters add +${LONER_GRIT}hp and +${LONER_BOUNTY}c on top.`;
   }
 
   return { init, update, hostileCount, playerAttack, damageAt, nearest, sense, senseView, nearestView, priceListText, bestiary, bestiaryText, debugGroups: () => groups };

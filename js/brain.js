@@ -126,6 +126,14 @@ window.Brain = (() => {
   // No choosing: the gun never picks WHICH critter dies. Authorization is
   // posture-only (hostile / fresh kill words / hunt mode) — identity never is.
   function rarityWord(r) { return { common: 'gray', uncommon: 'green', rare: 'blue', epic: 'purple', legendary: 'gold' }[r] || r; }
+  // ring words for reports: species beats tier (a rare hunter is red-ringed)
+  function ringWord(e) {
+    try {
+      if (e && e.outline) return e.outline;
+      if (e && e.pack === 'lone') return 'red';
+    } catch (_) {}
+    return rarityWord(e && e.rarity);
+  }
   function combatDrive(dt) {
     // Trigger discipline: hold ONLY while a hostile is in reach (self-defense)
     // or a fresh order / hunt posture stands. Calm + unauthorized = hold fire.
@@ -726,14 +734,16 @@ window.Brain = (() => {
   function packValue(en) {
     try { return (en.list || []).reduce((s, e) => s + ((e.price | 0) || 0), 0); } catch (e) { return 0; }
   }
-  // her feeling about hunting THIS pack — appetite scales with shininess
+  // her feeling about hunting THIS pack — appetite scales with shininess.
+  // Hunters wear red rings whatever the tier, so the color words go lone-aware.
   function huntingFeeling(best) {
     const r = (best && best.rarity) || 'common';
-    if (r === 'legendary') return `A LEGENDARY, shining gold — ${best.price} coins!! I'm trying VERY hard to behave, master.`;
-    if (r === 'epic') return `An EPIC, shining purple — ${best.price} coins easy… please say I can keep the change.`;
-    if (r === 'rare') return `Ooh — a blue-banded RARE, worth about ${best.price} coins! My tail's twitching…`;
-    if (r === 'uncommon') return `Some nice green-banded ones in there — pocket money, about ${best.price} coins for the best.`;
-    return `Just commons, a coin or two each — pocket change, but money is money.`;
+    const lone = !!(best && best.pack === 'lone');
+    if (r === 'legendary') return lone ? `A LEGENDARY HUNTER, red ring blazing — ${best.price} coins of bounty!! I'm trying VERY hard to behave, master.` : `A LEGENDARY, shining gold — ${best.price} coins!! I'm trying VERY hard to behave, master.`;
+    if (r === 'epic') return lone ? `An EPIC hunter, red-ringed and huge — ${best.price} coins of bounty… please say I can keep the change.` : `An EPIC, shining purple — ${best.price} coins easy… please say I can keep the change.`;
+    if (r === 'rare') return lone ? `Ooh — a red-ringed RARE hunter, worth about ${best.price} coins! My tail's twitching…` : `Ooh — a blue-banded RARE, worth about ${best.price} coins! My tail's twitching…`;
+    if (r === 'uncommon') return lone ? `A red-ringed hunter with a green-tier purse — pocket money, about ${best.price} coins.` : `Some nice green-banded ones in there — pocket money, about ${best.price} coins for the best.`;
+    return lone ? `A common hunter — red ring, small bounty, still money.` : `Just commons, a coin or two each — pocket change, but money is money.`;
   }
   function dirWord(dx, dy) {
     const ax = Math.abs(dx), ay = Math.abs(dy);
@@ -824,7 +834,7 @@ window.Brain = (() => {
       const line = `*turns, pointing ${bDir}* Heads up, master — another pack ${distWord(bDist)}, to the ${bDir}, ${why}. Leaving these for the better prize!`;
       try { pushEvent(`switched shadow to a ${why} pack ${bDir}`); } catch (e2) {}
       queueNews({
-        facts: { total: p.enemies.total, dir: bDir, dist: distWord(bDist), distPx: bDist, bestRarity: avail.rarity || 'common', bestColor: rarityWord(avail.rarity || 'common'), bestPrice: bVal, hostile: p.enemies.hostile, ordered: false, switched: why, prev: `the old pack (${distWord(aDist)})` },
+        facts: { total: p.enemies.total, dir: bDir, dist: distWord(bDist), distPx: bDist, bestRarity: avail.rarity || 'common', bestColor: ringWord(avail), bestPrice: bVal, hostile: p.enemies.hostile, ordered: false, switched: why, prev: `the old pack (${distWord(aDist)})` },
         fallback: line,
       });
       showThought(`*switching shadow — ${why}*`, ['🔎 better pack', `💰 ~${packValue(p)}`], 0);
@@ -868,7 +878,7 @@ window.Brain = (() => {
       }
     } catch (e) {}
     const newsStamp = performance.now(); // guard: this exact pack's queued line dies when the pack is shadowed/left
-    const facts = { total: en.total, dir: bDir, dist: distWord(n.dist), distPx: n.dist | 0, bestRarity: best.rarity || 'common', bestColor: rarityWord(best.rarity || 'common'), bestPrice: best.price || 2, hostile: en.hostile, ordered: !!(attackOrder && freshOrder), staleKey: 'pack', staleAt: newsStamp };
+    const facts = { total: en.total, dir: bDir, dist: distWord(n.dist), distPx: n.dist | 0, bestRarity: best.rarity || 'common', bestColor: ringWord(best), bestPrice: best.price || 2, hostile: en.hostile, ordered: !!(attackOrder && freshOrder), staleKey: 'pack', staleAt: newsStamp };
     if (prev) {
       facts.prev = `${prev.total || 1} to the ${prev.dir || '?'} (${prev.dist || 'nearby'})`;
       facts.compare = `the new one is ${distWord(n.dist)} vs ${prev.dist || 'nearby'} before — say which is closer and which you'd take first`;

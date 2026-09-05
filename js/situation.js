@@ -94,7 +94,7 @@ window.Situation = (() => {
       const shown = (enemies.list || []).slice(0, 4);
       shown.forEach((e, i) => {
         const rare = e.rarity && e.rarity !== 'common' ? `, ${String(e.rarity).toUpperCase()}` : '';
-        const color = { common: 'gray', uncommon: 'green', rare: 'blue', epic: 'purple', legendary: 'gold', hunter: 'red' }[e.rarity] || '';
+        const color = e.outline || { common: 'gray', uncommon: 'green', rare: 'blue', epic: 'purple', legendary: 'gold', hunter: 'red' }[e.rarity] || '';
         lines.push(`  #${i + 1}: ${Math.round(e.dist)}px ${dirName(e.dx, e.dy)} (dx ${Math.round(e.dx)}, dy ${Math.round(e.dy)}) — ${e.hostile ? 'HOSTILE, will bite' : 'calm, milling around'}${e.hp !== undefined ? `, ${e.hp}hp` : ''}${rare}${color ? ` (${color} outline)` : ''} worth ~${e.price || 2} coins.`);
       });
       if (enemies.total > shown.length) lines.push(`  (+${enemies.total - shown.length} more further out)`);
