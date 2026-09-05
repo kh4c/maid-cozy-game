@@ -37,6 +37,17 @@
     reportError('background failed: ' + err.message);
   }
 
+  // ---- Foot dust (world-space, under the character's feet) ------------------------
+  // Created BEFORE the character so puffs render underneath her. Non-fatal:
+  // if the texture fails, the game runs fine without dust.
+  let dust = null;
+  try {
+    const dustTex = await PIXI.Assets.load('assets/dust.png');
+    dust = window.Entities.createFootDust(world, dustTex);
+  } catch (err) {
+    reportError('dust failed: ' + err.message);
+  }
+
   // ---- Character -----------------------------------------------------------------
   let character;
   try {
@@ -132,6 +143,7 @@
 
     // INFINITE world: no bounds clamping — background chunks stream in around the camera
     character.update(a);
+    if (dust) dust.update(dtSec, view.x, view.y, (a.x !== 0 || a.y !== 0), a.x, a.y);
     camera.update(view.x, view.y, dtSec);
 
     if (background) {

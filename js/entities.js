@@ -60,5 +60,69 @@ window.Entities = (() => {
     return { view: root, update, applySettings };
   }
 
-  return { createCharacter };
+  // Foot dust: world-space puff pool using the user's assets/dust.png.
+  // Caller adds dust.layer to the world BEFORE the character so puffs render
+  // under her feet. update() spawns while moving, each puff drifting up/back,
+  // expanding and fading for ~half a second before recycling.
+  function createFootDust(world, texture) {
+    const { Container: C, Sprite } = PIXI;
+    const layer = new C();
+    world.addChild(layer);
+
+    const POOL = 26;
+    const puffs = [];
+    for (let i = 0; i < POOL; i++) {
+      const s = new Sprite(texture);
+      s.anchor.set(0.5);
+      s.visible = false;
+      layer.addChild(s);
+      puffs.push({ s, life: 0, max: 1, vx: 0, vy: 0, grow: 1 });
+    }
+    let idx = 0;
+    let spawnAcc = 0;
+
+    // x, y: feet position (character root); dx, dy: normalized input axis
+    function update(dtSec, x, y, moving, dx, dy) {
+      if (moving) {
+        const len = Math.hypot(dx, dy) || 1;
+        const nx = dx / len, ny = dy / len;
+        spawnAcc += dtSec;
+        while (spawnAcc > 0.09) {
+          spawnAcc -= 0.09;
+          const p = puffs[idx];
+          idx = (idx + 1) % POOL;
+          p.max = p.life = 0.45 + Math.random() * 0.25;
+          p.s.visible = true;
+          // spawn at the feet, kicked slightly opposite the travel direction
+          p.s.position.set(
+            x - nx * 10 + (Math.random() * 16 - 8),
+            y - 4 + (Math.random() * 6 - 3)
+          );
+          p.s.scale.set(0.25 + Math.random() * 0.2);
+          p.grow = 0.9 + Math.random() * 0.5;
+          p.vx = -nx * 24 + (Math.random() * 20 - 10);
+          p.vy = -26 - Math.random() * 18;
+          p.s.alpha = 0.45;
+        }
+      } else {
+        spawnAcc = 0;
+      }
+      for (const p of puffs) {
+        if (!p.s.visible) continue;
+        p.life -= dtSec;
+        if (p.life <= 0) { p.s.visible = false; continue; }
+        const t = 1 - p.life / p.max; // 0 (fresh) -> 1 (gone)
+        p.s.x += p.vx * dtSec;
+        p.s.y += p.vy * dtSec;
+        p.vx *= (1 - 2 * dtSec);
+        p.vy *= (1 - 2 * dtSec);
+        p.s.scale.set(p.s.scale.x + p.grow * dtSec);
+        p.s.alpha = 0.45 * (1 - t);
+      }
+    }
+
+    return { layer, update };
+  }
+
+  return { createCharacter, createFootDust };
 })();
