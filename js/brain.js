@@ -773,16 +773,12 @@ window.Brain = (() => {
     if (d < 600) return 'over there';
     return 'a way off';
   }
-  // Pan helper: glance at (x,y) ONLY when it's off the player's screen.
-  // On-screen finds need no camera move (direction words carry them); recall
-  // destinations can sit ~900px away in memory, not in eyes — show those.
-  function panIfOffscreen(x, y, secs) {
+  // Focus beat: glance at (x,y) — the camera leans in and the world drops
+  // to slow-mo for a breath (see camera.js). Purely cosmetic; moves nothing.
+  function focusBeat(x, y, secs) {
     try {
       const cam = window.__maidCamera;
-      const r = cam && cam.viewRect ? cam.viewRect() : null;
-      if (!r) return false;
-      if (Math.abs(x - r.x) < r.hw - 40 && Math.abs(y - r.y) < r.hh - 40) return false;
-      if (cam.lookAt) cam.lookAt(x, y, secs || 2.5);
+      if (cam && cam.lookAt) cam.lookAt(x, y, secs || 2.5);
       return true;
     } catch (e) { return false; }
   }
@@ -860,7 +856,7 @@ window.Brain = (() => {
     following = true;
     followLostAcc = 0;
     const n = en.nearest;
-    panIfOffscreen(n.x, n.y, 2.5); // usually a no-op (finds are on-screen by construction) — fires for genuinely off-screen ones
+    focusBeat(n.x, n.y, 2.5); // EVERY find gets the beat — lean in, slow-mo breath, ease back
     const dir = dirWord(n.dx, n.dy);
     const best = bestPrize(en) || n;
     followTarget = { x: (best && best.x !== undefined ? best.x : n.x), y: (best && best.y !== undefined ? best.y : n.y) };
@@ -876,10 +872,9 @@ window.Brain = (() => {
     const line = `*gasps, pointing ${bDir}* Found ${en.total === 1 ? 'it' : `them — ${en.total} critters`} ${distWord(n.dist)}, to the ${bDir}! ` +
       `${feeling} ${stance}`;
     try { pushEvent(`found ${en.total} critter(s) ${bDir} — best ${best.rarity} (~${packValue(en)} coins)`); } catch (e) {}
-    // NOTE: no camera pan here anymore. Rect-eyes mean the found pack is
-    // on-screen by construction — panning would shove OTHER visible packs out
-    // of the rect (phantom "lost") and yank the click-to-move surface.
-    // Direction words ("to the north-east") carry the where.
+    // The focus beat above IS the camera move: lean in + slow-mo for a breath,
+    // then ease back to her. Direction words ("to the north-east") carry the
+    // where while the camera carries the moment.
     // Generated found-line goes through the NEWS QUEUE (serial, never dropped —
     // the pump speaks them one at a time whenever the dialog is free). If an
     // earlier find is still waiting its turn, carry it as comparison so she
