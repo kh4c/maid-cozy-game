@@ -53,7 +53,10 @@ window.Enemies = (() => {
       const oy = (Math.random() - 0.5) * PACK_R * 2;
       view.position.set(anchor.x + ox, anchor.y + oy);
       world.addChild(view);
-      g.members.push({ view, anim, x: anchor.x + ox, y: anchor.y + oy, vx: 0, vy: 0, ox, oy, hostile: false, lastHit: 0 });
+      g.members.push({ view, anim, x: anchor.x + ox, y: anchor.y + oy, vx: 0, vy: 0, ox, oy,
+        hostile: false, lastHit: 0,
+        brave: Math.random() < 0.6, // 3 in 5 charge; the rest bottle it
+        orbit: Math.random() < 0.5 ? 1 : -1 }); // cowards circle left or right
     }
     groups.push(g);
   }
@@ -114,11 +117,21 @@ window.Enemies = (() => {
         if (playerDead) m.hostile = false; // no corpse-camping
 
         if (m.hostile) {
-          steer(m, px, py, HOSTILE_SPEED, dt);
-          // bite: 1 heart, per-critter cooldown
-          if (pd < TOUCH_R && now - m.lastHit > HIT_CD) {
-            m.lastHit = now;
-            if (window.Health) window.Health.damage(1);
+          if (m.brave) {
+            steer(m, px, py, HOSTILE_SPEED, dt);
+            // bite: 1 heart, per-critter cooldown
+            if (pd < TOUCH_R && now - m.lastHit > HIT_CD) {
+              m.lastHit = now;
+              if (window.Health) window.Health.damage(1);
+            }
+          } else {
+            // scared stalemate: holds a nervous ring, never bites. Too far ->
+            // creeps closer, too close -> backs off, inside the band -> orbits.
+            const nx = (m.x - px) / (pd || 1), ny = (m.y - py) / (pd || 1);
+            const jx = (Math.random() - 0.5) * 30, jy = (Math.random() - 0.5) * 30; // nerves
+            if (pd > 280) steer(m, px + jx, py + jy, HOSTILE_SPEED * 0.55, dt);
+            else if (pd < 190) steer(m, m.x + nx * 70 - ny * 40 * m.orbit + jx, m.y + ny * 70 + nx * 40 * m.orbit + jy, HOSTILE_SPEED * 0.7, dt);
+            else steer(m, m.x - ny * 60 * m.orbit + jx, m.y + nx * 60 * m.orbit + jy, HOSTILE_SPEED * 0.5, dt);
           }
         } else {
           // mill around the pack: personal offset + slow swirl
@@ -146,5 +159,12 @@ window.Enemies = (() => {
     }
   }
 
-  return { init, update };
+  // how many critters are currently engaged — drives the battle music
+  function hostileCount() {
+    let n = 0;
+    for (const g of groups) for (const m of g.members) if (m.hostile) n++;
+    return n;
+  }
+
+  return { init, update, hostileCount };
 })();

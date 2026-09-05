@@ -153,6 +153,7 @@
 
   // ---- Game loop -----------------------------------------------------------------------
   let fpsAccum = 0, fpsCount = 0, fpsTimer = 0;
+  let battleCalmFor = 0; // seconds since last hostile — battle music lingers 3s
   const fpsEl = document.getElementById('fps');
   const chunkEl = document.getElementById('bg-status');
 
@@ -178,6 +179,17 @@
     if (window.Health) { // damage kicks the camera before it settles
       const sh = window.Health.shakeAmount();
       if (sh) camera.shake(sh);
+    }
+    // combat music: battle while any critter is engaged, cozy 3s after calm
+    // (hysteresis so it doesn't flicker when one coward wavers)
+    if (window.Sound && window.Sound.setBgmMood && window.Enemies) {
+      let hot = 0;
+      try { hot = window.Enemies.hostileCount(); } catch (e) { /* deaf calm */ }
+      if (hot > 0) { battleCalmFor = 0; window.Sound.setBgmMood('battle'); }
+      else {
+        battleCalmFor += dtSec;
+        if (battleCalmFor > 3) window.Sound.setBgmMood('cozy');
+      }
     }
     camera.update(view.x, view.y, dtSec);
 

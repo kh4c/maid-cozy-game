@@ -11,6 +11,10 @@ window.Sound = (() => {
   let masterGain = null;
   const buses = {};       // name -> GainNode
   let bgmSource = null;   // looping BufferSource for the current track
+  let bgmName = 'cozy';   // current mood: 'cozy' | 'battle'
+  let bgmToken = 0;       // races between slow decodes and fast mood flips
+  const BGM_URLS = { cozy: 'assets/Cozy1.mp3', battle: 'assets/battle1.mp3' };
+  const bgmCache = {};    // mood -> AudioBuffer (switching never re-decodes)
   let started = false;    // first user gesture handled
 
   let settings = load();
@@ -64,12 +68,37 @@ window.Sound = (() => {
 
   async function startBgm() {
     if (bgmSource) return;
-    const buffer = await loadBgm('assets/Cozy1.mp3');
+    const buffer = await loadBgm(BGM_URLS[bgmName] || BGM_URLS.cozy);
+    bgmCache[bgmName] = buffer;
     bgmSource = ctx.createBufferSource();
     bgmSource.buffer = buffer;
     bgmSource.loop = true;
     bgmSource.connect(buses.bgm);
     bgmSource.start(0);
+  }
+
+  // Combat music: main loop calls setBgmMood('battle') while any pack is
+  // hostile, ('cozy') after calm. Same bus/slider, no gaps twice (no-op on
+  // repeat, stale decodes discarded by token).
+  async function setBgmMood(mood) {
+    if (!ctx || (mood !== 'cozy' && mood !== 'battle')) return;
+    if (mood === bgmName && bgmSource) return;
+    bgmName = mood;
+    const my = ++bgmToken;
+    try { if (bgmSource) { try { bgmSource.stop(); } catch (e) {} bgmSource = null; } } catch (e) {}
+    try {
+      let buffer = bgmCache[mood];
+      if (!buffer) {
+        buffer = await loadBgm(BGM_URLS[mood]);
+        bgmCache[mood] = buffer;
+      }
+      if (my !== bgmToken) return; // flipped again mid-decode — drop this one
+      bgmSource = ctx.createBufferSource();
+      bgmSource.buffer = buffer;
+      bgmSource.loop = true;
+      bgmSource.connect(buses.bgm);
+      bgmSource.start(0);
+    } catch (e) { console.warn('BGM switch failed', e); }
   }
 
   // ---- first-gesture start -----------------------------------------------------
@@ -152,7 +181,7 @@ window.Sound = (() => {
     } catch (e) { console.warn(`SFX failed: ${url}`, e); }
   }
 
-  return { init, playSfx, debug };
+  return { init, playSfx, setBgmMood, debug };
 
   function debug() {
     return {
