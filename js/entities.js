@@ -102,7 +102,7 @@ window.Entities = (() => {
           p.grow = 0.9 + Math.random() * 0.5;
           p.vx = -nx * 24 + (Math.random() * 20 - 10);
           p.vy = -26 - Math.random() * 18;
-          p.s.alpha = 0.45;
+          p.s.alpha = 0.85;
         }
       } else {
         spawnAcc = 0;
@@ -117,7 +117,7 @@ window.Entities = (() => {
         p.vx *= (1 - 2 * dtSec);
         p.vy *= (1 - 2 * dtSec);
         p.s.scale.set(p.s.scale.x + p.grow * dtSec);
-        p.s.alpha = 0.45 * (1 - t);
+        p.s.alpha = 0.85 * (1 - t);
       }
     }
 
