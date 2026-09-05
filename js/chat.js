@@ -14,12 +14,32 @@ window.Chat = (() => {
             .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  // NEVER display: one stripper for every machinery spelling — closed,
+  // unclosed, lazy single-bracket typos, orphan [[...]] memos, think-tags
+  // ([fire]/[mode:]) the chat model sometimes echoes, and control tags.
+  // Used by the reply path, the announce path, AND the render path.
+  function stripMachinery(s) {
+    return String(s || '')
+      .replace(/intent\s*=\s*\[\[[\s\S]*?\]\s*\]\]?/gi, '')   // well-formed memo
+      .replace(/intent\s*=\s*\[\[([\s\S]*)$/i, '')            // unclosed [[ — eats to end
+      .replace(/intent\s*=\s*\[[^\]\n]{0,200}/gi, '')         // single-bracket typo
+      .replace(/task\s*=\s*\[\[[\s\S]*?\]\s*\]\]?/gi, '')
+      .replace(/task\s*=\s*\[[^\]\n]{0,200}/gi, '')
+      .replace(/\[\[[\s\S]*?\]\]/g, '')                       // orphan [[memo]] without a key
+      .replace(/\[(?:move|push|mode|fire|cease|aim|target|task)\s*:[^\]\n]*\]/gi, '') // control tags
+      .replace(/\[(?:fire|cease|push)\]/gi, '')               // bare tags
+      .replace(/^\s*\]\]\s*$/gm, '')                          // stray closing brackets
+      .trim();
+  }
+
   // Render a reply: *action* segments get highlighted; the Chat-tab actions
   // toggle strips them entirely for pure dialogue.
   function formatReply(full) {
     const show = window.Settings.settings.chatActions !== 0;
     let h = esc(full);
-    h = h.replace(/\[move\s*:[^\]]*\]/gi, ''); // walk tags never display
+    h = h.replace(/\[(?:move|push|mode|fire|cease|aim|target|task)\s*:[^\]\n]*\]/gi, ''); // control tags never display
+    h = h.replace(/\[(?:fire|cease|push)\]/gi, ''); // bare tags never display either
+    h = h.replace(/intent\s*=\s*(\[\[[\s\S]*?\]\s*\]\]?|\[[^\]\n]{0,200})/gi, ''); // leaked memo never displays
     h = show
       ? h.replace(/\*([^*\n]+)\*/g, '<span class="dlg-action">$1</span>')
       : h.replace(/\*[^*\n]*\*?/g, '');
@@ -253,16 +273,6 @@ window.Chat = (() => {
         const intent = extractIntent(reply);
         if (intent && window.Brain && typeof window.Brain.setMemo === 'function') window.Brain.setMemo(intent, text);
       } catch (e) { /* memo is best-effort */ }
-      // NEVER display: strip all machinery spellings — closed, unclosed, or
-      // lazy single-bracket typos the model sometimes emits.
-      reply = reply
-        .replace(/intent\s*=\s*\[\[[\s\S]*?\]\s*\]\]?/gi, '')   // well-formed
-        .replace(/intent\s*=\s*\[\[([\s\S]*)$/i, '')               // unclosed [[ — eats to end
-        .replace(/intent\s*=\s*\[[^\]\n]{0,200}/gi, '')
-        .replace(/task\s*=\s*\[\[[\s\S]*?\]\]?/gi, '')
-        .replace(/task\s*=\s*\[[^\]\n]{0,200}/gi, '')
-        .replace(/^\s*\]\]\s*$/gm, '')
-        .trim();
       // Explicit [move:x,y:secs] tags drive the sprite, then are stripped so
       // they never show in the dialog. *walks left* phrasing is a fallback.
       const tagMoves = [...reply.matchAll(/\[move\s*:\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)(?:\s*:\s*([\d.]+))?\]/gi)];
@@ -281,8 +291,9 @@ window.Chat = (() => {
         try { window.Brain && window.Brain.note && window.Brain.note('urged'); } catch (e) {}
       }
       reply = reply.replace(/\[push\s*(?::\s*[\d.]+)?\]/gi, '').trim();
+      reply = stripMachinery(reply); // every OTHER machinery spelling (memos, think-tags, strays)
+      if (!reply) reply = '…?'; // note: strip runs AFTER tag extraction so [move:]/[push:] still drive
       parseWalk(reply);
-      if (!reply) reply = '…?';
       history.push({ role: 'assistant', content: reply });
       if (history.length > 20) history = history.slice(-20);
       setMood(moodFromReply(reply)); // her face follows the *action* emotion
@@ -401,12 +412,7 @@ window.Chat = (() => {
       const data = await res.json();
       let line = ((data.choices && data.choices[0] && data.choices[0].message.content) || '').trim();
       line = line.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-      line = line
-        .replace(/intent\s*=\s*\[\[[\s\S]*?\]\]?/gi, '')
-        .replace(/intent\s*=\s*\[[^\]\n]{0,200}/gi, '')
-        .replace(/task\s*=\s*\[\[[\s\S]*?\]\]?/gi, '')
-        .replace(/\[move\s*:[^\]]*\]/gi, '')
-        .trim();
+      line = stripMachinery(line); // same stripper as the reply path — no intent/tags in announcements
       if (!line) throw new Error('empty line');
       // ECHO GUARD: a confused model sometimes parrots the PROMPT (snapshot /
       // rules text) instead of speaking. If the reply looks like machinery —
