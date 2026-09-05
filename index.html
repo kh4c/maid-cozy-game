@@ -23,6 +23,8 @@
 <script src="js/health.js"></script>
 <script src="js/enemies.js"></script>
 <script src="js/gun.js"></script>
+<script src="js/situation.js"></script>
+<script src="js/brain.js"></script>
 </head>
 <body>
 <!-- stage-wrap holds the canvas (appended by main.js) + scene-anchored UI.
@@ -40,6 +42,8 @@
   </div>
 
   <div id="dialog-box"><span id="dialog-text">hi...</span></div>
+  <div id="thought-box" title="Her survival brain — separate from chat"><span id="thought-label">💭 tactic</span><span id="thought-text">field is quiet… press 💭 and I’ll size it up.</span><span id="thought-meta"></span></div>
+  <div id="combat-bar"><span id="sense-line"></span><button id="aim-btn" title="aim mode">🎯 MOUSE</button><button id="brain-btn" title="auto defend">🛡️ AUTO OFF</button><button id="think-btn" title="Think now">💭</button></div>
   <div id="chat-row"><input id="chat-input" type="text" placeholder="talk to her… (Enter)" autocomplete="off" maxlength="300" /></div>
 
   <div id="hearts" title="9/9"></div>

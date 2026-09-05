@@ -116,6 +116,20 @@
     reportError('chat failed: ' + err.message);
   }
 
+  // ---- Situation awareness + survival brain (separate from chat) --------------
+  // Situation.bind gives chat + brain her live pos/weapon/foes. Brain owns the
+  // thought box + aim/auto buttons and thinks on its own LLM loop.
+  try {
+    window.Situation && window.Situation.bind(character);
+  } catch (err) {
+    reportError('situation failed: ' + err.message);
+  }
+  try {
+    window.Brain && window.Brain.init();
+  } catch (err) {
+    reportError('brain failed: ' + err.message);
+  }
+
   // ---- Maid health (9 hearts; faint locks control + hides talk UI) ------------
   try {
     window.Health.init();
@@ -182,10 +196,15 @@
       try { window.Enemies.update(dtSec, view.x, view.y); }
       catch (err) { /* one bad tick must not kill the loop */ }
     }
-    // hover gun: aims at the mouse, fires on click/hold, flies its own bullets
+    // hover gun: mouse aim (you) or AI aim (her brain) — mode on the 🎯 button
     if (window.Gun) {
       try { window.Gun.update(dtSec, view.x, view.y); }
       catch (err) { /* a gun hiccup must not kill the loop */ }
+    }
+    // survival brain: auto-thinks when danger nears (own LLM loop + thought box)
+    if (window.Brain) {
+      try { window.Brain.tick(dtSec); }
+      catch (err) { /* a scared brain must not kill the loop */ }
     }
     // player swing (Space/J): whoosh always, thump + pack retaliation on hits
     if (window.Input.attackPressed && window.Input.attackPressed()) {

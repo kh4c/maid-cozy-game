@@ -47,8 +47,12 @@ window.Health = (() => {
   function setTalkUI(visible) {
     const d = document.getElementById('dialog-box');
     const c = document.getElementById('chat-row');
+    const t = document.getElementById('thought-box');
+    const cb = document.getElementById('combat-bar');
     if (d) d.style.display = visible ? '' : 'none';
     if (c) c.style.display = visible ? '' : 'none';
+    if (t) t.style.display = visible ? '' : 'none';
+    if (cb) cb.style.display = visible ? '' : 'none';
     if (!visible) {
       const inp = document.getElementById('chat-input');
       if (inp) { inp.value = ''; inp.blur(); }

@@ -23,6 +23,64 @@ window.Gun = (() => {
   let holding = false, mouseSX = 0, mouseSY = 0; // mouse in canvas css px
   let px = 0, py = 0;                            // her feet (world), set each frame
 
+  // ---- aim authority: 'mouse' (you) vs 'ai' (the maid) ----------------------
+  // Your button flips this. In 'ai' mode mouse clicks are IGNORED — only the
+  // Brain's aiAimAt/aiFire drive the gun. Persisted via Settings.aimMode.
+  let aimMode = 'mouse';
+  let aiAim = null;        // { x, y, until } world point — Brain's aim order
+  let aiFireUntil = 0;     // performance.now() ms — hold trigger until then
+  try { if (window.CONFIG && window.CONFIG.defaults && window.CONFIG.defaults.aimMode) aimMode = window.CONFIG.defaults.aimMode; } catch (e) {}
+  try {
+    const raw = localStorage.getItem('maid-test-settings');
+    if (raw) { const p = JSON.parse(raw); if (p.aimMode === 'ai' || p.aimMode === 'mouse') aimMode = p.aimMode; }
+  } catch (e) { /* fresh save */ }
+
+  function setAimMode(m) {
+    aimMode = (m === 'ai') ? 'ai' : 'mouse';
+    if (aimMode === 'mouse') { aiAim = null; aiFireUntil = 0; }
+    else holding = false; // entering AI: drop any mouse hold
+    try {
+      if (window.Settings && window.Settings.settings) {
+        window.Settings.settings.aimMode = aimMode;
+        window.Settings.saveSoon ? window.Settings.saveSoon() : window.Settings.save();
+      }
+    } catch (e) { /* persistence is cosmetic */ }
+    try { refreshAimBtn(); } catch (e) {}
+    return aimMode;
+  }
+  function toggleAim() { return setAimMode(aimMode === 'ai' ? 'mouse' : 'ai'); }
+  function getAimMode() { return aimMode; }
+
+  // Brain orders: aim at a world point / direction for `secs`
+  function aiAimAt(wx, wy, secs) {
+    const s = Math.max(0.5, Math.min(10, Number(secs) || 3));
+    aiAim = { x: Number(wx) || 0, y: Number(wy) || 0, until: performance.now() + s * 1000 };
+  }
+  function aiAimDir(dx, dy, secs) {
+    const len = Math.hypot(dx, dy) || 1;
+    aiAimAt(px + (dx / len) * 400, py + (dy / len) * 400, secs);
+  }
+  function aiAimNearest(secs) {
+    try {
+      if (window.Enemies && typeof window.Enemies.nearest === 'function') {
+        const n = window.Enemies.nearest(px, py);
+        if (n) { aiAimAt(n.x, n.y, secs); return true; }
+      }
+    } catch (e) {}
+    return false;
+  }
+  function aiFire(secs) {
+    const s = Math.max(0.3, Math.min(10, Number(secs) || 2));
+    aiFireUntil = Math.max(aiFireUntil, performance.now() + s * 1000);
+  }
+  function aiCease() { aiFireUntil = 0; }
+  function status() {
+    const now = performance.now();
+    const firing = aimMode === 'ai' ? now < aiFireUntil : holding;
+    return { mode: aimMode, firing, bullets: bullets.length,
+      aiAimValid: !!(aiAim && now < aiAim.until) };
+  }
+
   // ---- mouse tracking -------------------------------------------------------
   function onMove(e) {
     const r = app.canvas.getBoundingClientRect();
@@ -30,8 +88,10 @@ window.Gun = (() => {
     mouseSY = e.clientY - r.top;
   }
   function onDown(e) {
-    // only the game canvas — clicks on HUD/chat/panel buttons never fire
+    // only the game canvas — clicks on HUD/chat/panel buttons never fire.
+    // AI aim mode: your mouse is DISABLED by design — the maid owns the gun.
     if (e.button !== 0 || e.target !== app.canvas) return;
+    if (aimMode === 'ai') return;
     holding = true;
     onMove(e);
   }
@@ -126,9 +186,30 @@ window.Gun = (() => {
     const blocked = (window.EditMode && window.EditMode.active) ||
       (window.Health && window.Health.dead);
     if (blocked) holding = false;
+    if (blocked) aiFireUntil = 0;
 
-    const w = screenToWorld();
-    const aim = Math.atan2(w.y - (py + HOVER_Y), w.x - (px + HOVER_X));
+    // aim point: mouse (you) or AI (the maid)
+    let aimWX, aimWY, firing;
+    if (aimMode === 'ai') {
+      const now = performance.now();
+      firing = now < aiFireUntil && !blocked;
+      let tgt = (aiAim && now < aiAim.until) ? aiAim : null;
+      if (!tgt) {
+        // no fresh order — track the nearest critter herself (self-defense
+        // fallback), else hold aim at the mouse so the gun doesn't snap oddly
+        try {
+          const n = window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(px, py) : null;
+          if (n && n.dist < 950) tgt = { x: n.x, y: n.y };
+        } catch (e) {}
+      }
+      if (!tgt) { const w = screenToWorld(); tgt = w; }
+      aimWX = tgt.x; aimWY = tgt.y;
+    } else {
+      const w = screenToWorld();
+      aimWX = w.x; aimWY = w.y;
+      firing = holding && !blocked;
+    }
+    const aim = Math.atan2(aimWY - (py + HOVER_Y), aimWX - (px + HOVER_X));
     const ca = Math.cos(aim), sa = Math.sin(aim);
 
     // hover beside her + bob, kicked back along the aim while recoiling
@@ -140,7 +221,7 @@ window.Gun = (() => {
     gunSpr.scale.y = GUN_SCALE * (ca < 0 ? -1 : 1); // no upside-down gun aiming left
     flash.rotation = aim;
 
-    if (holding && cd <= 0) { cd = FIRE_CD; fire(ca, sa); }
+    if (firing && cd <= 0) { cd = FIRE_CD; fire(ca, sa); }
 
     // bullets: fly, splash-check critters, die
     for (let i = bullets.length - 1; i >= 0; i--) {
@@ -196,8 +277,16 @@ window.Gun = (() => {
 
   // test/inspection hook
   function debug() {
-    return { bullets: bullets.length, sparks: sparks.length, holding, recoil: +recoil.toFixed(2) };
+    return { bullets: bullets.length, sparks: sparks.length, holding,
+      aimMode, aiFiring: performance.now() < aiFireUntil, recoil: +recoil.toFixed(2) };
   }
 
-  return { init, update, debug };
+  // aim button label sync (Brain.js owns the button; gun calls this on change)
+  function refreshAimBtn() {
+    try { window.Brain && window.Brain.syncButtons && window.Brain.syncButtons(); } catch (e) {}
+  }
+
+  return { init, update, debug, status,
+    setAimMode, toggleAim, getAimMode,
+    aiAimAt, aiAimDir, aiAimNearest, aiFire, aiCease };
 })();

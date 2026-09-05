@@ -170,6 +170,9 @@ window.Settings = (() => {
     addSlider('chatActions', 0, 1, 1, tabChat);     // 0 = hide *actions*, 1 = show highlighted
     addText('chatStatus', 'situation', false, tabChat); // e.g. Location: grassland — change when she moves
     addText('chatSystem', 'persona', true, tabChat);
+    // Survival brain tuning (applies to the NEXT think).
+    addSlider('brainInterval', 3, 30, 1, tabChat); // secs between auto thinks
+    addSlider('brainTokens', 80, 800, 20, tabChat); // max tokens per thought
 
     const btnRow = document.createElement('div');
     btnRow.className = 'btns';

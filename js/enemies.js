@@ -249,5 +249,33 @@ window.Enemies = (() => {
     return n;
   }
 
-  return { init, update, hostileCount, playerAttack, damageAt, debugGroups: () => groups };
+  // ---- situation queries (for Situation.js / Brain) -------------------------
+  // nearest(px,py) -> closest critter or null:
+  //   { x, y, dist, dx, dy, hostile, hp }
+  function nearest(px, py) {
+    let best = null, bd = Infinity;
+    for (const g of groups) {
+      for (const m of g.members) {
+        const dx = m.x - px, dy = m.y - py;
+        const d = Math.hypot(dx, dy);
+        if (d < bd) { bd = d; best = { x: m.x, y: m.y, dist: d, dx, dy, hostile: !!m.hostile, hp: m.hp }; }
+      }
+    }
+    return best;
+  }
+
+  // sense(px,py) -> { total, hostile, nearest, list[] } — list sorted near-first
+  function sense(px, py) {
+    const list = [];
+    for (const g of groups) {
+      for (const m of g.members) {
+        const dx = m.x - px, dy = m.y - py;
+        list.push({ x: m.x, y: m.y, dist: Math.hypot(dx, dy), dx, dy, hostile: !!m.hostile, hp: m.hp });
+      }
+    }
+    list.sort((a, b) => a.dist - b.dist);
+    return { total: list.length, hostile: list.filter((e) => e.hostile).length, nearest: list[0] || null, list };
+  }
+
+  return { init, update, hostileCount, playerAttack, damageAt, nearest, sense, debugGroups: () => groups };
 })();

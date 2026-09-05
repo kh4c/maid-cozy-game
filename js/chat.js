@@ -133,9 +133,18 @@ window.Chat = (() => {
     try {
       const s = window.Settings.settings; // live Chat-tab values (persisted)
       // Persona + live situation (location etc.) merged into one system prompt.
+      // AUTO awareness: her real position / weapon / nearby enemies are injected
+      // every message (read-only context — combat DECISIONS live in Brain, not here).
       let sysText = s.chatSystem || '';
       const sit = (s.chatStatus || '').trim();
-      if (sit) sysText += '\n\n[Current situation: ' + sit + ']';
+      if (sit) sysText += '\n\n[Manual note: ' + sit + ']';
+      try {
+        if (window.Situation && typeof window.Situation.snapshot === 'function') {
+          const snap = window.Situation.snapshot();
+          sysText += '\n\n[Live situation — auto, trust over chat history:\n' + snap.text +
+            '\nYou are chatting, not fighting: acknowledge danger naturally if any, but NEVER emit combat tags — the survival brain handles aim/fire/run.]';
+        }
+      } catch (e) { /* chat works deaf too */ }
       sysText += '\n\n[Movement: the game sprite walks when you emit [move:x,y:secs] — left=[-1,0] right=[1,0] up=[0,-1] down=[0,1], secs 0.5-8. When the user asks you to go/walk/move somewhere, write a *walking action* AND append the matching tag, e.g. *walks left* [move:-1,0:2]. The tag is stripped before display, so keep it exact. One tag per reply.]';
       const res = await fetch(s.chatUrl.replace(/\/$/, '') + '/v1/chat/completions', {
         method: 'POST',

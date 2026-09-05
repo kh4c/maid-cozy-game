@@ -93,7 +93,48 @@ canvas { display: block; }
   color: #ffd9a0; font-style: italic; /* *action* subtext highlight */
 }
 
-/* ---- Chat input under the dialog box ---------------------------------------- */
+/* ---- Thought box: HER tactical voice (separate from chat dialog) ------------- */
+/* Sits stacked ABOVE the chat dialog; same transparent-black family but with
+   a cyan rim so you can tell at a glance: white = her mouth, cyan = her head. */
+#thought-box {
+  position: absolute; left: 50%; bottom: calc(1.5% + 58px + 76px); transform: translateX(-50%);
+  min-width: 36%; max-width: 78%; z-index: 8;
+  background: rgba(4, 18, 24, 0.55);
+  border: 1px solid rgba(103, 232, 249, 0.35);
+  border-radius: 10px; padding: 8px 14px;
+  font: 13px/1.5 monospace; color: #d9f6ff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  pointer-events: none; user-select: none;
+}
+#thought-label {
+  display: inline-block; margin-right: 8px;
+  color: #67e8f9; font-weight: bold; font-size: 11px; letter-spacing: 1px;
+}
+#thought-meta { display: block; margin-top: 2px; font-size: 10px; color: rgba(217, 246, 255, 0.55); }
+#thought-box .thinking { color: #67e8f9; font-style: italic; animation: thought-pulse 1s ease-in-out infinite; }
+@keyframes thought-pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+#thought-box.flash { animation: thought-pop 0.35s ease-out; }
+@keyframes thought-pop { from { border-color: rgba(103,232,249,0.9); } to { border-color: rgba(103,232,249,0.35); } }
+
+/* ---- Combat bar: sense readout + aim/auto/think buttons -------------------- */
+#combat-bar {
+  position: absolute; top: 88px; left: 12px; z-index: 9;
+  display: flex; align-items: center; gap: 6px;
+  font: 11px/1.4 monospace; color: #cfc9ff; user-select: none;
+}
+#sense-line {
+  background: rgba(10, 8, 20, 0.55); padding: 4px 8px; border-radius: 6px;
+  color: #8d86b8; pointer-events: none; max-width: 340px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#combat-bar button {
+  cursor: pointer; padding: 4px 9px;
+  background: rgba(20, 18, 34, 0.9); color: #e6e2ff;
+  border: 1px solid #3a3560; border-radius: 6px; font: 11px monospace;
+}
+#combat-bar button:hover { background: rgba(40, 36, 72, 0.95); }
+#combat-bar button.on { border-color: #67e8f9; color: #a5f3fc; }
+#think-btn { font-size: 13px; padding: 3px 9px; }
 #chat-row {
   position: absolute; left: 50%; bottom: 1.5%; transform: translateX(-50%);
   width: min(60%, 560px); z-index: 8;
