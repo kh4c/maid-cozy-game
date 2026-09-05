@@ -147,29 +147,23 @@ window.Chat = (() => {
     clearInterval(typeTimer);
     history.push({ role: 'user', content: text });
     parseWalk(text); // "go left" walks her at once; she still replies in character
-    // If the brain is waiting on a kill confirmation, "yes/no" resolves it and
-    // never reaches the chat persona.
-    try {
-      if (window.Brain && typeof window.Brain.chatConfirm === 'function' &&
-          /^(yes|y|yeah|yep|yeah|no|n|nope|do it|sure|cancel|stop)\b/i.test(text.trim())) {
-        if (window.Brain.chatConfirm(text)) return;
-      }
-    } catch (e) {}
     // Combat orders ("attack them!", "shoot it") go to the survival brain, not
     // the chat persona — she takes the gun (AI aim) and thinks immediately.
+    // Negation-aware: "don't kill / do not shoot / stop killing" is NEVER an
+    // attack order — it must not latch hunting mode on.
+    const STOP_WORDS = /(stop|cease|\bdon[’']t\b|\bdo not\b|\bnot\b|\bno more\b|never mind|leave them|leave it|stand down|hold fire)/i;
     try {
       if (/(attack|shoot|kill|fire|fight|defend|aim|hunt|get them|take them|destroy|blast)/i.test(text) &&
+          !STOP_WORDS.test(text) &&
           window.Brain && typeof window.Brain.orderAttack === 'function') {
         window.Brain.orderAttack(text);
       }
     } catch (e) { /* orders are cosmetic — never break chat */ }
-    // Non-combat intents ("stop shooting", "come here", "find critters") —
-    // pre-seed the brain's memo at once so the NEXT auto-think obeys even
-    // before this chat reply (with its intent= line) comes back. Broad move/
-    // search wishes also start her stroll immediately — she never just stands.
+    // Every line pre-seeds the brain's memo at once so the NEXT auto-think
+    // obeys even before this chat reply (with its intent= line) comes back.
+    // setMemo itself is negation-aware: stop-words clear hunting mode.
     try {
-      if (window.Brain && typeof window.Brain.setMemo === 'function' &&
-          !/(attack|shoot|kill|fire|fight|hunt|destroy|blast)/i.test(text)) {
+      if (window.Brain && typeof window.Brain.setMemo === 'function') {
         window.Brain.setMemo('Master said: "' + text + '"', text);
       }
     } catch (e) {}

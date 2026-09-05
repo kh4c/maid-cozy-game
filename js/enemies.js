@@ -260,10 +260,10 @@ window.Enemies = (() => {
   }
 
   // ---- situation queries (for Situation.js / Brain) -------------------------
-  // nearest(px,py,[maxDist]) -> closest critter within maxDist (default 700),
+  // nearest(px,py,[maxDist]) -> closest critter within maxDist (default 500),
   // the maid's circle of awareness — bullets never fly at off-screen ghosts.
   function nearest(px, py, maxDist) {
-    const cap = maxDist || 700;
+    const cap = maxDist || 500;
     let best = null, bd = Infinity;
     for (const g of groups) {
       for (const m of g.members) {
@@ -277,7 +277,7 @@ window.Enemies = (() => {
 
   // sense(px,py,[maxDist]) -> { total, hostile, nearest, list[] } within cap
   function sense(px, py, maxDist) {
-    const cap = maxDist || 700;
+    const cap = maxDist || 500;
     const list = [];
     for (const g of groups) {
       for (const m of g.members) {

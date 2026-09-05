@@ -29,6 +29,7 @@ window.Gun = (() => {
   let aimMode = 'ai';
   let aiAim = null;        // { x, y, until } world point — Brain's aim order
   let aiFireUntil = 0;     // performance.now() ms — hold trigger until then
+  let lastAimX = null, lastAimY = null; // held aim — gun never snaps to the cursor
   try { if (window.CONFIG && window.CONFIG.defaults && window.CONFIG.defaults.aimMode) aimMode = window.CONFIG.defaults.aimMode; } catch (e) {}
   try {
     const raw = localStorage.getItem('maid-test-settings');
@@ -79,8 +80,11 @@ window.Gun = (() => {
       aiAimValid: !!(aiAim && now < aiAim.until) };
   }
 
-  // ---- mouse tracking -------------------------------------------------------
+  // ---- mouse tracking (legacy — cursor aim removed; the maid owns the gun) --
+  // Listeners stay attached only so old saves / old code paths don't crash;
+  // in 'ai' mode the mouse position is never used for aiming or firing.
   function onMove(e) {
+    if (aimMode === 'ai') return; // cursor is not her master
     const r = app.canvas.getBoundingClientRect();
     mouseSX = e.clientX - r.left;
     mouseSY = e.clientY - r.top;
@@ -189,22 +193,24 @@ window.Gun = (() => {
     if (blocked) holding = false;
     if (blocked) aiFireUntil = 0;
 
-    // aim point: mouse (you) or AI (the maid)
+    // aim point: ALWAYS hers now — the cursor is never consulted. With no
+    // fresh order she tracks the nearest critter in her 500px circle herself
+    // (self-defense fallback), else holds her last aim so the gun never snaps
+    // toward the mouse.
     let aimWX, aimWY, firing;
     if (aimMode === 'ai') {
       const now = performance.now();
       firing = now < aiFireUntil && !blocked;
       let tgt = (aiAim && now < aiAim.until) ? aiAim : null;
       if (!tgt) {
-        // no fresh order — track the nearest critter herself (self-defense
-        // fallback), else hold aim at the mouse so the gun doesn't snap oddly
         try {
-          const n = window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(px, py) : null;
-          if (n && n.dist < 950) tgt = { x: n.x, y: n.y };
+          const n = window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(px, py, 500) : null;
+          if (n) tgt = { x: n.x, y: n.y };
         } catch (e) {}
       }
-      if (!tgt) { const w = screenToWorld(); tgt = w; }
-      aimWX = tgt.x; aimWY = tgt.y;
+      if (tgt) { lastAimX = tgt.x; lastAimY = tgt.y; }
+      else if (lastAimX === null) { lastAimX = px + 300; lastAimY = py + HOVER_Y; }
+      aimWX = lastAimX; aimWY = lastAimY;
     } else {
       const w = screenToWorld();
       aimWX = w.x; aimWY = w.y;

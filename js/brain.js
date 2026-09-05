@@ -28,8 +28,6 @@ window.Brain = (() => {
     memory = newMemory();
     memo = { text: 'No tactical intent yet — treat as casual watch.', from: '', at: -1e9 }; // new life: old wishes expire
     attackOrder = false; // new life: gun down
-    confirmedOnce = false; // new life: confirm again
-    pendingConfirm = null;
     try { memory.events.push(`(new life — ${reason})`); } catch (e) {}
   }
   // note('kill', n) / note('hurt') / note('flee') — called by gun/health/main
@@ -85,7 +83,7 @@ window.Brain = (() => {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       if (!p) return;
       const en = p.enemies;
-      if (!en || !en.nearest || en.nearest.dist > 700) return; // nothing in her circle
+      if (!en || !en.nearest || en.nearest.dist > 500) return; // nothing in her circle
       window.Gun.aiAimNearest(1); // keep tracking
       const st = window.Gun.status();
       if (!st.firing) window.Gun.aiFire(1); // top the trigger up as it expires
@@ -94,6 +92,7 @@ window.Brain = (() => {
   function setAttackOrder(v, why) {
     attackOrder = !!v;
     try { pushEvent(v ? `hunting mode ON (${why || 'ordered'})` : 'hunting mode OFF'); } catch (e) {}
+    if (!v) { try { window.Gun && window.Gun.aiCease && window.Gun.aiCease(); } catch (e) {} } // stop = trigger released now
   }
   function annoyance() {
     const cooled = Math.floor((performance.now() - lastAskAt) / ASK_DECAY_MS);
@@ -110,13 +109,20 @@ window.Brain = (() => {
   // a standing memo; the tactical brain reads it every think and obeys the
   // spirit of it. Expires with the life (resetMemory), replaceable any time.
   let memo = { text: 'No tactical intent yet — treat as casual watch.', from: '', at: -1e9 };
+  // Negation-aware: "don't kill / do not shoot / stop / no more / leave them /
+  // stand down / come here / rest" always wins over attack words — telling
+  // her NOT to kill must never latch hunting mode on.
+  const STOP_RE = /(stop|cease|\bdon[’']t\b|\bdo not\b|\bnot\b|\bno more\b|never mind|leave them|leave it|stand down|come here|\brest\b|hold fire|hold your fire)/;
+  const ATTACK_RE = /(kill|attack|shoot|hunt|fire|destroy|wipe|clear|blast)/;
+  function wantsStop(t) { return STOP_RE.test(t); }
+  function wantsAttack(t) { return ATTACK_RE.test(t) && !STOP_RE.test(t); }
   function setMemo(text, from) {
     memo = { text: String(text || '').slice(0, 240), from: String(from || '').slice(0, 120), at: performance.now() };
     pushEvent(`master's wish noted: ${memo.text.slice(0, 60)}`);
-    // attack wishes latch hunting mode; stop wishes clear it
     const t = memo.text.toLowerCase();
-    if (/(kill|attack|shoot|hunt|fire|destroy|wipe|clear)/.test(t)) setAttackOrder(true, 'master ordered');
-    if (/(stop|cease|don.t shoot|no more|leave them|stand down|come here|rest)/.test(t)) setAttackOrder(false, 'master said stop');
+    // stop FIRST — negation beats attack words ("don't kill those" = stand down)
+    if (wantsStop(t)) setAttackOrder(false, 'master said stop');
+    else if (wantsAttack(t)) setAttackOrder(true, 'master ordered');
     // movement wishes start the stroll even with no direction known
     if (/(find|look for|search|go|wander|explore|patrol|somewhere|anywhere)/.test(t) && !/(stop|don.t|cease)/.test(t)) beginStroll();
     if (/(stop|come here|stay|halt|stand down)/.test(t)) stopStroll();
@@ -132,7 +138,10 @@ window.Brain = (() => {
 
   function auto() { return (S().autoDefend | 0) === 1; }
   function interval() { return Math.max(3, Math.min(30, Number(S().brainInterval) || 6)); }
-  function senseRadius() { return 550; } // she only reacts to what is on/near screen
+  // ---- ranges: everything tactical lives at 500px -----------------------------
+  const SENSE_R = 500;    // her circle of awareness — nothing beyond this exists
+  const SAFE_MIN = 170;   // back away inside this (bite is 42px — plenty of margin)
+  function senseRadius() { return SENSE_R; } // she only reacts to what is on/near screen
 
   function setAuto(v) {
     try {
@@ -260,19 +269,10 @@ window.Brain = (() => {
   // Explicit order from the master (e.g. chat "attack them!"): take the gun
   // into her own hands if needed, then think immediately with the order.
   // Repeated asks stack annoyance — she caves eventually (hard floor below).
+  // No confirmation step: an order is an order, calm targets or not.
   function orderAttack(text) {
     askCount += 1;
     lastAskAt = performance.now();
-    // CONFIRM-ONCE: if every critter in sight is calm, ask before shooting.
-    // (Hostiles present = self-defense, no confirmation needed.)
-    try {
-      const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
-      const calmOnly = p && p.enemies && p.enemies.total > 0 && p.enemies.hostile === 0;
-      if (calmOnly && !confirmedOnce && !pendingConfirm) {
-        askKillConfirm(text);
-        return; // wait for yes/no — no gun grab, no think yet
-      }
-    } catch (e) {}
     setAttackOrder(true, 'ordered'); // latch: keep shooting at new spawns too
     const n = annoyance();
     try {
@@ -307,13 +307,12 @@ window.Brain = (() => {
         `Bite = 1 heart at 42px. She outruns them (300 vs 95). Open grassland, no cover.\n` +
         `Rules: HOSTILE critters in range with aim mode AI → ENGAGE: [aim:nearest:secs] + [fire:secs]. ` +
         `Obey MASTER'S CURRENT WISH below — it is the master's intent, translated from their chat; pursue it when it is safe to do so (if it says attack, [aim:nearest]+[fire]; if it says stop/come, [cease]+[stop]). ` +
-        `KEEP DISTANCE (built-in reflex, not a decision): stay 300-500px from anything ALIVE. Closer than 300px → [move:dx,dy:secs] away along (dx,dy) negated. Farther than 500px → walk closer with [move]. Do this every think, even mid-fight. ` +
+        `KEEP DISTANCE (built-in reflex, not a decision): stay 170-500px from anything ALIVE. Closer than 170px → [move:dx,dy:secs] away along (dx,dy) negated. Farther than 500px → walk closer with [move]. Do this every think, even mid-fight. ` +
         `SELF-PRESERVATION FIRST: anything hostile within ~250px is a bite threat — if HP is 4 or less, or stamina is low/exhausted, FLEE FIRST: [run:dx,dy:secs] away (negate the threat's dx,dy) and only turn to fight ([aim:nearest]+[fire]) once at 400px+. ` +
         `Running needs stamina — check it before committing to a long chase or flight. ` +
         `Calm critters → HOLD: [cease]. Watch them, do NOT fire on your own initiative. ` +
         `BUT if MASTER'S CURRENT WISH is a hunt/attack wish, it STAYS in force: every critter that wanders into range is a valid target — do not stop just because the first pack is gone. ` +
         `Master's standing order overrides HOLD: comply while grumbling. ` +
-        `Aim mode MOUSE → you cannot fire: output [cease] and say "hand me the gun (AI aim)".\n` +
         `ANNOYANCE LEVEL: ${annoyance()} — ${annoyanceFlavor(annoyance())}\n` +
         `${memoText()}\n` +
         `SESSION MEMORY (this life only):\n${memoryText()}\n` +
@@ -463,9 +462,8 @@ window.Brain = (() => {
   // away every frame (shoots on the move — the gun doesn't care). Flee still
   // overrides this when the brain decides to run. Does nothing in edit mode,
   // while fainted, or when she's exhausted (Stamina blocks movement anyway).
-  const SAFE_MIN = 170; // back away inside this (bite is 42px — plenty of margin)
-  const SAFE_MAX = 650; // stroll closer beyond this (gun range ~850)
-  const ENGAGE_MAX = 620; // hard sense/engage cap — nothing beyond this exists for her
+  const SAFE_MAX = 500;   // drift closer beyond this (stays inside sense range)
+  const ENGAGE_MAX = 500; // hard sense/engage cap — nothing beyond this exists for her
   let kdAcc = 0;
   function keepDistance(dt) {
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
@@ -479,7 +477,7 @@ window.Brain = (() => {
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       if (!p) return;
-      const n = window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(p.px, p.py, 700) : null;
+      const n = window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(p.px, p.py, 500) : null;
       if (!n) return;
       const dx = n.dx, dy = n.dy;
       if (n.dist < SAFE_MIN) {
@@ -499,54 +497,6 @@ window.Brain = (() => {
   function syncHudThrottle(dt) {
     hudAcc += dt;
     if (hudAcc > 0.5) { hudAcc = 0; syncButtons(); }
-  }
-
-  // ---- confirm-once for calm-target kills -------------------------------------
-  // First order against CALM critters: she asks instead of shooting. The
-  // thought box doubles as the question; yes/no via chat or the two buttons.
-  // Hostile targets never need confirmation (self-defense).
-  let pendingConfirm = null; // { askedAt } while a kill of calm critters awaits yes
-  let confirmedOnce = false; // one yes lasts the whole life — confirm ONCE
-  function askKillConfirm(orderText) {
-    pendingConfirm = { askedAt: performance.now() };
-    showThought(
-      'those critters are not hostile… really have them all killed? (yes / no)',
-      ['❓ confirm'], 0);
-    try { pushEvent('asked master to confirm killing calm critters'); } catch (e) {}
-    // surface Yes/No buttons in the thought box meta line
-    const m = $('thought-meta');
-    if (m) m.innerHTML = 'confirm: <button id="cf-yes" style="pointer-events:auto;cursor:pointer;margin:0 4px">✅ yes</button>' +
-      '<button id="cf-no" style="pointer-events:auto;cursor:pointer">❌ no</button>';
-    const y = $('cf-yes'), n = $('cf-no');
-    if (y) y.addEventListener('click', (e) => { e.stopPropagation(); resolveConfirm(true); });
-    if (n) n.addEventListener('click', (e) => { e.stopPropagation(); resolveConfirm(false); });
-  }
-  function resolveConfirm(yes) {
-    const had = !!pendingConfirm;
-    pendingConfirm = null;
-    if (!had) return;
-    if (yes) {
-      confirmedOnce = true;
-      showThought('*…if that is your wish.* [aims, breathing out slowly]', ['✅ confirmed', '🔫 engaging'], 0);
-      setAttackOrder(true, 'confirmed');
-      // fire immediately — no second LLM round-trip needed
-      try {
-        if (window.Gun && window.Gun.getAimMode() !== 'ai' && window.Gun.setAimMode) window.Gun.setAimMode('ai');
-        window.Gun.aiAimNearest(3);
-        window.Gun.aiFire(3);
-      } catch (e) {}
-    } else {
-      showThought('*…understood. Standing down.*', ['🙅 declined'], 0);
-      setAttackOrder(false, 'master declined');
-      try { window.Gun && window.Gun.aiCease && window.Gun.aiCease(); } catch (e) {}
-      setMemo('No tactical intent — master declined the hunt. Hold fire.', 'no');
-    }
-  }
-  // chat "yes/no" resolves a pending confirm too
-  function chatConfirm(word) {
-    if (!pendingConfirm) return false;
-    resolveConfirm(/\b(yes|y|yeah|yep|do it|sure|confirm|go)\b/i.test(word));
-    return true;
   }
 
   function init() {
@@ -570,5 +520,5 @@ window.Brain = (() => {
     if (t && !t.textContent) t.textContent = 'field is quiet… press 💭 and I’ll size it up.';
   }
 
-  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, note, resetMemory, setMemo, chatConfirm, get thinking() { return thinking; } };
+  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, note, resetMemory, setMemo, get thinking() { return thinking; } };
 })();
