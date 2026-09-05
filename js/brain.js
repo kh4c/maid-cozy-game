@@ -28,8 +28,9 @@ window.Brain = (() => {
     memory = newMemory();
     memo = { text: 'No tactical intent yet — treat as casual watch.', from: '', at: -1e9 }; // new life: old wishes expire
     attackOrder = false; // new life: gun down
+    try { attackScope = 'blanket'; } catch (e) {}
     try { stopFollow(); } catch (e) {}
-    try { known = []; recallTarget = null; objective = null; currentTask = null; taskState = {}; huntMin = 0; followTarget = null; followExempt = false; } catch (e) {} // new life: old grudges expire
+    try { known = []; recallTarget = null; objective = null; currentTask = null; taskState = {}; huntMin = 0; followTarget = null; followExempt = false; target = null; } catch (e) {} // new life: old grudges expire
     try { memory.events.push(`(new life — ${reason})`); } catch (e) {}
   }
   // note('kill', n) / note('hurt') / note('flee') — called by gun/health/main
@@ -74,6 +75,59 @@ window.Brain = (() => {
   // politely ignored until the next think. Cleared by a stop-memo or death.
   let attackOrder = false;
   let atkAcc = 0;
+  let attackScope = 'blanket'; // 'blanket' = any critter in reach dies; 'surgical' = ONLY the target latch authorizes fire
+  // ---- surgical target: "kill the BLUE one" names ONE color, not the pack ----
+  // The model decides (chat memo or [target:] tag), the code executes: only
+  // that rarity/id dies, everything else lives — even after the pack goes
+  // hostile from the shooting (the latch sits ABOVE the blanket hostile
+  // branch). Cleared by stop, quota fill, a blanket order, or the moment no
+  // target-color critter is left in view (reported honestly either way).
+  let target = null; // { rarity|null, id|null, word, seen }
+  const COLOR2RARITY = { blue: 'rare', green: 'uncommon', purple: 'epic', gold: 'legendary', yellow: 'legendary', gray: 'common', grey: 'common', common: 'common', uncommon: 'uncommon', rare: 'rare', epic: 'epic', legendary: 'legendary' };
+  function rarityWord(r) { return { common: 'gray', uncommon: 'green', rare: 'blue', epic: 'purple', legendary: 'gold' }[r] || r; }
+  function cleanColorWord(w) {
+    let r = String(w || '').toLowerCase().replace(/s$/, '');
+    if (r === 'legendarie') r = 'legendary';
+    return r;
+  }
+  function parseTarget(t) {
+    // "kill/shoot the blue one", "only the green ones", "take down the gold"
+    const s = String(t || '').toLowerCase();
+    if (wantsStop(s)) return false; // negations never latch ("don't shoot the blue")
+    const m = s.match(/(kill|shoot|attack|fire\s+at|take\s+down|pop|destroy|wipe)(?:[^.!?]{0,40}?)\b(blues?|greens?|purples?|golds?|yellows?|grays?|greys?|commons?|uncommons?|rares?|epics?|legendarys?|legendaries)\b/) ||
+      s.match(/(only|just)\s+the\s+(blues?|greens?|purples?|golds?|yellows?|grays?|greys?|commons?|uncommons?|rares?|epics?|legendarys?|legendaries)\b/);
+    if (!m) return false;
+    const word = cleanColorWord(m[2]);
+    const rarity = COLOR2RARITY[word];
+    if (!rarity) return false;
+    target = { rarity, id: null, word, seen: false };
+    // a color match IS an attack order — surgical-only authorization, so the
+    // blanket never inherits it ("take down" isn't even in ATTACK_RE)
+    setAttackOrder(true, 'surgical order');
+    lastAskAt = performance.now();
+    attackScope = 'surgical';
+    note(`surgical target: only the ${word} (${rarity}) — rest of the pack lives`);
+    sayUnlessBusy(`*narrows her eyes, tracking* The ${word} one? She's mine, master — the rest can run.`);
+    return true;
+  }
+  function resolveTargetRef(ref) {
+    // color/rarity/id word → nearest matching LIVE entry, or null
+    try {
+      const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
+      const list = (p && p.enemies && p.enemies.list) || [];
+      const r = cleanColorWord(ref);
+      if (/^p\d+c\d+$/.test(r)) return list.find((e) => e && e.id === r) || null;
+      const rar = COLOR2RARITY[r] || (/^(common|uncommon|rare|epic|legendary)$/.test(r) ? r : null);
+      if (!rar) return null;
+      let best = null;
+      for (const e of list) { if (!e || e.rarity !== rar) continue; if (!best || e.dist < best.dist) best = e; }
+      return best;
+    } catch (e) { return null; }
+  }
+  function getTargetText() {
+    if (!target) return '';
+    return target.id ? `only [${target.id}] — everything else lives` : `only the ${target.word} (${target.rarity}) — rest of the pack lives`;
+  }
   function combatDrive(dt) {
     if (!attackOrder) return;
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
@@ -92,6 +146,50 @@ window.Brain = (() => {
       // minutes ago must not mow down new packs. Otherwise: hold fire, watch.
       const d = en.nearest.dist, hot = !!en.nearest.hostile;
       const fresh = performance.now() - lastAskAt < 45000 || !!objective; // a standing quota never goes stale
+      if (target) {
+        // SURGICAL: master named one color — only that rarity/id dies. Same
+        // REACH + thrift rules as the blanket (hostiles 650, calm 500 +
+        // fresh/quota, the bar needs a fresh word). Nothing matching in view →
+        // cease, drop the latch, report honestly. Shooting the blue alerts the
+        // pack (survivors go hostile) but the latch HOLDS — greens live anyway.
+        const match = (e) => e && (target.id ? e.id === target.id : e.rarity === target.rarity);
+        let best = null;
+        try {
+          for (const e of (en.list || [])) {
+            if (!match(e)) continue;
+            const dd = e.dist, hh = !!e.hostile;
+            if (hh ? dd > 650 : (dd > 500 || !fresh)) continue;
+            if (!best || dd < best.dist) best = e;
+          }
+        } catch (e) {}
+        const freshSame = attackOrder && performance.now() - lastAskAt < 45000;
+        if (best && !(!best.hostile && huntMin > 0 && (best.price | 0) < huntMin && !freshSame)) {
+          target.seen = true;
+          try { window.Gun && window.Gun.aiAimAt && window.Gun.aiAimAt(best.x, best.y, 1); } catch (e) {}
+          try { const st = window.Gun.status(); if (!st.firing) window.Gun.aiFire(1); } catch (e) {}
+          return;
+        }
+        if (!best) {
+          try { window.Gun && window.Gun.aiCease && window.Gun.aiCease(); } catch (e) {}
+          const w = target.word || rarityWord(target.rarity) || 'target';
+          const line = target.seen
+            ? `*lowers her gun, nodding* ${w[0].toUpperCase() + w.slice(1)} down, master — the rest live unless you say otherwise.`
+            : `*squints around* I don't see any ${w} one in view, master — point me at them?`;
+          target = null;
+          // the surgical word authorized ONLY the target: no quota standing →
+          // stand the gun down too, or the leftover blanket order mows the
+          // greens she just promised live. Quota standing → it resumes blanket.
+          if (objective) attackScope = 'blanket';
+          else if (attackScope === 'surgical') setAttackOrder(false, 'surgical target down');
+          sayUnlessBusy(line);
+          return;
+        }
+        try { window.Gun && window.Gun.aiCease && window.Gun.aiCease(); } catch (e) {}
+        return; // target visible but out of reach/thrift — hold, latch stays
+      }
+      // a surgical-only authorization with no latch authorizes nothing — the
+      // blanket must never inherit a finished/refused surgical word
+      if (!target && attackScope === 'surgical') return;
       // hunt filter: a standing "worth at least N" bar. Calm small-fry under the
       // bar are beneath our bullets — hold fire even on a standing quota. Only a
       // FRESH explicit kill order (<45s) spends ammo on them deliberately.
@@ -151,9 +249,12 @@ window.Brain = (() => {
     // Standing orders ("keep killing until 200 coins") override the defaults —
     // parsed BEFORE stop, so an explicit stop still wins over everything.
     parseObjective(t);
+    // Surgical color target ("kill the blue one") — parsed with the standing
+    // orders; stop/blanket handling below decides whether the latch survives.
+    const gotTarget = parseTarget(t);
     // stop FIRST — negation beats attack words ("don't kill those" = stand down)
-    if (wantsStop(t)) { setAttackOrder(false, 'master said stop'); stopFollow(); stopStroll(); clearObjective(); clearTask('master said stop'); }
-    else if (wantsAttack(t) && (performance.now() > recallDeadUntil || !RECALL_RE.test(t)) && !quotaSatisfied(t)) { setAttackOrder(true, 'master ordered'); lastAskAt = performance.now(); } // memo wish counts as fresh intent — unless it recalls the dead or re-orders a filled quota
+    if (wantsStop(t)) { setAttackOrder(false, 'master said stop'); stopFollow(); stopStroll(); clearObjective(); clearTask('master said stop'); target = null; }
+    else if (wantsAttack(t) && (performance.now() > recallDeadUntil || !RECALL_RE.test(t)) && !quotaSatisfied(t)) { setAttackOrder(true, 'master ordered'); lastAskAt = performance.now(); attackScope = gotTarget ? 'surgical' : 'blanket'; if (!gotTarget) target = null; } // memo wish counts as fresh intent — unless it recalls the dead or re-orders a filled quota; a blanket order drops any surgical latch
     // "not big enough, find another" while she's on a pack: dismiss THIS
     // group (ignored ~3 min) and walk AWAY to look elsewhere — she must
     // never re-find the same group. Falls through to normal handling below.
@@ -256,11 +357,29 @@ window.Brain = (() => {
     const chips = [];
     const num = (v, d) => { const n = parseFloat(v); return Number.isFinite(n) ? n : d; };
     try {
-      // [aim:nearest:secs]
+      // [aim:nearest:secs] — steered by a surgical latch when one stands
       for (const m of reply.matchAll(/\[aim\s*:\s*nearest(?::\s*([\d.]+))?\]/gi)) {
         const secs = num(m[1], 3);
-        const ok = window.Gun && window.Gun.aiAimNearest ? window.Gun.aiAimNearest(secs) : false;
-        chips.push(ok ? '🎯 track-nearest' : '🎯 no-target');
+        let ok = false;
+        try {
+          if (target) {
+            // latch owns the muzzle: nearest OF THE TARGET, never a protected green
+            const b = resolveTargetRef(target.id || target.rarity);
+            if (b && window.Gun.aiAimAt) { window.Gun.aiAimAt(b.x, b.y, secs); ok = true; chips.push(`🎯 track-${target.word || target.id}`); }
+            else chips.push('🎯 no-target');
+          } else if (window.Gun && window.Gun.aiAimNearest) {
+            ok = window.Gun.aiAimNearest(secs);
+            chips.push(ok ? '🎯 track-nearest' : '🎯 no-target');
+          }
+        } catch (e) { chips.push('🎯 no-target'); }
+      }
+      // [aim:<color|rarity|id>:secs] — transient surgical aim (one-shot point)
+      for (const m of reply.matchAll(/\[aim\s*:\s*(blues?|greens?|purples?|golds?|yellows?|grays?|greys?|commons?|uncommons?|rares?|epics?|legendarys?|legendaries|p\d+c\d+)\s*(?::\s*([\d.]+))?\]/gi)) {
+        try {
+          const b = resolveTargetRef(m[1]);
+          if (b && window.Gun.aiAimAt) { window.Gun.aiAimAt(b.x, b.y, num(m[2], 3)); chips.push(`🎯 aim-${String(m[1]).toLowerCase()}`); }
+          else chips.push('🎯 no-target');
+        } catch (e) {}
       }
       // [aim:dx,dy:secs]
       for (const m of reply.matchAll(/\[aim\s*:\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)(?::\s*([\d.]+))?\]/gi)) {
@@ -294,6 +413,21 @@ window.Brain = (() => {
       if (/\[stop\]/i.test(reply)) {
         try { window.Input.stopWalk(); chips.push('🛑 stop'); } catch (e) {}
       }
+      // [target:<color|rarity|id>] — persistent surgical latch (combatDrive
+      // obeys: only that color dies); [target:clear] drops to blanket fire
+      for (const m of reply.matchAll(/\[target\s*:\s*([a-z0-9]+)\]/gi)) {
+        try {
+          const w = String(m[1]).toLowerCase();
+          if (w === 'clear' || w === 'none' || w === 'off') {
+            if (target) note('surgical target cleared by the think-model');
+            target = null; chips.push('🎯 target-clear');
+          } else {
+            const r = cleanColorWord(w);
+            if (/^p\d+c\d+$/.test(r)) { target = { rarity: null, id: r, word: r, seen: false }; note(`surgical target: only [${r}]`); chips.push(`🎯 target-${r}`); }
+            else if (COLOR2RARITY[r]) { target = { rarity: COLOR2RARITY[r], id: null, word: r, seen: false }; note(`surgical target: only the ${r} (${COLOR2RARITY[r]})`); chips.push(`🎯 target-${r}`); }
+          }
+        } catch (e) {}
+      }
       // [task:verb:arg] — ongoing behavior the model commands directly
       // (circle / patrol / goto / quota / hunt / follow-pack / clear)
       for (const m of reply.matchAll(/\[task\s*:\s*([a-z-]+)(?::\s*([^\]]+))?\]/gi)) {
@@ -304,7 +438,7 @@ window.Brain = (() => {
   }
   function stripTags(s) {
     return (s || '')
-      .replace(/\[(?:aim|fire|shoot|cease|run|move|stop|task)[^\]]*\]/gi, '')
+      .replace(/\[(?:aim|fire|shoot|cease|run|move|stop|task|target)[^\]]*\]/gi, '')
       .replace(/\s{2,}/g, ' ').trim();
   }
 
@@ -318,6 +452,7 @@ window.Brain = (() => {
     askCount += 1;
     lastAskAt = performance.now();
     setAttackOrder(true, 'ordered'); // latch: keep shooting at new spawns too
+    attackScope = 'blanket'; // explicit attack commands are pack-wide
     const n = annoyance();
     try {
       // easily convinced: the FIRST order already makes her take the gun
@@ -353,6 +488,7 @@ window.Brain = (() => {
         `Obey MASTER'S CURRENT WISH below — it is the master's intent, translated from their chat; pursue it when it is safe to do so (if it says attack, [aim:nearest]+[fire]; if it says stop/come, [cease]+[stop]). ` +
         `KEEP DISTANCE (built-in reflex, not a decision): stay 170-500px from anything ALIVE. Closer than 170px → [move:dx,dy:secs] away along (dx,dy) negated. Farther than 500px → walk closer with [move]. Do this every think, even mid-fight. ` +
         `SIGHT vs REACH: you SEE every on-screen critter (screen rect, corners included — all listed above) but your REACH is shorter — hostiles 650px, calm 500px and only on fresh orders. Never fire past reach. ` +
+        `A named-color kill (Target line above, or master's "kill the blue one") is SURGICAL: track ONLY that color with [aim:<color|rarity|id>:secs] — never [aim:nearest] (nearest may be a protected green). The gun holds the latch itself; your tags just help aim, or [target:<color>] to set it / [target:clear] to release it. Bullets splash ~44px: a neighbor shoulder-to-shoulder may catch sparks — that is ballistics, not disobedience; warn master if it happens. No target color listed → [cease]. ` +
         `SELF-PRESERVATION FIRST: anything hostile within ~250px is a bite threat — if HP is 4 or less, or stamina is low/exhausted, FLEE FIRST: [run:dx,dy:secs] away (negate the threat's dx,dy) and only turn to fight ([aim:nearest]+[fire]) once at 400px+. ` +
         `Running needs stamina — check it before committing to a long chase or flight. ` +
         `Calm critters → HOLD / WAIT: [cease]. Watch them, do NOT fire on your own initiative — waiting is the job. ` +
@@ -361,6 +497,7 @@ window.Brain = (() => {
         `A STALE wish (several minutes old) against calm critters → HOLD and wait for a fresh order, do not fire. ` +
         `Critters have RARITY with coin value (common / uncommon-green / RARE-blue / EPIC-purple / LEGENDARY-gold — the snapshot lists it). Rare+ finds are announced to master already; still WAIT for orders before firing calm ones, however shiny. ` +
         `Price list, KNOW it cold (coins per kill): common 2 · uncommon 5 · rare 12 · epic 25 · legendary 60. Quote values when you report or discuss a find. ` +
+        `Critters are labeled [id] + outline COLOR in the Enemies list (gray=common, green=uncommon, blue=RARE, purple=EPIC, gold=LEGENDARY). "The blue one" = the RARE — aim by color, rarity, or [id], never by "the second one" (list order shifts as they move). ` +
         `A FRESH standing order overrides HOLD: comply while grumbling. ` +
         `KNOWN GROUPS: packs you walked away from are REMEMBERED with your opinion ("too small" / "not interested" / "saved for later" — listed in the snapshot). They stay ignored while dismissed, but if master says "actually kill those / go back / those ones", march straight back to the remembered spot and re-engage. If you arrive and the pack is gone, say so plainly. If a recall finds no live critters near the remembered spot, that pack is DEAD — say so, clear the memory, stand down, and never march to a ghost. ` +
         `COINS: kills drop coins and they are yours when you walk over them (magnet ~110px, scoop ~46px). Loose coins near you are listed in the snapshot — your feet already drift toward them when it's safe, but you may also order it. Your purse total is in the snapshot too — quote it whenever master asks about money or loot. ` +
@@ -372,7 +509,7 @@ window.Brain = (() => {
         `${memoText()}\n` +
         `SESSION MEMORY (this life only):\n${memoryText()}\n` +
         `Output: 1-2 SHORT sentences of thought (first person, scout voice, under 25 words) ` +
-        `PLUS action tags. Tags (world deltas: x east+, y south+): [aim:dx,dy:secs] or [aim:nearest:secs], ` +
+        `PLUS action tags. Tags (world deltas: x east+, y south+): [aim:dx,dy:secs] or [aim:nearest:secs], [aim:<color|rarity|id>:secs], [target:<color|rarity|id>], [target:clear], ` +
         `[fire:secs], [cease], [run:dx,dy:secs] to flee, [move:x,y:secs] to reposition, [stop]. ` +
         `Always include a tag — [cease] if holding. Example: *one hostile closing north — engaging* [aim:nearest:3] [fire:2]`;
       const hist = miniHist.slice(-4).map((h) => ({ role: 'assistant', content: h }));
@@ -840,6 +977,7 @@ window.Brain = (() => {
     try { objective.milestone = 0; } catch (e) {} // progress chatter starts fresh
     if (!objective) return;
     setAttackOrder(true, 'standing objective');
+    attackScope = 'blanket'; // quotas hunt the pack, not one color
     lastAskAt = performance.now();
     searchDone = false;
     const line = objective.kind === 'coins'
@@ -904,6 +1042,7 @@ window.Brain = (() => {
           // memo keeps the think-model emitting [fire] after the job is done.
           memo = { text: 'Quota filled — standing down unless master orders otherwise.', from: '', at: performance.now() };
           setAttackOrder(false, 'quota filled');
+          target = null; // any surgical latch dies with the quota
           stopFollow(); stopStroll();
           note(`quota filled — purse at ${purse}, standing down`);
           sayUnlessBusy(`*counts coins, grinning* ${done} coins! Quota filled, master — standing down.`);
@@ -1218,7 +1357,8 @@ window.Brain = (() => {
         else bits.push('🎯 hunt on');
       }
       if (currentTask) bits.push(`📋 ${currentTask.verb}${currentTask.arg ? ' ' + currentTask.arg : ''}`);
-      else if (!objective) return '💤 idle';
+      if (target) bits.push(`🎯 ${target.word || target.id}`);
+      if (!bits.length) return '💤 idle';
       if (huntMin > 0 && !/min/.test(currentTask ? (currentTask.arg || '') : '')) bits.push(`min ${huntMin}+`);
       return bits.join(' · ') || '💤 idle';
     } catch (e) { return '💤 idle'; }
@@ -1307,5 +1447,5 @@ window.Brain = (() => {
     if (t && !t.textContent) t.textContent = 'field is quiet… press 💭 and I’ll size it up.';
   }
 
-  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, note, resetMemory, setMemo, getKnownText, getGoalHud, recallStatus, getObjectiveText, setTask, clearTask, getTaskText, get thinking() { return thinking; } };
+  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, note, resetMemory, setMemo, getKnownText, getGoalHud, getTargetText, recallStatus, getObjectiveText, setTask, clearTask, getTaskText, get thinking() { return thinking; } };
 })();

@@ -84,7 +84,7 @@ window.Enemies = (() => {
       const oy = (Math.random() - 0.5) * PACK_R * 2;
       view.position.set(anchor.x + ox, anchor.y + oy);
       world.addChild(view);
-      g.members.push({ view, anim, x: anchor.x + ox, y: anchor.y + oy, vx: 0, vy: 0, ox, oy,
+      g.members.push({ view, anim, id: 'p' + g.id + 'c' + i, x: anchor.x + ox, y: anchor.y + oy, vx: 0, vy: 0, ox, oy,
         hostile: false, lastHit: 0, hp: rar.hp, flashT: 0, // white-out blink on hit
         rarity: rar.key, price: rar.price, baseScale, // appraisal: outline color + coin value
         brave: Math.random() < 0.6, // 3 in 5 stand and fight; the rest bolt
@@ -299,7 +299,7 @@ window.Enemies = (() => {
       for (const m of g.members) {
         const dx = m.x - px, dy = m.y - py;
         const d = Math.hypot(dx, dy);
-        if (d < bd && d <= cap) { bd = d; best = { x: m.x, y: m.y, dist: d, dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2, pack: g.id }; }
+        if (d < bd && d <= cap) { bd = d; best = { id: m.id || null, x: m.x, y: m.y, dist: d, dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2, pack: g.id }; }
       }
     }
     return best;
@@ -313,7 +313,7 @@ window.Enemies = (() => {
       for (const m of g.members) {
         const dx = m.x - px, dy = m.y - py;
         const d = Math.hypot(dx, dy);
-        if (d <= cap) list.push({ x: m.x, y: m.y, dist: d, dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2, pack: g.id });
+        if (d <= cap) list.push({ id: m.id || null, x: m.x, y: m.y, dist: d, dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2, pack: g.id });
       }
     }
     list.sort((a, b) => a.dist - b.dist);
@@ -327,7 +327,7 @@ window.Enemies = (() => {
   function inView(x, y, cx, cy, hw, hh) { return Math.abs(x - cx) <= hw && Math.abs(y - cy) <= hh; }
   function viewEntry(g, m, px, py) {
     const dx = m.x - px, dy = m.y - py;
-    return { x: m.x, y: m.y, dist: Math.hypot(dx, dy), dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2, pack: g.id };
+    return { id: m.id || null, x: m.x, y: m.y, dist: Math.hypot(dx, dy), dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2, pack: g.id };
   }
   // senseView(mx,my,cx,cy,hw,hh): SEE — everything on screen, dist from the maid
   function senseView(mx, my, cx, cy, hw, hh) {

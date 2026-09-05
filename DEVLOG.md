@@ -4,6 +4,27 @@ Chronological record of what was built and why. Newest entries at the top.
 
 ---
 
+## 2026-09-06 — Surgical color targets: "kill the blue one" kills ONLY the blue
+
+Model decides, code executes. Every visible critter now has a stable id
+(`p3c1`) + outline COLOR in the snapshot (`gray=common, green=uncommon,
+blue=RARE, purple=EPIC, gold=LEGENDARY`) — the model points by color, rarity,
+or [id], never by list order. "Kill the blue one" sets a surgical latch:
+combatDrive aims ONLY the blue (re-aimed 4x/sec at its live position) under
+the same REACH + thrift rules, sitting ABOVE the blanket hostile branch — so
+when the shot alerts the pack, the greens still live. Two subtler kills inside:
+(1) the surgical word carries surgical-ONLY fire authorization (`attackScope`),
+so after "Blue down, the rest live" no leftover blanket order mows the greens
+(quota standing → it resumes blanket instead); (2) a color match IS an attack
+order by itself ("take down" was never in ATTACK_RE). No target color in view →
+cease + honest report (down vs never-there) + latch cleared. Think-model gets
+[aim:<color|rarity|id>], [target:<...>] / [target:clear]; [aim:nearest] steers
+to the target while latched. Stop/quota-fill/death/blanket-order clear it. Chat
+intent must PRESERVE color words into the memo (it is instructed to).
+Ballistics honesty: bullets splash ~44px, packmates hold ~64px apart — a
+shoulder-to-shoulder neighbor can catch sparks; she warns if so.
+Harness `htarget.js`: 17/17; all 5 legacy suites still green.
+
 ## 2026-09-06 — Found-system vs new-system: 3 real contradictions fixed (feet ownership)
 
 Audit of the founding found-and-follow layer against goals/tasks/filter/click-move:

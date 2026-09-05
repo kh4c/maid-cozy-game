@@ -131,6 +131,7 @@ window.Chat = (() => {
       'for the tactical brain describing what the MASTER wants the maid to do right now. ' +
       'State the goal, the target, and the duration/condition, e.g. intent=[[Master wants her to hunt down and kill the calm pack to the south-east, keep firing until they are all gone]] ' +
       'or intent=[[Master wants her to stop shooting and just walk beside him]] or intent=[[No tactical intent, casual chat]]. ' +
+      'PRESERVE color/rarity target words (blue/green/purple/gold/gray, common/uncommon/rare/epic/legendary): "kill the blue one" MUST keep "blue" — the brain aims by it. ' +
       'Base it ONLY on the master\'s latest message. This line is stripped from the dialog.]'
     );
   }
