@@ -581,9 +581,16 @@ window.Brain = (() => {
     try { window.Input.order(strollDir.x, strollDir.y, 2.0); } catch (e) {} // move at once
   }
   function stopStroll() { strollDir = null; }
+  // playerOnFeet: master's words own her feet right now (click pin, pushed
+  // chat order, "keep going!" window) — auto legs yield: no new orders AND
+  // no cancelling hers. Flee reflex never yields (survival first).
+  function playerOnFeet() {
+    try { return !!(window.Input && window.Input.pushedActive && window.Input.pushedActive()); } catch (e) { return false; }
+  }
   function stroll(dt) {
     if (!strollDir) return;
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
+    if (playerOnFeet()) return; // her feet are yours — don't overwrite or cancel
     if (window.Stamina && !window.Stamina.canMove()) { window.Input.stopWalk(); return; } // tired → rest
     strollAcc += dt;
     if (strollAcc < 2.2) return; // one leg ~2.2s
@@ -848,6 +855,7 @@ window.Brain = (() => {
     if (!following) return;
     if (objective && objective.kind === 'heel') { stopFollow(); return; } // heel holds — never shadows
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) { stopFollow(); return; }
+    if (playerOnFeet()) return; // master's order owns her feet — shadowing waits
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       const n = p && p.enemies && p.enemies.nearest;
@@ -1077,6 +1085,7 @@ window.Brain = (() => {
     // reflex is HERS: only while she owns the gun (AI aim) — in mouse mode
     // your keyboard stays the only thing that moves her.
     try { if (!window.Gun || window.Gun.getAimMode() !== 'ai') return; } catch (e) { return; }
+    if (playerOnFeet()) return; // master's order owns her feet — spacing waits
     if (window.Stamina && !window.Stamina.canMove()) return; // catching breath
     kdAcc += dt;
     if (kdAcc < 0.4) return; // re-order 2.5x/sec — plenty for a walk

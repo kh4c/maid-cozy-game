@@ -30,8 +30,8 @@ window.Stamina = (() => {
       stillFor = 0; // moving resets the regen cooldown
       v -= DRAIN * dt;
       if (!pushed && v <= AUTO_REST_AT) {
-        // her own legs park at a quarter — pushed legs blow straight past
-        v = AUTO_REST_AT;
+        // her own legs park at a quarter — pushed legs blow straight past.
+        // (latch only, never clamp UP: a pushed dip below quarter stays dipped)
         if (!autoRest) { autoRest = true; justRested = true; }
       }
       if (v <= 0) { v = 0; exhausted = true; autoRest = false; justExhausted = true; }
@@ -62,6 +62,10 @@ window.Stamina = (() => {
   function state() { return { v: Math.round(v), max: MAX, exhausted, autoRest, pct: v / MAX }; }
 
   function reset() { v = MAX; exhausted = false; autoRest = false; stillFor = 0; justExhausted = false; justRecovered = false; justRested = false; } // new life = fresh legs
+  // kick: master's "get back to work!" — drops a voluntary rest latch so auto
+  // legs flow again (under pushed cover if a push window is live). Never
+  // touches true exhaustion — empty legs stay locked till they recover.
+  function kick() { if (!exhausted) autoRest = false; }
 
   function init() {
     const wrap = document.getElementById('stamina-wrap');
@@ -69,5 +73,5 @@ window.Stamina = (() => {
     update(0, false);
   }
 
-  return { init, update, canMove, state, reset, get exhausted() { return exhausted; }, get justExhausted() { return justExhausted; }, get justRecovered() { return justRecovered; }, get justRested() { return justRested; }, get value() { return v; } };
+  return { init, update, canMove, state, reset, kick, get exhausted() { return exhausted; }, get justExhausted() { return justExhausted; }, get justRecovered() { return justRecovered; }, get justRested() { return justRested; }, get value() { return v; } };
 })();

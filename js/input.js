@@ -38,11 +38,15 @@ window.Input = (() => {
     clickMove = { x: wx, y: wy, until: performance.now() + CLICK_SECS * 1000 };
   }
   function manualActive() { return !!clickMove && performance.now() <= clickMove.until; }
-  // pushedActive: player-owned feet RIGHT NOW — live click pin, or a live
-  // player-pushed chat order. Auto-run (brain legs) never counts.
+  // pushedActive: player-owned feet RIGHT NOW — live click pin, a live
+  // player-pushed chat order, or a recent "keep going!" urge window.
+  // Auto-run (brain legs) never counts.
+  let pushWindowUntil = 0;
+  function pushFor(secs) { pushWindowUntil = performance.now() + Math.max(1, Math.min(12, Number(secs) || 6)) * 1000; }
   function pushedActive() {
     if (!!clickMove && performance.now() <= clickMove.until) return true;
     if (chatMove && performance.now() <= chatMove.until && chatMove.push) return true;
+    if (performance.now() <= pushWindowUntil) return true;
     return false;
   }
 
@@ -91,5 +95,5 @@ window.Input = (() => {
     return q;
   }
 
-  return { axis, order, stopWalk, clickTo, manualActive, pushedActive, bindCanvas, attackPressed };
+  return { axis, order, stopWalk, clickTo, manualActive, pushedActive, pushFor, bindCanvas, attackPressed };
 })();

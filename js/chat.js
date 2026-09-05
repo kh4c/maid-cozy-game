@@ -107,6 +107,18 @@ window.Chat = (() => {
     return { x: x / len, y: y / len, secs };
   }
 
+  // Urge words (no direction): "keep going", "back to work", "don't rest" —
+  // breaks a VOLUNTARY rest latch and lends pushed cover for ~6s so auto legs
+  // flow again on your word (and can run the tank dry). True exhaustion
+  // ignores it — empty legs stay locked till they recover.
+  function parseUrge(text) {
+    const t = String(text || '').toLowerCase();
+    if (!/\b(keep\s+(going|working|running|moving|at\s+it)|don'?t\s+(rest|stop)|get\s+up|back\s+to\s+work|on\s+your\s+feet|no\s+resting)\b/.test(t)) return false;
+    try { window.Input && window.Input.pushFor && window.Input.pushFor(6); } catch (e) {}
+    try { window.Stamina && window.Stamina.kick && window.Stamina.kick(); } catch (e) {}
+    return true;
+  }
+
   // Recent history capped by BOTH count and characters (~4 chars/token):
   // 6000 chars ≈ 1500 tokens keeps system + history + reply inside small
   // (8k) context windows. Always keeps at least the latest exchange.
@@ -158,6 +170,7 @@ window.Chat = (() => {
     clearInterval(typeTimer);
     history.push({ role: 'user', content: text });
     parseWalk(text); // "go left" walks her at once; she still replies in character
+    parseUrge(text); // "keep going / back to work" breaks a voluntary rest — your words over her legs
     // Combat orders ("attack them!", "shoot it") go to the survival brain, not
     // the chat persona — she takes the gun (AI aim) and thinks immediately.
     // Negation-aware: "don't kill / do not shoot / stop killing" is NEVER an
@@ -341,7 +354,9 @@ window.Chat = (() => {
           ? `Facts (quote EXACTLY, never invent): ENEMIES KILLED THIS PACK = ${f.kills}${f.purse != null ? `; PURSE TOTAL = ${f.purse} coins (that is MONEY, not a kill count)` : ''}. When you mention numbers, say the UNIT — "3 critters down", "12 coins in the purse" — never a bare number that could be misread as the other. `
           : f.event && (f.event.startsWith('posture') || f.event === 'chatter')
             ? `No numbers here, ever — no kill counts, no lifetime totals, no coins. Just say how the job feels in character. `
-            : `Facts (quote EXACTLY, never invent or round): CRITTER COUNT = ${f.total || 1}, to the ${f.dir || 'east'}, ${f.dist || 'nearby'}; best one ${f.bestColor || ''} ${f.bestRarity || 'common'} worth ~${f.bestPrice || 2} COINS. Keep units attached: critters are critters, money is coins — never say a bare number. `) +
+            : (!f.event || f.event === 'found')
+              ? `Facts (quote EXACTLY, never invent or round): CRITTER COUNT = ${f.total || 1}, to the ${f.dir || 'east'}, ${f.dist || 'nearby'}; best one ${f.bestColor || ''} ${f.bestRarity || 'common'} worth ~${f.bestPrice || 2} COINS. Keep units attached: critters are critters, money is coins — never say a bare number. `
+              : `No new facts — the approved line above IS the whole situation (a feeling, a state, an acknowledgement). Reword it lightly in your own voice, stay close to it, and do NOT invent critters, numbers, directions, or places. `) +
         `${(f.hostile | 0) > 0 && f.event !== 'wiped' && !(f.event || '').startsWith('posture') ? 'Some look HOSTILE (angry).' : (f.ordered && f.event === 'found' ? 'Master ordered the engagement.' : f.event === 'found' ? 'You will HOLD and watch — say you await orders.' : '')} ` +
         `${f.prev ? `Context: you already reported another pack (${f.prev}). ${f.compare || 'Say which pack is closer and which you would take first, and why.'} ` : ''}` +
         `${f.switched ? `You left the old pack for this one because it is ${f.switched} — say why, briefly. ` : ''}` +
