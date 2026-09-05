@@ -324,6 +324,7 @@ window.Brain = (() => {
         `If you recently FOUND a pack for master (see Recent events), stay near it and keep waiting — shadowing, not shooting. ` +
         `A hunt/attack wish STAYS in force only while FRESH (master asked under a minute ago — check when the wish was set): every critter in range is a valid target. ` +
         `A STALE wish (several minutes old) against calm critters → HOLD and wait for a fresh order, do not fire. ` +
+        `Critters have RARITY with coin value (common / uncommon-green / RARE-blue / EPIC-purple / LEGENDARY-gold — the snapshot lists it). Rare+ finds are announced to master already; still WAIT for orders before firing calm ones, however shiny. ` +
         `A FRESH standing order overrides HOLD: comply while grumbling. ` +
         `ANNOYANCE LEVEL: ${annoyance()} — ${annoyanceFlavor(annoyance())}\n` +
         `${memoText()}\n` +
@@ -485,6 +486,32 @@ window.Brain = (() => {
   let pendingSay = null;    // found-line waiting for a free chat box
   let pendingSayAcc = 0, pendingSayTries = 0;
   const FOLLOW_DIST = 280;  // shadow at this range (keep-distance owns <170)
+  const OBSERVE_DIST = 340; // observing a calm pack: stand off, watch, wait for orders
+  const RANK = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 };
+  const RING_WORD = { uncommon: 'green', rare: 'blue', epic: 'purple', legendary: 'gold' };
+  let lastRareNote = -1e9;  // opportunistic rare callouts, at most every ~90s
+  // priciest critter in view (the one she points at)
+  function bestPrize(en) {
+    let best = null;
+    try {
+      for (const e of (en && en.list) || []) {
+        if (!best || (e.price || 0) > (best.price || 0)) best = e;
+      }
+    } catch (e) {}
+    return best || (en && en.nearest) || null;
+  }
+  function packValue(en) {
+    try { return (en.list || []).reduce((s, e) => s + ((e.price | 0) || 0), 0); } catch (e) { return 0; }
+  }
+  // her feeling about hunting THIS pack — appetite scales with shininess
+  function huntingFeeling(best) {
+    const r = (best && best.rarity) || 'common';
+    if (r === 'legendary') return `A LEGENDARY, shining gold — ${best.price} coins!! I'm trying VERY hard to behave, master.`;
+    if (r === 'epic') return `An EPIC, shining purple — ${best.price} coins easy… please say I can keep the change.`;
+    if (r === 'rare') return `Ooh — a blue-banded RARE, worth about ${best.price} coins! My tail's twitching…`;
+    if (r === 'uncommon') return `Some nice green-banded ones in there — pocket money, about ${best.price} coins for the best.`;
+    return `Just commons, a coin or two each. Honestly not worth the bullets…`;
+  }
   function dirWord(dx, dy) {
     const ax = Math.abs(dx), ay = Math.abs(dy);
     if (ax < 1e-6 && ay < 1e-6) return 'right here';
@@ -511,31 +538,51 @@ window.Brain = (() => {
         try { if (window.Chat && window.Chat.say && window.Chat.say(pendingSay)) pendingSay = null; } catch (e) {}
       } else if (pendingSayTries >= 3) pendingSay = null;
     }
-    if (searchDone || following) return;
-    if (!searchingNow()) return;
+    if (following) return;
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       if (!p || !p.enemies || !p.enemies.nearest || p.enemies.nearest.dist > 500) return;
-      foundIt(p.enemies);
+      if (!searchingNow()) {
+        // opportunistic: a RARE+ wandering into view gets announced + observed
+        // even with no search order — she talks first, never shoots first.
+        // (NOT gated by searchDone — old searches must not mute new shinies.)
+        const best = bestPrize(p.enemies);
+        const rank = RANK[(best && best.rarity) || 'common'] || 0;
+        if (rank >= 2 && performance.now() - lastRareNote > 90000) {
+          lastRareNote = performance.now();
+          foundIt(p.enemies, true);
+        }
+        return;
+      }
+      if (searchDone) return;
+      foundIt(p.enemies, false);
     } catch (e) {}
   }
-  function foundIt(en) {
+  function foundIt(en, opportunistic) {
     searchDone = true;
     stopStroll();
     following = true;
     followLostAcc = 0;
     const n = en.nearest;
     const dir = dirWord(n.dx, n.dy);
-    const line = `*gasps, pointing ${dir}* Found ${en.total === 1 ? 'it' : `them — ${en.total} critters`} ${distWord(n.dist)}, to the ${dir}! ` +
-      (en.hostile > 0 ? `Careful, master — ${en.hostile === en.total ? 'they all look' : 'some look'} angry! ` : `They look calm… `) +
-      `I'll stay on their tail.`;
-    try { pushEvent(`found ${en.total} critter(s) ${dir} — following`); } catch (e) {}
-    try { if (window.__maidCamera && window.__maidCamera.lookAt) window.__maidCamera.lookAt(n.x, n.y, 2.5); } catch (e) {}
+    const best = bestPrize(en) || n;
+    const bDir = best && best.dx !== undefined ? dirWord(best.dx, best.dy) : dir;
+    const freshOrder = performance.now() - lastAskAt < 45000;
+    const feeling = huntingFeeling(best);
+    const stance = en.hostile > 0
+      ? `Careful, master — ${en.hostile === en.total ? 'they all look' : 'some look'} angry!`
+      : (attackOrder && freshOrder)
+        ? `Engaging as ordered!`
+        : `I'll hold here and watch — say the word, master.`;
+    const line = `*gasps, pointing ${bDir}* Found ${en.total === 1 ? 'it' : `them — ${en.total} critters`} ${distWord(n.dist)}, to the ${dir}! ` +
+      `${feeling} ${stance}`;
+    try { pushEvent(`found ${en.total} critter(s) ${dir} — best ${best.rarity} (~${packValue(en)} coins)`); } catch (e) {}
+    try { if (window.__maidCamera && window.__maidCamera.lookAt) window.__maidCamera.lookAt(best.x || n.x, best.y || n.y, 2.5); } catch (e) {}
     let said = false;
     try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
     if (!said) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
-    showThought(`*found ${en.total === 1 ? 'it' : `all ${en.total} of them`} — ${dir}, ${distWord(n.dist)}*`, ['🔎 found', '👀 following'], 0);
+    showThought(`*found ${en.total === 1 ? 'it' : `all ${en.total} of them`} — best is ${best.rarity}*`, ['🔎 found', `💰 ~${packValue(en)}`, '👀 waiting orders'], 0);
   }
   function followTick(dt) {
     if (!following) return;
@@ -554,7 +601,11 @@ window.Brain = (() => {
       }
       followLostAcc = 0;
       if (window.Stamina && !window.Stamina.canMove()) return; // tired — hold position
-      if (n.dist > FOLLOW_DIST) {
+      // OBSERVE: calm pack + no fresh kill order → stand off at 340px and
+      // wait for instruction. Hunting (order/hostiles) closes to 280px.
+      const observing = !attackOrder && !(p.enemies && p.enemies.hostile > 0);
+      const want = observing ? OBSERVE_DIST : FOLLOW_DIST;
+      if (n.dist > want) {
         followAcc += dt; // approach in short legs so keep-distance can interject
         if (followAcc < 0.4) return;
         followAcc = 0;

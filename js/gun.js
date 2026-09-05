@@ -254,9 +254,12 @@ window.Gun = (() => {
             for (const p of res.deaths) burst(p.x, p.y - 14, 12, true); // kill pop
             burst(b.spr.x, b.spr.y, 6, false);                          // hit sparks
             try { window.Brain && window.Brain.note && window.Brain.note('kill', res.kills); } catch (e) {}
-            // loot: each kill scatters a coin or two (Inventory handles pickup)
+            // loot: each kill pays its appraised price in coins (Inventory picks up)
             try {
-              for (const d of res.deaths) window.Inventory && window.Inventory.drop(d.x, d.y, 1 + ((Math.random() * 2) | 0));
+              for (const d of res.deaths) {
+                const val = Math.max(1, Math.min(60, (d.value | 0) || 2));
+                window.Inventory && window.Inventory.drop(d.x, d.y, val);
+              }
             } catch (e) {}
             try { window.Sound.playSfx('combat', 'hit_' + ((Math.random() * 4) | 0) + '.ogg',
               { rate: 0.95 + Math.random() * 0.25, volume: 0.9 }); } catch (e) {}

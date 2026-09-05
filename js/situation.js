@@ -78,7 +78,8 @@ window.Situation = (() => {
       lines.push(`Enemies: ${enemies.total} critter(s), ${enemies.hostile} hostile.`);
       const shown = (enemies.list || []).slice(0, 4);
       shown.forEach((e, i) => {
-        lines.push(`  #${i + 1}: ${Math.round(e.dist)}px ${dirName(e.dx, e.dy)} (dx ${Math.round(e.dx)}, dy ${Math.round(e.dy)}) — ${e.hostile ? 'HOSTILE, will bite' : 'calm, milling around'}${e.hp !== undefined ? `, ${e.hp}hp` : ''}.`);
+        const appraise = e.rarity && e.rarity !== 'common' ? `, ${String(e.rarity).toUpperCase()} (~${e.price || '?'} coins)` : '';
+        lines.push(`  #${i + 1}: ${Math.round(e.dist)}px ${dirName(e.dx, e.dy)} (dx ${Math.round(e.dx)}, dy ${Math.round(e.dy)}) — ${e.hostile ? 'HOSTILE, will bite' : 'calm, milling around'}${e.hp !== undefined ? `, ${e.hp}hp` : ''}${appraise}.`);
       });
       if (enemies.total > shown.length) lines.push(`  (+${enemies.total - shown.length} more further out)`);
     }

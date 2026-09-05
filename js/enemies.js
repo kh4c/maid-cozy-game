@@ -23,6 +23,23 @@ window.Enemies = (() => {
   const SCALE = 2.75;                  // chunky critters (was 2 — they stacked into a blob)
   const SEP_R = 64;                    // packmates push apart inside this radius
 
+  // ---- rarity randomizer -------------------------------------------------------
+  // Every critter rolls size + rarity at spawn. Rarity shows as a colored
+  // outline ring (common = none) and sets coin value + toughness. Tunables:
+  // weights sum to 100; price = coins dropped on kill.
+  const RARITY = [
+    { key: 'common',    w: 60, color: null,       price: 2,  size: [0.85, 1.00], hp: 3 },
+    { key: 'uncommon',  w: 25, color: 0x51d651,   price: 5,  size: [1.00, 1.12], hp: 4 },
+    { key: 'rare',      w: 10, color: 0x4aa8ff,   price: 12, size: [1.12, 1.25], hp: 5 },
+    { key: 'epic',      w: 4,  color: 0xc26bff,   price: 25, size: [1.25, 1.40], hp: 7 },
+    { key: 'legendary', w: 1,  color: 0xffd24a,   price: 60, size: [1.40, 1.60], hp: 10 },
+  ];
+  function rollRarity() {
+    let r = Math.random() * 100, acc = 0;
+    for (const t of RARITY) { acc += t.w; if (r < acc) return t; }
+    return RARITY[0];
+  }
+
   let frames = null;
   const groups = []; // { anchor:{x,y}, dir, retarget, members:[{view,anim,x,y,vx,vy,ox,oy,hostile,lastHit}] }
   let spawnAcc = 0;
@@ -50,13 +67,25 @@ window.Enemies = (() => {
       anim.animationSpeed = 1 / 6;
       anim.play();
       view.addChild(sh, anim);
-      view.scale.set(SCALE);
+      // rarity roll: size + outline ring + value + toughness
+      const rar = rollRarity();
+      const sizeMult = rar.size[0] + Math.random() * (rar.size[1] - rar.size[0]);
+      const baseScale = SCALE * sizeMult;
+      view.scale.set(baseScale);
+      if (rar.color !== null && rar.color !== undefined) {
+        try {
+          const ring = new Graphics();
+          ring.ellipse(0, -30, 21, 25).stroke({ color: rar.color, width: 2.5, alpha: 0.9 });
+          view.addChild(ring);
+        } catch (e) { /* a ringless rare still pays */ }
+      }
       const ox = (Math.random() - 0.5) * PACK_R * 2;
       const oy = (Math.random() - 0.5) * PACK_R * 2;
       view.position.set(anchor.x + ox, anchor.y + oy);
       world.addChild(view);
       g.members.push({ view, anim, x: anchor.x + ox, y: anchor.y + oy, vx: 0, vy: 0, ox, oy,
-        hostile: false, lastHit: 0, hp: 3, flashT: 0, // white-out blink on hit
+        hostile: false, lastHit: 0, hp: rar.hp, flashT: 0, // white-out blink on hit
+        rarity: rar.key, price: rar.price, baseScale, // appraisal: outline color + coin value
         brave: Math.random() < 0.6, // 3 in 5 stand and fight; the rest bolt
         orbit: Math.random() < 0.5 ? 1 : -1 }); // milling circle direction
     }
@@ -77,8 +106,8 @@ window.Enemies = (() => {
     m.vy += ((dy / d) * speed - m.vy) * k;
     m.x += m.vx * dt;
     m.y += m.vy * dt;
-    if (m.vx < -2) m.view.scale.x = -SCALE;
-    else if (m.vx > 2) m.view.scale.x = SCALE;
+    if (m.vx < -2) m.view.scale.x = -(m.baseScale || SCALE);
+    else if (m.vx > 2) m.view.scale.x = (m.baseScale || SCALE);
     m.view.position.set(m.x, m.y);
   }
 
@@ -237,7 +266,7 @@ window.Enemies = (() => {
         m.hp -= dmg;
         m.flashT = 0.18; // flicker on any non-lethal connect
         if (m.hp <= 0) {
-          deaths.push({ x: m.x, y: m.y });
+          deaths.push({ x: m.x, y: m.y, value: m.price || 2 }); // appraisal pays out
           world.removeChild(m.view);
           g.members.splice(i, 1);
           kills++;
@@ -269,7 +298,7 @@ window.Enemies = (() => {
       for (const m of g.members) {
         const dx = m.x - px, dy = m.y - py;
         const d = Math.hypot(dx, dy);
-        if (d < bd && d <= cap) { bd = d; best = { x: m.x, y: m.y, dist: d, dx, dy, hostile: !!m.hostile, hp: m.hp }; }
+        if (d < bd && d <= cap) { bd = d; best = { x: m.x, y: m.y, dist: d, dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2 }; }
       }
     }
     return best;
@@ -283,7 +312,7 @@ window.Enemies = (() => {
       for (const m of g.members) {
         const dx = m.x - px, dy = m.y - py;
         const d = Math.hypot(dx, dy);
-        if (d <= cap) list.push({ x: m.x, y: m.y, dist: d, dx, dy, hostile: !!m.hostile, hp: m.hp });
+        if (d <= cap) list.push({ x: m.x, y: m.y, dist: d, dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2 });
       }
     }
     list.sort((a, b) => a.dist - b.dist);
