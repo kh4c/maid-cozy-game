@@ -33,10 +33,30 @@ window.Brain = (() => {
     try { memory.events.push(`(new life — ${reason})`); } catch (e) {}
   }
   // note('kill', n) / note('hurt') / note('flee') — called by gun/health/main
+  // Lifetime kills persist in localStorage ('cosette.totalKills') and paint the
+  // HUD kill panel. HUD-only: the total NEVER enters speech or the think
+  // prompt (no lifetime totals, ever — per-pack numbers with units only).
+  const KILL_STORE = 'cosette.totalKills';
+  let lifetimeKills = 0;
+  try { lifetimeKills = Math.max(0, parseInt(localStorage.getItem(KILL_STORE), 10) || 0); } catch (e) {}
+  function paintKills(bump) {
+    try {
+      const el = $('kill-count');
+      if (el) {
+        const t = String(lifetimeKills);
+        if (el.textContent !== t) el.textContent = t;
+        if (bump) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+      }
+    } catch (e) {}
+  }
   function note(kind, n) {
     try {
       if (kind === 'kill') {
-        memory.kills += Math.max(1, Number(n) || 1);
+        const k = Math.max(1, Number(n) || 1);
+        memory.kills += k;
+        lifetimeKills += k; // session math stays in memory.kills; this one survives reloads
+        try { localStorage.setItem(KILL_STORE, String(lifetimeKills)); } catch (e) {}
+        paintKills(true);
         askCount = Math.max(0, askCount - 1); // venting: each kill settles one gripe
         pushEvent(`popped ${Math.max(1, Number(n) || 1)} critter(s)`);
       } else if (kind === 'hurt') {
@@ -319,6 +339,7 @@ window.Brain = (() => {
       const gl = $('goal-line');
       if (gl) { const t = getGoalHud(); if (gl.textContent !== t) gl.textContent = t; }
     } catch (e) {}
+    paintKills(false); // lifetime total onto the HUD panel (boot + every 0.5s)
   }
 
   // ---- thought box (HER box, not chat's) ------------------------------------
