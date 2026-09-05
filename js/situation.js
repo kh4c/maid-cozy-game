@@ -65,14 +65,17 @@ window.Situation = (() => {
       }
     } catch (e) { /* deaf snapshot */ }
 
-    // stamina
+    // stamina — both minds read this every turn, so it names the CURRENT state,
+    // not just the number: parked (autoRest), empty (exhausted), or getting low.
     let staminaTxt = 'stamina: n/a';
     try {
       if (window.Stamina) {
         const st = window.Stamina.state();
         staminaTxt = st.exhausted
-          ? `stamina ${st.v}/${st.max} — EXHAUSTED, cannot move until she catches her breath`
-          : `stamina ${st.v}/${st.max}${st.pct < 0.3 ? ' (running low — she will need to rest soon)' : ''}`;
+          ? `stamina ${st.v}/${st.max} — EXHAUSTED, legs locked, cannot move until she catches her breath (slow)`
+          : st.autoRest
+            ? `stamina ${st.v}/${st.max} — RESTING by her own choice (legs parked at a quarter, auto resumes shortly; only master's direct orders move her right now)`
+            : `stamina ${st.v}/${st.max}${st.pct < 0.3 ? ' (running low — she will want to rest soon)' : ''}`;
       }
     } catch (e) { /* deaf snapshot */ }
 
