@@ -14,7 +14,8 @@ window.CONFIG = {
 
   // Background image (user-provided grassland with dirt patches, streamed as chunks)
   background: {
-    url: 'assets/grassland.png',   // 1254x1254
+    url: 'assets/grassland.png',   // 1254x1254 day
+    nightUrl: 'assets/Grassland_night.png', // 1254x1254 night (WORLD tab)
   },
   chunkSize: 1254,                 // one chunk = one background image
 

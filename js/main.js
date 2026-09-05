@@ -40,11 +40,12 @@
     const c = document.createElement('canvas');
     c.width = 640; c.height = 360;
     const g = c.getContext('2d');
-    // SPOTLIGHT: bright center (fully clear), hard black falloff to edges
-    const grad = g.createRadialGradient(320, 180, 60, 320, 180, 360);
+    // SPOTLIGHT: only the area near the character stays bright — tight clear
+    // circle around her, everything else falls to near-black fast.
+    const grad = g.createRadialGradient(320, 180, 30, 320, 180, 240);
     grad.addColorStop(0, 'rgba(1,2,8,0)');
-    grad.addColorStop(0.3, 'rgba(1,2,8,0.25)');
-    grad.addColorStop(0.55, 'rgba(1,2,8,0.8)');
+    grad.addColorStop(0.3, 'rgba(1,2,8,0.35)');
+    grad.addColorStop(0.55, 'rgba(1,2,8,0.82)');
     grad.addColorStop(0.8, 'rgba(1,2,8,0.99)');
     grad.addColorStop(1, 'rgba(0,0,4,1)');
     g.fillStyle = grad;
@@ -60,24 +61,40 @@
     const on = nightOn();
     applyNightBg(on);
     nightOverlay.clear();
-    if (on) nightOverlay.rect(0, 0, app.screen.width, app.screen.height).fill({ color: 0x03040a, alpha: 0.35 }); // light blue tint only — vignette owns the darkness
+    if (on) nightOverlay.rect(0, 0, app.screen.width, app.screen.height).fill({ color: 0x03040a, alpha: 0.3 }); // light touch — night texture is already dark, vignette owns the dark
     if (on && !vignette) {
       vignette = new Sprite(makeVignetteTexture());
       app.stage.addChild(vignette); // above the flat wash
     }
     if (vignette) {
       vignette.visible = on;
-      if (on) { vignette.width = app.screen.width; vignette.height = app.screen.height; }
+      // OVERSIZED 2x so the clear center can sit on the maid anywhere on screen
+      // and the sprite still covers every corner (no gaps when she moves).
+      if (on) { vignette.width = app.screen.width * 2; vignette.height = app.screen.height * 2; }
     }
     try { window.Live2D && window.Live2D.setNight && window.Live2D.setNight(on); } catch (e) { /* cosmetic */ }
   }
   drawNightOverlay();
   window.addEventListener('resize', () => setTimeout(drawNightOverlay, 0));
 
+  // Spotlight follows THE MAID: center the vignette's clear hole on her screen
+  // position every frame (world -> screen via the camera-shifted world container).
+  // Only near the character stays bright; everything else falls to black.
+  function updateVignettePos(charView) {
+    if (!vignette || !vignette.visible || !charView) return;
+    try {
+      const sx = world.x + charView.x;
+      const sy = world.y + charView.y;
+      vignette.x = sx - vignette.width / 2;
+      vignette.y = sy - vignette.height / 2;
+    } catch (e) { /* cosmetic */ }
+  }
+
   // ---- Background (infinite chunk stream) -----------------------------------------
   let background;
   try {
     background = await window.Tilemap.create();
+    background.setNight(nightOn()); // boot texture matches WORLD-tab default (night)
     world.addChild(background.layer);
     document.getElementById('bg-status').textContent = 'bg ✓';
   } catch (err) {
@@ -156,7 +173,10 @@
     if (key === 'scale' || key.endsWith('Fps')) character.applySettings();
     if (key === 'l2dExpr' && live2d && live2d.ready) live2d.setExpr(window.Settings.settings.l2dExpr);
     if (key === 'chatActions' && window.Chat) window.Chat.rerender(); // re-render dialog with/without *actions*
-    if (key === 'worldTime') drawNightOverlay(); // day/night flip, live
+    if (key === 'worldTime') {
+      drawNightOverlay();
+      try { background && background.setNight && background.setNight(nightOn()); } catch (e) {}
+    } // day/night flip, live: overlay + ground texture + Live2D tint
   });
   character.applySettings();
 
@@ -323,6 +343,7 @@
       }
     }
     camera.update(view.x, view.y, dtSec);
+    updateVignettePos(view); // spotlight tracks the maid, not screen center
 
     if (background) {
       const n = background.update(view.x, view.y, app.screen.width, app.screen.height);

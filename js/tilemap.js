@@ -7,7 +7,14 @@ window.Tilemap = (() => {
   async function create() {
     const cfg = window.CONFIG;
     // cache-bust: python http.server sends no cache headers, browsers hold stale copies
-    const tex = await PIXI.Assets.load(cfg.background.url + '?v=' + Date.now());
+    const dayTex = await PIXI.Assets.load(cfg.background.url + '?v=' + Date.now());
+    // night texture: preloaded once so the WORLD-tab flip is instant, no pop-in
+    let nightTex = null;
+    try {
+      if (cfg.background.nightUrl) nightTex = await PIXI.Assets.load(cfg.background.nightUrl + '?v=' + Date.now());
+    } catch (e) { nightTex = null; /* day texture stands in */ }
+    let isNight = false;
+    const curTex = () => (isNight && nightTex) ? nightTex : dayTex;
     const S = cfg.chunkSize;
 
     const layer = new Container();   // all chunk sprites live here (below the character)
@@ -18,10 +25,18 @@ window.Tilemap = (() => {
     function ensure(cx, cy) {
       const k = key(cx, cy);
       if (chunks.has(k)) return;
-      const s = new Sprite(tex);
+      const s = new Sprite(curTex());
       s.position.set(cx * S, cy * S);
       chunks.set(k, s);
       layer.addChild(s);
+    }
+
+    // day/night swap: re-texture live chunks so the flip is instant worldwide
+    function setNight(on) {
+      isNight = !!on;
+      if (!nightTex) return;
+      const t = curTex();
+      for (const [, s] of chunks) s.texture = t;
     }
 
     function prune(minX, minY, maxX, maxY) {
@@ -48,7 +63,7 @@ window.Tilemap = (() => {
       return chunks.size;
     }
 
-    return { layer, update };
+    return { layer, update, setNight };
   }
 
   return { create };
