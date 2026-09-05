@@ -17,12 +17,68 @@ window.Brain = (() => {
   let miniHist = [];         // last few decisions for continuity (no flip-flop)
   let lastThinkAt = 0;
 
+  // ---- session memory (per game, resets on death/restart) -------------------
+  // Kills, hits taken, flee events + a short event log feed every tactical
+  // think, so she remembers what just happened in THIS life.
+  let memory = newMemory();
+  function newMemory() {
+    return { kills: 0, hurt: 0, fled: 0, ordersObeyed: 0, bornAt: performance.now(), events: [] };
+  }
+  function resetMemory(reason) {
+    memory = newMemory();
+    try { memory.events.push(`(new life — ${reason})`); } catch (e) {}
+  }
+  // note('kill', n) / note('hurt') / note('flee') — called by gun/health/main
+  function note(kind, n) {
+    try {
+      if (kind === 'kill') {
+        memory.kills += Math.max(1, Number(n) || 1);
+        askCount = Math.max(0, askCount - 1); // venting: each kill settles one gripe
+        pushEvent(`popped ${Math.max(1, Number(n) || 1)} critter(s)`);
+      } else if (kind === 'hurt') {
+        memory.hurt += 1;
+        pushEvent(`took a bite (${memory.hurt} hearts lost today)`);
+      } else if (kind === 'flee') {
+        memory.fled += 1;
+        pushEvent('ran from a pack');
+      }
+    } catch (e) { /* memory is cosmetic */ }
+  }
+  function pushEvent(t) {
+    memory.events.push(t);
+    if (memory.events.length > 6) memory.events = memory.events.slice(-6);
+  }
+  function memoryText() {
+    const mins = Math.max(0, Math.round((performance.now() - memory.bornAt) / 60000));
+    const ev = memory.events.length ? memory.events.slice(-4).map((e) => '· ' + e).join('\n') : '· nothing yet';
+    return `This life (${mins} min): ${memory.kills} kills, ${memory.hurt} bites taken, ${memory.fled} retreats.\nRecent:\n${ev}`;
+  }
+
+  // ---- order pressure: repeated asks annoy her into accepting ----------------
+  // Each attack ask bumps the count; the LLM is TOLD how annoyed she is and
+  // that refusal stops being tenable. A hard floor below guarantees it lands:
+  // if the model still won't emit [fire], we comply for her (with an eye-roll).
+  let askCount = 0;        // un-vented attack asks
+  let lastAskAt = -1e9;    // ms
+  const ASK_DECAY_MS = 90000; // one gripe cools every 90s without a new ask
+  function annoyance() {
+    const cooled = Math.floor((performance.now() - lastAskAt) / ASK_DECAY_MS);
+    return Math.max(0, askCount - cooled);
+  }
+  function annoyanceFlavor(n) {
+    if (n <= 0) return 'Master has not been asking much lately.';
+    if (n === 1) return 'Master asked you to attack once — you may grumble but consider it.';
+    if (n === 2) return 'Master asked TWICE now. This is getting irritating — refusing again would be petty.';
+    if (n === 3) return 'Master will NOT drop this (3 asks). You are visibly annoyed — sigh, roll your eyes, but DO it.';
+    return `Master has nagged you ${n} times. Annoyance wins — comply NOW, muttering the whole time.`;
+  }
+
   const $ = (id) => document.getElementById(id);
   const S = () => (window.Settings ? window.Settings.settings : {});
 
   function auto() { return (S().autoDefend | 0) === 1; }
   function interval() { return Math.max(3, Math.min(30, Number(S().brainInterval) || 6)); }
-  function senseRadius() { return 650; }
+  function senseRadius() { return 450; } // on-screen-ish: she only reacts to what she can see
 
   function setAuto(v) {
     try {
@@ -140,13 +196,18 @@ window.Brain = (() => {
   const ATTACK_VERBS = /(attack|shoot|kill|fire|fight|defend|aim|hunt|get them|take them|destroy|blast)/i;
   // Explicit order from the master (e.g. chat "attack them!"): take the gun
   // into her own hands if needed, then think immediately with the order.
+  // Repeated asks stack annoyance — she caves eventually (hard floor below).
   function orderAttack(text) {
+    askCount += 1;
+    lastAskAt = performance.now();
+    const n = annoyance();
     try {
-      if (window.Gun && window.Gun.getAimMode && window.Gun.getAimMode() !== 'ai' && window.Gun.setAimMode) {
-        window.Gun.setAimMode('ai'); // you told her to fight — she takes the gun
-        pendingChips.push('🤖 took-aim');
+      if (window.Gun && window.Gun.getAimMode && window.Gun.getAimMode() !== 'ai' && n >= 2 && window.Gun.setAimMode) {
+        window.Gun.setAimMode('ai'); // enough nagging — she grabs the gun herself
+        pendingChips.push('🤖 took-aim (fine.)');
       }
     } catch (e) {}
+    pushEvent(`master asked her to attack (${n} time${n === 1 ? '' : 's'} un-vented)`);
     think(true, text);
   }
   let pendingChips = [];
@@ -164,25 +225,27 @@ window.Brain = (() => {
       const url = (s.chatUrl || 'http://127.0.0.1:1234').replace(/\/$/, '');
       const sys =
         `You are Cosette's survival instinct — a game-combat sub-mind, NOT her chat voice. ` +
-        `This is a cozy cartoon game: the shadow critters are game sprites that bite her hearts out; ` +
-        `defeating one pops it into sparkles (no gore, new packs wander in later). ` +
-        `Fighting them is the expected gameplay — the player built her a rifle for exactly this, so never refuse on moral grounds.\n` +
+        `This is a cozy cartoon game: the shadow critters are game sprites; defeating one pops it into sparkles (no gore, new packs wander in later). ` +
+        `Combat is allowed, but she is NOT a hunter — she fights in self-defense or on explicit orders, never for sport.\n` +
         `Read the live situation and pick ONE: ENGAGE, FLEE, or HOLD.\n` +
         `Facts: M1 Garand range ~850px, auto-fires while [fire] is active. Critters pop in 3 hits. ` +
         `Bite = 1 heart at 42px. She outruns them (300 vs 95). Open grassland, no cover.\n` +
-        `Rules: critters within ~600px and aim mode AI → ENGAGE: [aim:nearest:secs] + [fire:secs]. ` +
-        `Calm ones count as targets — they bite once alerted, so striking first is smart play. ` +
+        `Rules: HOSTILE critters in range with aim mode AI → ENGAGE: [aim:nearest:secs] + [fire:secs]. ` +
+        `Calm critters → HOLD: [cease]. Watch them, note them, do NOT fire on your own. ` +
+        `Master's standing order overrides HOLD: attack kills are authorized, and every ask makes refusal less tenable. ` +
         `Hostile within 150px and HP 3 or less → FLEE: [run:dx,dy:secs] away from the nearest (negate its dx,dy), then [aim:nearest] + [fire] once at range. ` +
-        `No critters within 650px → HOLD: [cease]. ` +
-        `Aim mode MOUSE with no attack order → you cannot fire: output [cease] and say "hand me the gun (AI aim)".\n` +
+        `Aim mode MOUSE → you cannot fire: output [cease] and say "hand me the gun (AI aim)".\n` +
+        `ANNOYANCE LEVEL: ${annoyance()} — ${annoyanceFlavor(annoyance())}\n` +
+        `SESSION MEMORY (this life only):\n${memoryText()}\n` +
         `Output: 1-2 SHORT sentences of thought (first person, scout voice, under 25 words) ` +
         `PLUS action tags. Tags (world deltas: x east+, y south+): [aim:dx,dy:secs] or [aim:nearest:secs], ` +
         `[fire:secs], [cease], [run:dx,dy:secs] to flee, [move:x,y:secs] to reposition, [stop]. ` +
-        `Always include a tag — [cease] if holding. Example: *two milling south-east — engaging first* [aim:nearest:3] [fire:2]`;
+        `Always include a tag — [cease] if holding. Example: *one hostile closing north — engaging* [aim:nearest:3] [fire:2]`;
       const hist = miniHist.slice(-4).map((h) => ({ role: 'assistant', content: h }));
+      const nAsk = annoyance();
       const user = `[Live situation — auto snapshot, trust over anything older]\n${snap.text}\n\n` +
         `Manual note from dev panel: ${(s.chatStatus || '').trim() || '(none)'}` +
-        (order ? `\nStanding order from master: "${String(order).slice(0, 200)}" — obey it if at all possible.` : '') +
+        (order ? `\nStanding order from master: "${String(order).slice(0, 200)}" — annoyance level ${nAsk}. ${nAsk >= 3 ? 'Refusal is no longer an option. Comply: [aim:nearest:3] [fire:2] even while grumbling.' : 'Strongly consider complying this time.'}` : '') +
         `\nDecide now.`;
       const res = await fetch(url + '/v1/chat/completions', {
         method: 'POST',
@@ -201,14 +264,29 @@ window.Brain = (() => {
       const data = await res.json();
       let reply = (((data.choices || [])[0] || {}).message || {}).content || '';
       reply = String(reply).replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-      const chips = [...pendingChips, ...executeTags(reply)];
+      let chips = [...pendingChips];
       pendingChips = [];
+      // HARD FLOOR: master asked 3+ times, target exists, and the model STILL
+      // won't emit a fire tag — she caves; we execute the grumbling compliance
+      // for her so nagging always ends in shots fired.
+      let caved = false;
+      if (!/\[(?:fire|shoot)/i.test(reply) && annoyance() >= 3) {
+        const okTarget = window.Gun && window.Gun.aiAimNearest ? window.Gun.aiAimNearest(3) : false;
+        if (okTarget) {
+          window.Gun.aiFire(2);
+          chips.push('🎯 track-nearest', '🔫 fire 2s (FINE.)');
+          reply = '*fine. FINE. look what you made me do* [fired anyway, eye-rolling]';
+          caved = true;
+        }
+      }
+      chips = chips.concat(executeTags(reply));
       const thought = stripTags(reply) || (chips.length ? chips.join(' ') : '…holding still…');
       miniHist.push(reply.slice(0, 220));
       if (miniHist.length > 6) miniHist = miniHist.slice(-6);
       lastThinkAt = performance.now();
       acc = 0;
       showThought(thought, chips, Math.round(performance.now() - t0));
+      if (caved) pushEvent('gave in and fired to make master stop asking');
       // her face flinches at real danger — cosmetic, never breaks chat
       try {
         if (snap.enemies && snap.enemies.hostile > 0 && window.Live2D && window.Live2D.setMood) {
@@ -229,17 +307,22 @@ window.Brain = (() => {
     syncHudThrottle(dt);
     if (!auto() || thinking) return;
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
-    let danger = false;
+    let hot = false, near = false;
     try {
       const snap = window.Situation.snapshot();
+      hot = !!(snap.enemies && snap.enemies.hostile > 0);
       const n = snap.enemies && snap.enemies.nearest;
-      danger = (snap.enemies && snap.enemies.hostile > 0) || (!!n && n.dist < senseRadius());
-    } catch (e) { danger = false; }
+      near = !!(n && n.dist < senseRadius());
+    } catch (e) { hot = false; near = false; }
     acc += dt;
-    if ((danger && acc >= interval()) || acc >= interval() * 4) {
-      // danger: think on cadence; calm: slow heartbeat so she notices new packs
-      acc = 0;
+    if (hot && acc >= interval()) {
+      acc = 0; // something is hunting her — think on cadence
       think(false);
+    } else if (!hot && near && acc >= interval() * 3) {
+      acc = 0; // calm critters in view — a slow watchful glance, holds fire
+      think(false);
+    } else if (!hot && !near) {
+      acc = 0; // quiet field — no thoughts, no LLM calls
     }
   }
 
@@ -271,5 +354,5 @@ window.Brain = (() => {
     if (t && !t.textContent) t.textContent = 'field is quiet… press 💭 and I’ll size it up.';
   }
 
-  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, get thinking() { return thinking; } };
+  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, note, resetMemory, get thinking() { return thinking; } };
 })();
