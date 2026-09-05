@@ -4,6 +4,31 @@ Chronological record of what was built and why. Newest entries at the top.
 
 ---
 
+## 2026-09-05 (evening) — Maid autonomy: survival brain, stamina, coins, found-and-follow
+
+**Goal:** stop driving the maid yourself — she senses the field (position, weapon, nearby enemies, stamina), fights or flees on her own judgment via the local LLM, and obeys chat orders in-character. You oversee; she acts.
+
+### Done
+- **Situation awareness** (`js/situation.js`, new): every LLM call gets a live auto-snapshot — her position, HP, gun state (mode/firing), nearest enemies (distance/direction/hostile/HP, capped at **500px**), stamina. Chat is read-only context; combat decisions live in the brain.
+- **Survival brain** (`js/brain.js`, new): a tactical sub-mind separate from chat with its own LLM loop + history and its own **💭 thought box** (bottom-right, never overlapping chat). Thinks on cadence when hostiles near, on demand via 💭, or not at all when the field is quiet. Acts through shared tags: `[aim]` / `[fire]` / `[cease]` / `[run]` / `[move]` / `[stop]`. **🛡️ AUTO** toggles auto-think.
+- **She owns the gun now** (`js/gun.js`): aim is always AI — cursor aim and click-to-fire are gone (root-cause fix: `config.js` defaulted `aimMode` back to `'mouse'` on every load, silently re-enabling mouse mode). With no fresh order she tracks the nearest critter in her circle herself, else holds her last aim — the gun never snaps to the cursor.
+- **Keep-distance reflex** (built-in, not an LLM decision): backs off inside 170px, drifts closer past 500px, shoots on the move; pauses while exhausted.
+- **"Find critters" actually finds** (`searchWatch`/`followTick`): a vague order starts an immediate **stroll** (random direction, gentle course changes, gives up after ~40s of empty field). When a critter enters her circle she stops, the **camera pans to it (~2.5s via `Camera.lookAt`)**, she **announces it in chat** ("Found them — 4 critters just ahead, to the south-east!…"), then **shadows the pack at ~280px** instead of fleeing. Loses them → apologizes. One find per search; "stop" ends it.
+- **Fire discipline:** the hunting latch auto-fires **hostiles always, calm critters only while the order is fresh (45s)** — a stale "kill them" no longer mows down every new pack. Brain prompt matches (fresh overrides HOLD, stale waits). A short-lived confirm-once system for calm kills was built, then **removed per playtest** — an order is an order.
+- **"Stop" actually stops:** "don't kill / do not shoot / stop / leave them" is negation-aware in both chat and brain — telling her NOT to kill can no longer latch hunting mode ON (it did: "don't kill" matched the attack regex). Clearing attack mode also releases the trigger instantly.
+- **Stamina** (`js/stamina.js` + `css/stamina.css`, new): 100pt tank under the hearts (green→amber→pulsing cyan). Movement drains; empty locks ALL movement (WASD, chat walks, brain runs) until she catches her breath (~45pt). Exhaustion pings the brain log + a sleepy face.
+- **Coin inventory** (`js/inventory.js`, new): critters drop 1–2 Kenney gold coins (`tile_0093`, real asset + `handleCoins.ogg` pickup sfx). Coins pop out, magnet in at 110px, **🎒 bag button** (bottom-right, count badge) opens a 20-slot grid panel. Resets on respawn, like her memory.
+- **Chat drives tactics:** every chat line pre-seeds the brain's standing memo instantly (plus a `intent=[[…]]` memo extracted from the chat reply); attack verbs forward as orders with an annoyance counter (repeated asks cave faster, kills vent it); per-life memory (kills/bites/flees/events) resets on death.
+- **Critter tuning:** packs mill at spawn, never hostile on proximity — they trail only when shot or when you walk within 120px; sense/engage hard-capped at 500px everywhere (queries, snapshot, latch, reflex, gun fallback) so nothing off-screen gets shot.
+
+### Technical notes worth keeping
+- Two-LLM design (chat persona vs tactical brain) with different prompts/histories, sharing one local endpoint — intent flows chat→memo→brain, never the reverse.
+- `Chat.say()` lets code put words in her mouth (found-it lines) with full typewriter/face/history treatment; it refuses while a chat exchange is in flight (retry-then-drop) so it never clobbers the user.
+- Camera `lookAt` blends the deadzone follow-point 55% toward a world spot with an expiry — cosmetic only, character movement untouched.
+- Negation must be checked BEFORE attack words in every intent regex, with `\b` boundaries (`another` ≠ `not` — harness-verified with 10 phrases).
+
+---
+
 ## 2026-09-05 (later) — Combat pass: M1 companion gun, retaliation AI, BGM crossfade, camera deadzone + sway
 
 **Goal:** real combat feel — shoot critters with a Brotato-style hover gun, monsters that only fight back when attacked, smooth music transitions, and a camera that doesn't glue to the character.
