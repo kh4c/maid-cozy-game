@@ -20,6 +20,8 @@ window.Enemies = (() => {
   const TOUCH_R = 42;                  // bite distance
   const HIT_CD = 1.0;                  // seconds between bites per critter
   const PACK_R = 60;                   // pack milling radius
+  const SCALE = 2.75;                  // chunky critters (was 2 — they stacked into a blob)
+  const SEP_R = 64;                    // packmates push apart inside this radius
 
   let frames = null;
   const groups = []; // { anchor:{x,y}, dir, retarget, members:[{view,anim,x,y,vx,vy,ox,oy,hostile,lastHit}] }
@@ -38,25 +40,25 @@ window.Enemies = (() => {
     const a = Math.random() * Math.PI * 2;
     const r = SPAWN_R_MIN + Math.random() * (SPAWN_R_MAX - SPAWN_R_MIN);
     const anchor = { x: px + Math.cos(a) * r, y: py + Math.sin(a) * r };
-    const g = { anchor, dir: Math.random() * Math.PI * 2, retarget: 0, members: [] };
+    const g = { anchor, dir: Math.random() * Math.PI * 2, retarget: 0, members: [], alerted: false };
     for (let i = 0; i < n; i++) {
       const view = new Container();
       const sh = new Graphics();
-      sh.ellipse(0, -2, 9, 3.5).fill({ color: 0x000000, alpha: 0.3 });
+      sh.ellipse(0, -2, 13, 5).fill({ color: 0x000000, alpha: 0.3 });
       const anim = new AnimatedSprite(frames);
       anim.anchor.set(0.5, 1);
       anim.animationSpeed = 1 / 6;
       anim.play();
       view.addChild(sh, anim);
-      view.scale.set(2);
+      view.scale.set(SCALE);
       const ox = (Math.random() - 0.5) * PACK_R * 2;
       const oy = (Math.random() - 0.5) * PACK_R * 2;
       view.position.set(anchor.x + ox, anchor.y + oy);
       world.addChild(view);
       g.members.push({ view, anim, x: anchor.x + ox, y: anchor.y + oy, vx: 0, vy: 0, ox, oy,
-        hostile: false, lastHit: 0,
-        brave: Math.random() < 0.6, // 3 in 5 charge; the rest bottle it
-        orbit: Math.random() < 0.5 ? 1 : -1 }); // cowards circle left or right
+        hostile: false, lastHit: 0, hp: 3, flashT: 0, // white-out blink on hit
+        brave: Math.random() < 0.6, // 3 in 5 stand and fight; the rest bolt
+        orbit: Math.random() < 0.5 ? 1 : -1 }); // milling circle direction
     }
     groups.push(g);
   }
@@ -75,8 +77,8 @@ window.Enemies = (() => {
     m.vy += ((dy / d) * speed - m.vy) * k;
     m.x += m.vx * dt;
     m.y += m.vy * dt;
-    if (m.vx < -2) m.view.scale.x = -2;
-    else if (m.vx > 2) m.view.scale.x = 2;
+    if (m.vx < -2) m.view.scale.x = -SCALE;
+    else if (m.vx > 2) m.view.scale.x = SCALE;
     m.view.position.set(m.x, m.y);
   }
 
@@ -101,20 +103,42 @@ window.Enemies = (() => {
       // left far behind -> despawn the whole pack
       if (ad > DESPAWN_R) { destroyPack(g); continue; }
 
-      // anchor wanders slowly, retargeting every few seconds
-      g.retarget -= dt;
-      if (g.retarget <= 0) {
-        g.retarget = 2 + Math.random() * 3;
-        g.dir = Math.random() * Math.PI * 2;
+      // retaliation cools when you leave them alone (or while she's down)
+      if (g.alerted && (playerDead || ad > CALM_R)) {
+        g.alerted = false;
+        for (const m of g.members) m.hostile = false;
       }
-      g.anchor.x += Math.cos(g.dir) * WANDER_SPEED * 0.7 * dt;
-      g.anchor.y += Math.sin(g.dir) * WANDER_SPEED * 0.7 * dt;
+
+      // the pack shadows you: inside interest range the anchor sidles to a
+      // trailing point ~FOLLOW_R away and dogs your steps; outside it, the
+      // pack just drifts on its own. Never hostile on proximity alone.
+      const FOLLOW_R = 300, INTEREST_R = 700;
+      if (!playerDead && ad < INTEREST_R && ad > FOLLOW_R) {
+        const nx = (g.anchor.x - px) / (ad || 1), ny = (g.anchor.y - py) / (ad || 1);
+        const k = Math.min(1, 1.2 * dt);
+        g.anchor.x += ((px + nx * FOLLOW_R) - g.anchor.x) * k;
+        g.anchor.y += ((py + ny * FOLLOW_R) - g.anchor.y) * k;
+      } else {
+        // anchor wanders slowly, retargeting every few seconds
+        g.retarget -= dt;
+        if (g.retarget <= 0) {
+          g.retarget = 2 + Math.random() * 3;
+          g.dir = Math.random() * Math.PI * 2;
+        }
+        g.anchor.x += Math.cos(g.dir) * WANDER_SPEED * 0.7 * dt;
+        g.anchor.y += Math.sin(g.dir) * WANDER_SPEED * 0.7 * dt;
+      }
 
       for (const m of g.members) {
         const pd = Math.hypot(m.x - px, m.y - py);
-        if (!playerDead && pd < AGGRO_R) m.hostile = true;
-        else if (m.hostile && pd > CALM_R) m.hostile = false;
-        if (playerDead) m.hostile = false; // no corpse-camping
+
+        // hit flicker: red tint + rapid alpha blink while flashT counts down
+        if (m.flashT > 0) {
+          m.flashT -= dt;
+          m.anim.tint = 0xff6b6b;
+          m.anim.alpha = ((m.flashT * 25) | 0) % 2 ? 0.35 : 1;
+          if (m.flashT <= 0) { m.anim.tint = 0xffffff; m.anim.alpha = 1; }
+        }
 
         if (m.hostile) {
           if (m.brave) {
@@ -125,13 +149,10 @@ window.Enemies = (() => {
               if (window.Health) window.Health.damage(1);
             }
           } else {
-            // scared stalemate: holds a nervous ring, never bites. Too far ->
-            // creeps closer, too close -> backs off, inside the band -> orbits.
+            // coward under fire: bolts AWAY, never bites
             const nx = (m.x - px) / (pd || 1), ny = (m.y - py) / (pd || 1);
-            const jx = (Math.random() - 0.5) * 30, jy = (Math.random() - 0.5) * 30; // nerves
-            if (pd > 280) steer(m, px + jx, py + jy, HOSTILE_SPEED * 0.55, dt);
-            else if (pd < 190) steer(m, m.x + nx * 70 - ny * 40 * m.orbit + jx, m.y + ny * 70 + nx * 40 * m.orbit + jy, HOSTILE_SPEED * 0.7, dt);
-            else steer(m, m.x - ny * 60 * m.orbit + jx, m.y + nx * 60 * m.orbit + jy, HOSTILE_SPEED * 0.5, dt);
+            const jx = (Math.random() - 0.5) * 30, jy = (Math.random() - 0.5) * 30; // panic
+            steer(m, m.x + nx * 120 - ny * 40 * m.orbit + jx, m.y + ny * 120 + nx * 40 * m.orbit + jy, HOSTILE_SPEED * 0.85, dt);
           }
         } else {
           // mill around the pack: personal offset + slow swirl
@@ -148,8 +169,8 @@ window.Enemies = (() => {
         for (let j = i + 1; j < ms.length; j++) {
           const dx = ms[j].x - ms[i].x, dy = ms[j].y - ms[i].y;
           const d = Math.hypot(dx, dy);
-          if (d > 0.01 && d < 26) {
-            const push = (26 - d) * 0.5;
+          if (d > 0.01 && d < SEP_R) {
+            const push = (SEP_R - d) * 0.35;
             const nx = dx / d, ny = dy / d;
             ms[i].x -= nx * push; ms[i].y -= ny * push;
             ms[j].x += nx * push; ms[j].y += ny * push;
@@ -159,6 +180,68 @@ window.Enemies = (() => {
     }
   }
 
+  // player swing: members in range take 1 (three pops one); ANY hit alerts
+  // the whole pack — braves hunt, cowards bolt. Returns the hit count.
+  function playerAttack(px, py, range) {
+    const world = init._world;
+    let hits = 0;
+    for (let gi = groups.length - 1; gi >= 0; gi--) {
+      const g = groups[gi];
+      let alerted = false;
+      for (let i = g.members.length - 1; i >= 0; i--) {
+        const m = g.members[i];
+        if (Math.hypot(m.x - px, m.y - py) > range) continue;
+        hits++;
+        alerted = true;
+        m.hp -= 1;
+        m.flashT = 0.18;
+        if (m.hp <= 0) {
+          world.removeChild(m.view);
+          g.members.splice(i, 1);
+        }
+      }
+      if (alerted) {
+        g.alerted = true;
+        for (const m of g.members) m.hostile = true;
+      }
+      if (g.members.length === 0) groups.splice(gi, 1); // wiped out
+    }
+    return hits;
+  }
+
+  // bullet hit: damage every critter within radius of (px,py). Whole pack
+  // retaliates (braves charge, cowards bolt). Returns { hits, kills,
+  // deaths:[{x,y}] } — gun.js layers spark/hit-sound/shake juice off this.
+  function damageAt(px, py, radius, dmg) {
+    const world = init._world;
+    let hits = 0, kills = 0;
+    const deaths = [];
+    for (let gi = groups.length - 1; gi >= 0; gi--) {
+      const g = groups[gi];
+      let alerted = false;
+      for (let i = g.members.length - 1; i >= 0; i--) {
+        const m = g.members[i];
+        if (Math.hypot(m.x - px, m.y - py) > radius) continue;
+        hits++;
+        alerted = true;
+        m.hp -= dmg;
+        m.flashT = 0.18; // flicker on any non-lethal connect
+        if (m.hp <= 0) {
+          deaths.push({ x: m.x, y: m.y });
+          world.removeChild(m.view);
+          g.members.splice(i, 1);
+          kills++;
+        }
+      }
+      if (alerted) {
+        g.alerted = true;
+        for (const m of g.members) m.hostile = true;
+      }
+      if (g.members.length === 0) groups.splice(gi, 1);
+    }
+    return { hits, kills, deaths };
+  }
+
   // how many critters are currently engaged — drives the battle music
   function hostileCount() {
     let n = 0;
@@ -166,5 +249,5 @@ window.Enemies = (() => {
     return n;
   }
 
-  return { init, update, hostileCount };
+  return { init, update, hostileCount, playerAttack, damageAt, debugGroups: () => groups };
 })();

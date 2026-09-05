@@ -94,6 +94,13 @@
     reportError('enemies failed: ' + err.message);
   }
 
+  // ---- M1 companion gun (Brotato-style hover rig, mouse aim + click fire) ----
+  try {
+    window.Gun && await window.Gun.init(world, app, camera);
+  } catch (err) {
+    reportError('gun failed: ' + err.message);
+  }
+
   // ---- Dev panel --------------------------------------------------------------------
   window.Settings.buildPanel((key) => {
     if (key === 'scale' || key.endsWith('Fps')) character.applySettings();
@@ -174,6 +181,24 @@
     if (window.Enemies) {
       try { window.Enemies.update(dtSec, view.x, view.y); }
       catch (err) { /* one bad tick must not kill the loop */ }
+    }
+    // hover gun: aims at the mouse, fires on click/hold, flies its own bullets
+    if (window.Gun) {
+      try { window.Gun.update(dtSec, view.x, view.y); }
+      catch (err) { /* a gun hiccup must not kill the loop */ }
+    }
+    // player swing (Space/J): whoosh always, thump + pack retaliation on hits
+    if (window.Input.attackPressed && window.Input.attackPressed()) {
+      const down = !!(window.Health && window.Health.dead);
+      if (!down && !window.EditMode.active) {
+        try { window.Sound && window.Sound.playSfx('combat', 'swing.ogg', { rate: 0.95 + Math.random() * 0.15 }); } catch (e) {}
+        let hits = 0;
+        try { hits = window.Enemies ? window.Enemies.playerAttack(view.x, view.y, 95) : 0; } catch (e) {}
+        if (hits > 0) {
+          try { window.Sound && window.Sound.playSfx('combat', 'hurt_' + ((Math.random() * 5) | 0) + '.ogg', { rate: 1.1 }); } catch (e) {}
+          camera.shake(0.3);
+        }
+      }
     }
     if (dust) dust.update(dtSec, view.x, view.y, (a.x !== 0 || a.y !== 0), a.x, a.y);
     if (window.Health) { // damage kicks the camera before it settles

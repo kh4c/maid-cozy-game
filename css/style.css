@@ -76,8 +76,10 @@ canvas { display: block; }
 #audio-panel .mute-row { color: #a9a2d8; }
 
 /* ---- Dialog box: transparent black speech area near the bottom ----------------- */
+/* Dialog sits as a stacked layer ABOVE the input (input keeps bottom:1.5%);
+   px offset so the two can never overlap no matter how tall the text wraps. */
 #dialog-box {
-  position: absolute; left: 50%; bottom: 7%; transform: translateX(-50%);
+  position: absolute; left: 50%; bottom: calc(1.5% + 58px); transform: translateX(-50%);
   min-width: 40%; max-width: 82%; z-index: 8;
   background: rgba(0, 0, 0, 0.45);            /* transparent black */
   border: 1px solid rgba(255, 255, 255, 0.18);

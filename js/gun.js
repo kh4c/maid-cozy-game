@@ -1,0 +1,203 @@
+// M1 Garand companion — Brotato-style hovering gun.
+// The sprite floats beside the maid, tracks the mouse, fires on click/hold.
+// Juice: recoil kick + muzzle tilt, camera pop, additive muzzle flash,
+// tracer bullets, hit sparks with knockback, layered shoot/hit sounds.
+window.Gun = (() => {
+  const { Container, Sprite } = PIXI;
+
+  // tuning — all game-feel
+  const HOVER_X = 26, HOVER_Y = -40;   // rest offset from her feet anchor
+  const BOB_FREQ = 2.4, BOB_AMP = 4;   // idle hover bob
+  const FIRE_CD = 0.16;                // seconds between shots (hold = auto)
+  const BULLET_SPEED = 950;
+  const BULLET_LIFE = 0.9;             // ~850px range
+  const HIT_R = 44;                    // bullet splash vs critters (they're big)
+  const RECOIL_DIST = 13, RECOIL_TILT = 0.38;
+  const GUN_SCALE = 1.8;               // big iron (was 1.15)
+
+  let world = null, app = null, camera = null;
+  let rig = null, gunSpr = null, flash = null;
+  let bullets = [], sparks = [];
+  let texGun, texBullet, texFlash, texSpark;
+  let cd = 0, recoil = 0, bobT = 0, flashT = 0;
+  let holding = false, mouseSX = 0, mouseSY = 0; // mouse in canvas css px
+  let px = 0, py = 0;                            // her feet (world), set each frame
+
+  // ---- mouse tracking -------------------------------------------------------
+  function onMove(e) {
+    const r = app.canvas.getBoundingClientRect();
+    mouseSX = e.clientX - r.left;
+    mouseSY = e.clientY - r.top;
+  }
+  function onDown(e) {
+    // only the game canvas — clicks on HUD/chat/panel buttons never fire
+    if (e.button !== 0 || e.target !== app.canvas) return;
+    holding = true;
+    onMove(e);
+  }
+  function onUp() { holding = false; }
+
+  // css px -> world px (camera offset lives on the world container)
+  function screenToWorld() {
+    const r = app.canvas.getBoundingClientRect();
+    const sx = mouseSX / r.width * app.screen.width;
+    const sy = mouseSY / r.height * app.screen.height;
+    return { x: sx - world.x, y: sy - world.y };
+  }
+
+  // ---- effects --------------------------------------------------------------
+  function burst(x, y, n, big) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = (60 + Math.random() * 240) * (big ? 1.6 : 1);
+      const s = new Sprite(texSpark);
+      s.anchor.set(0.5, 0.5);
+      s.blendMode = 'add'; // black-bg particle: add blend = glow on the scene
+      s.tint = big ? 0xffd24a : 0xfff2b0;
+      s.scale.set(0.05 + Math.random() * 0.06);
+      s.position.set(x, y);
+      world.addChild(s);
+      sparks.push({ spr: s, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40,
+        life: 0, max: (big ? 0.5 : 0.3) + Math.random() * 0.15 });
+    }
+  }
+
+  function fire(ax, ay) {
+    const mx = px + HOVER_X + ax * 34, my = py + HOVER_Y + ay * 34; // barrel tip
+    const spr = new Sprite(texBullet);
+    spr.anchor.set(0.5, 0.5);
+    spr.scale.set(0.45); // petite round (was 0.8 — looked like a log)
+    spr.rotation = Math.atan2(ay, ax);
+    spr.position.set(mx, my);
+    world.addChild(spr);
+    bullets.push({ spr, vx: ax * BULLET_SPEED, vy: ay * BULLET_SPEED, life: BULLET_LIFE });
+
+    // muzzle flash: random size + mirror flip, gone in a blink
+    flash.position.set(ax * 30 + 6, ay * 30);
+    flash.rotation = Math.atan2(ay, ax);
+    flash.scale.set(0.13 + Math.random() * 0.08);
+    flash.scale.y *= Math.random() < 0.5 ? 1 : -1;
+    flash.visible = true;
+    flashT = 0.05;
+
+    recoil = 1; // kick back + muzzle up, decays in update()
+
+    // layered shot: WAV body + high snap
+    try { window.Sound.playSfx('combat', 'gunshot.wav', { rate: 0.9 + Math.random() * 0.2 }); } catch (e) {}
+    try { window.Sound.playSfx('combat', 'swing.ogg', { rate: 1.6 + Math.random() * 0.2, volume: 0.3 }); } catch (e) {}
+    if (camera) camera.shake(0.1);
+  }
+
+  // ---- lifecycle ------------------------------------------------------------
+  async function init(worldContainer, appRef, cam) {
+    world = worldContainer; app = appRef; camera = cam;
+    [texGun, texBullet, texFlash, texSpark] = await Promise.all([
+      PIXI.Assets.load('assets/m1.png'),
+      PIXI.Assets.load('assets/bullet.png'),
+      PIXI.Assets.load('assets/muzzle.png'),
+      PIXI.Assets.load('assets/spark.png'),
+    ]);
+
+    rig = new Container();
+    gunSpr = new Sprite(texGun);
+    gunSpr.anchor.set(0.35, 0.5); // pivot at the grip — swings around it
+    gunSpr.scale.set(GUN_SCALE);
+    flash = new Sprite(texFlash);
+    flash.anchor.set(0.15, 0.5);
+    flash.blendMode = 'add';
+    flash.visible = false;
+    rig.addChild(gunSpr, flash);
+    world.addChild(rig); // after enemies -> renders above them
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('blur', onUp);
+  }
+
+  function update(dt, cx, cy) {
+    if (!rig) return;
+    px = cx; py = cy;
+    bobT += dt;
+    cd -= dt;
+    recoil *= Math.exp(-11 * dt);
+    if (flashT > 0) { flashT -= dt; if (flashT <= 0) flash.visible = false; }
+
+    const blocked = (window.EditMode && window.EditMode.active) ||
+      (window.Health && window.Health.dead);
+    if (blocked) holding = false;
+
+    const w = screenToWorld();
+    const aim = Math.atan2(w.y - (py + HOVER_Y), w.x - (px + HOVER_X));
+    const ca = Math.cos(aim), sa = Math.sin(aim);
+
+    // hover beside her + bob, kicked back along the aim while recoiling
+    const bob = Math.sin(bobT * BOB_FREQ) * BOB_AMP;
+    rig.position.set(
+      px + HOVER_X - ca * RECOIL_DIST * recoil,
+      py + HOVER_Y + bob - sa * RECOIL_DIST * recoil);
+    gunSpr.rotation = aim - RECOIL_TILT * recoil; // muzzle jumps up
+    gunSpr.scale.y = GUN_SCALE * (ca < 0 ? -1 : 1); // no upside-down gun aiming left
+    flash.rotation = aim;
+
+    if (holding && cd <= 0) { cd = FIRE_CD; fire(ca, sa); }
+
+    // bullets: fly, splash-check critters, die
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      const b = bullets[i];
+      b.life -= dt;
+      b.spr.x += b.vx * dt;
+      b.spr.y += b.vy * dt;
+      // tracer trail: shed a short-lived glow at the tail every frame
+      const tr = new Sprite(texSpark);
+      tr.anchor.set(0.5, 0.5);
+      tr.blendMode = 'add';
+      tr.tint = 0xffe9a0;
+      tr.scale.set(0.05);
+      tr.alpha = 0.55;
+      tr.position.set(b.spr.x, b.spr.y);
+      world.addChild(tr);
+      sparks.push({ spr: tr, vx: 0, vy: 0, life: 0, max: 0.14 });
+      let dead = b.life <= 0;
+      if (!dead && window.Enemies) {
+        try {
+          const res = window.Enemies.damageAt(b.spr.x, b.spr.y, HIT_R, 1);
+          if (res.hits > 0) {
+            dead = true;
+            for (const p of res.deaths) burst(p.x, p.y - 14, 12, true); // kill pop
+            burst(b.spr.x, b.spr.y, 6, false);                          // hit sparks
+            try { window.Sound.playSfx('combat', 'hit_' + ((Math.random() * 4) | 0) + '.ogg',
+              { rate: 0.95 + Math.random() * 0.25, volume: 0.9 }); } catch (e) {}
+            if (res.kills > 0) {
+              try { window.Sound.playSfx('combat', 'hurt_' + ((Math.random() * 5) | 0) + '.ogg',
+                { rate: 0.75, volume: 0.7 }); } catch (e) {}
+              if (camera) camera.shake(0.28);
+            } else if (camera) camera.shake(0.14);
+          }
+        } catch (e) { /* deaf frame */ }
+      }
+      if (dead) { world.removeChild(b.spr); b.spr.destroy(); bullets.splice(i, 1); }
+    }
+
+    // sparks: fly out, drag, shrink, fade
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const p = sparks[i];
+      p.life += dt;
+      const t = p.life / p.max;
+      if (t >= 1) { world.removeChild(p.spr); p.spr.destroy(); sparks.splice(i, 1); continue; }
+      p.spr.x += p.vx * dt;
+      p.spr.y += p.vy * dt;
+      p.vx *= Math.exp(-4 * dt);
+      p.vy *= Math.exp(-4 * dt);
+      p.spr.alpha = 1 - t;
+      p.spr.scale.set(Math.max(0.02, p.spr.scale.x * Math.exp(-2.5 * dt)));
+    }
+  }
+
+  // test/inspection hook
+  function debug() {
+    return { bullets: bullets.length, sparks: sparks.length, holding, recoil: +recoil.toFixed(2) };
+  }
+
+  return { init, update, debug };
+})();

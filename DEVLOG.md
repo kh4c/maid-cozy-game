@@ -1,6 +1,27 @@
 # Dev Log — Maid Cozy Game
 
-Chronological record of what was built and why. Newest entries at the bottom.
+Chronological record of what was built and why. Newest entries at the top.
+
+---
+
+## 2026-09-05 (later) — Combat pass: M1 companion gun, retaliation AI, BGM crossfade, camera deadzone + sway
+
+**Goal:** real combat feel — shoot critters with a Brotato-style hover gun, monsters that only fight back when attacked, smooth music transitions, and a camera that doesn't glue to the character.
+
+### Done
+- **M1 Garand companion gun** (`js/gun.js`, new): `Weapon/m1.png` hovers beside the maid (bob + recoil rig, pivot at the grip), aims at the mouse (css→world conversion through the camera offset), fires on click/hold (0.16s auto-fire). Juice: recoil kick-back + muzzle tilt, additive Kenney `muzzle_03` flash (random size/mirror), `m1gunshot.wav` + high `swing.ogg` snap layered per shot, camera pop. Bullets (`m1_Projectile.png`, small) fly 950px/s, shed an additive glow **tracer trail**, splash-hit critters via `Enemies.damageAt()`, burst Kenney `circle_01` sparks on connect, layered `impactGeneric_light` hit sounds + bigger burst/low thud/shake on kills. Clicks on HUD/chat never fire (`e.target !== canvas` guard); gun disabled in edit mode + while fainted.
+- **Enemy retune** (`js/enemies.js`): critters 2× → **2.75×** with bigger shadows, pack separation radius 26 → **64px** (they used to stack into a blob). **Hit flicker**: any non-lethal hit sets `flashT = 0.18` → red tint + rapid alpha blink, then restores. New `damageAt(x, y, radius, dmg)` returns `{hits, kills, deaths[]}` so gun.js layers its own juice; melee `playerAttack` shares the flicker.
+- **Retaliation AI (finished)**: packs are **never hostile on proximity** — inside interest range the pack anchor trails the player at ~300px (passive follow); hostility starts only when the player damages the pack (`alerted`), braves charge + bite, cowards bolt. Alert cools when the player leaves alone or while she's fainted. `Space`/`J` melee swing kept (whoosh + thump + shake).
+- **BGM crossfade + lag fix** (`js/audio.js`): `setBgmMood()` no longer hard-cuts — new track swells in (~2s) while the old ducks out (~1.5s), overlapping on the same `bgm` bus. Combat lag root cause: the per-frame mood call started a fresh 5MB fetch+decode **every frame** while the battle track was still decoding; fixed with a `bgmPending` single-in-flight guard + `warmBgmCache()` pre-decodes both tracks after the first user gesture.
+- **Camera deadzone + sway** (`js/camera.js`): deadzone box = **18% × 22%** of screen. She walks freely inside it (no tracking); crossing an edge drifts the camera just until she's back on the rim. Inside the box the camera **sways** — two layered sine drifts (~3px H / ~2.5px V, different periods), fading in/out with the zone so it never fights tracking. Sway is stripped each frame before the clamp math so it can't walk her out of the box.
+- **Dialog/chat overlap fix** (`css/style.css`): dialog box now stacks via `bottom: calc(1.5% + 58px)` above the input instead of a % guess — no overlap at any text length.
+
+### Technical notes worth keeping
+- Web Audio: parallel `decodeAudioData` calls are the real fps killer — guard *decoding*, not just playing. Warm the cache on first gesture (autoplay policy blocks audio before it anyway).
+- Sway-into-lerp pattern: any additive camera offset must be removed before computing the deadzone clamp, or it feeds back into itself.
+- Kenney particle PNGs are black-background → `blendMode: 'add'` turns them into free glows (muzzle flash, tracer, sparks) with no processing.
+- Pixi v8 `AnimatedSprite.tint`/`alpha` are the cheap hit-flash — no shader needed.
+- Dev-log bug of the day: `dt is not defined` — the camera param is `dtSec`; killed the whole loop until fixed.
 
 ---
 
@@ -84,9 +105,16 @@ npm start                     # opens the game in its own window
 
 | Asset | Source |
 |-------|--------|
-| `assets/SG_Maid_Idle.png`, `assets/SG_Maid_Run.png` | User-provided sprite sheets (`GameAsset/Maid/`) |
+| `assets/SG_Maid_Idle.png`, `assets/SG_Maid_Run.png`, `assets/SG_Maid_Die.png` | User-provided sprite sheets (`GameAsset/Maid/`) |
 | `assets/grassland.png` | User-provided background (`GameAsset/grassland background.png`) |
-| `assets/Cozy1.mp3` | User-provided BGM (`GameAsset/bgm/`) |
+| `assets/Cozy1.mp3`, `assets/battle1.mp3` | User-provided BGM (`GameAsset/BGM/`) |
+| `assets/m1.png`, `assets/bullet.png`, `assets/sfx/gunshot.wav` | User-provided weapon art/audio (`GameAsset/Weapon/` — `m1.png`, `m1_Projectile.png`, `m1gunshot.wav`) |
+| `assets/muzzle.png`, `assets/spark.png` | Kenney Particle Pack (black-bg PNGs, additive-blended) |
+| `assets/sfx/hit_0-3.ogg` | Kenney Impact Sounds (`impactGeneric_light_*`, `impactPlate_light_000`) |
+| `assets/sfx/hurt_0-4.ogg`, `assets/sfx/die.ogg` | Kenney Impact Sounds (punch/soft impacts) |
+| `assets/sfx/swing.ogg` | Kenney RPG Audio (`knifeSlice.ogg`) |
+| `assets/heart_full.png`, `assets/heart_empty.png` | Kenney Board-Game Icons (`suit_hearts.png`, tinted) |
+| `assets/enemy.png` | User-provided critter sheet (`GameAsset/Monster/creature-sheet (1).png`) |
 | `vendor/pixi.min.js` | PixiJS v8 UMD, vendored from CDN (offline) |
 
 No procedurally generated assets — everything is a real downloaded/user file.

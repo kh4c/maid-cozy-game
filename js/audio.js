@@ -67,20 +67,46 @@ window.Sound = (() => {
     return ctx.decodeAudioData(buf); // decoding needs no user gesture
   }
 
+  const BGM_XF = 2.0; // crossfade seconds — moods melt, never cut
+  function startTrack(buffer) {
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    const g = ctx.createGain();
+    g.gain.value = 0;
+    src.connect(g);
+    g.connect(buses.bgm);
+    src.start(0);
+    g.gain.setTargetAtTime(1.0, ctx.currentTime, BGM_XF / 3); // ~2s swell
+    src._gain = g;
+    return src;
+  }
+
+  function fadeStop(src) {
+    if (!src) return;
+    try {
+      const g = src._gain;
+      if (g) {
+        g.gain.cancelScheduledValues(ctx.currentTime);
+        g.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.6); // duck out ~1.5s
+      }
+      setTimeout(() => {
+        try { src.stop(); } catch (e) {}
+        try { src._gain && src._gain.disconnect(); } catch (e) {}
+      }, 2500);
+    } catch (e) { try { src.stop(); } catch (e2) {} }
+  }
+
   async function startBgm() {
     if (bgmSource) return;
     const buffer = await loadBgm(BGM_URLS[bgmName] || BGM_URLS.cozy);
     bgmCache[bgmName] = buffer;
-    bgmSource = ctx.createBufferSource();
-    bgmSource.buffer = buffer;
-    bgmSource.loop = true;
-    bgmSource.connect(buses.bgm);
-    bgmSource.start(0);
+    bgmSource = startTrack(buffer); // swells in like a switch
   }
 
   // Combat music: main loop calls setBgmMood('battle') while any pack is
-  // hostile, ('cozy') after calm. Same bus/slider, no gaps twice (no-op on
-  // repeat, stale decodes discarded by token).
+  // hostile, ('cozy') after calm. Old track ducks out under the new one over
+  // BGM_XF. Same bus/slider, no-op on repeat, stale decodes token-guarded.
   async function setBgmMood(mood) {
     if (!ctx || (mood !== 'cozy' && mood !== 'battle')) return;
     // same mood playing OR already decoding it -> do nothing (the game loop
@@ -90,19 +116,17 @@ window.Sound = (() => {
     bgmName = mood;
     bgmPending = mood;
     const my = ++bgmToken;
-    try { if (bgmSource) { try { bgmSource.stop(); } catch (e) {} bgmSource = null; } } catch (e) {}
+    const old = bgmSource;
+    bgmSource = null;
+    fadeStop(old);
     try {
       let buffer = bgmCache[mood];
       if (!buffer) {
         buffer = await loadBgm(BGM_URLS[mood]);
         bgmCache[mood] = buffer;
       }
-      if (my !== bgmToken) return; // flipped again mid-decode — drop this one
-      bgmSource = ctx.createBufferSource();
-      bgmSource.buffer = buffer;
-      bgmSource.loop = true;
-      bgmSource.connect(buses.bgm);
-      bgmSource.start(0);
+      if (my !== bgmToken) return; // flipped again mid-decode — old already fading, nobody starts
+      bgmSource = startTrack(buffer);
     } catch (e) { console.warn('BGM switch failed', e); }
     finally { if (bgmPending === mood) bgmPending = null; }
   }

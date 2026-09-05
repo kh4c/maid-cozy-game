@@ -1,6 +1,7 @@
 // Keyboard input -> movement axis. Classic script.
 window.Input = (() => {
   const keys = Object.create(null);
+  let attackQueued = false; // edge-triggered swing (Space/J), consumed by main
 
   window.addEventListener('keydown', (e) => {
     // typing in an input (chat box, dev sliders) — never game keys
@@ -10,6 +11,7 @@ window.Input = (() => {
     if (e.code === 'KeyE' && window.EditMode.ready) window.EditMode.toggle();      // E toggles UI edit mode
     if (e.code === 'Escape' && window.EditMode.ready && window.EditMode.active) window.EditMode.toggle(); // Esc exits
     if (e.code === 'KeyR' && window.EditMode.ready && window.EditMode.active) window.EditMode.resetLayout(); // R resets UI layout (only while editing)
+    if (!e.repeat && (e.code === 'Space' || e.code === 'KeyJ')) attackQueued = true; // swing
     keys[e.code] = true;
   });
   window.addEventListener('keyup', (e) => { keys[e.code] = false; });
@@ -41,5 +43,12 @@ window.Input = (() => {
     return { x, y };
   }
 
-  return { axis, order, stopWalk };
+  // swing edge: true once per press, then consumed
+  function attackPressed() {
+    const q = attackQueued;
+    attackQueued = false;
+    return q;
+  }
+
+  return { axis, order, stopWalk, attackPressed };
 })();
