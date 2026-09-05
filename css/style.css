@@ -106,6 +106,26 @@ canvas { display: block; }
 #chat-input::placeholder { color: rgba(242, 239, 255, 0.4); }
 #chat-input:focus { border-color: rgba(157, 148, 255, 0.7); }
 
+/* ---- Health: hearts HUD, hurt flash, faint veil ------------------------------ */
+#hearts {
+  position: absolute; top: 44px; left: 10px; z-index: 5;
+  font: 18px/1 monospace; letter-spacing: 2px;
+  background: rgba(10, 8, 20, 0.55); padding: 5px 9px; border-radius: 6px;
+  pointer-events: none; user-select: none;
+}
+#hearts .hp-on  { color: #ff5d73; text-shadow: 0 0 6px rgba(255, 93, 115, 0.8); }
+#hearts .hp-off { color: rgba(255, 255, 255, 0.16); }
+#hurt-flash {
+  position: absolute; inset: 0; z-index: 30; pointer-events: none; opacity: 0;
+  background: radial-gradient(ellipse at center, rgba(255, 30, 60, 0.12) 40%, rgba(255, 30, 60, 0.5) 100%);
+}
+#faint-veil {
+  position: absolute; inset: 0; z-index: 30; display: none;
+  align-items: center; justify-content: center;
+  background: rgba(10, 6, 16, 0.72);
+  font: 16px/1.5 monospace; color: #cfc9ff; user-select: none;
+}
+
 /* ---- Edit mode overlays ----------------------------------------------------- */
 /* Dashed outline boxes + name tags drawn over each editable component. */
 .edit-box {

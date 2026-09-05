@@ -20,6 +20,7 @@
 <script src="js/live2d.js"></script>
 <script src="js/editmode.js"></script>
 <script src="js/chat.js"></script>
+<script src="js/health.js"></script>
 </head>
 <body>
 <!-- stage-wrap holds the canvas (appended by main.js) + scene-anchored UI.
@@ -38,6 +39,10 @@
 
   <div id="dialog-box"><span id="dialog-text">hi...</span></div>
   <div id="chat-row"><input id="chat-input" type="text" placeholder="talk to her… (Enter)" autocomplete="off" maxlength="300" /></div>
+
+  <div id="hearts" title="9/9"></div>
+  <div id="hurt-flash"></div>
+  <div id="faint-veil"><span>she fainted… respawning</span></div>
 
   <div id="devpanel">
     <div class="title"><span>⚙ DEV PANEL</span><span id="saved-flash"></span></div>

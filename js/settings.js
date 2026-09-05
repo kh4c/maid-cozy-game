@@ -146,6 +146,21 @@ window.Settings = (() => {
     addSlider('l2dy', -1, 0.5, 0.02);
     addSlider('l2dExpr', 0, 6, 1); // 0=auto, 1..6 pin: happy/beaming/surprised/smug/pouty/sleepy
 
+    // Health test buttons: nothing hurts her in-game yet, so Hurt/Heal here
+    // (or Health.damage(1) in the console) exercises the faint/respawn loop.
+    {
+      const row = document.createElement('div');
+      row.className = 'btns';
+      const hurt = document.createElement('button');
+      hurt.textContent = 'Hurt ♥-1';
+      hurt.addEventListener('click', () => window.Health && window.Health.damage(1));
+      const heal = document.createElement('button');
+      heal.textContent = 'Heal ♥+1';
+      heal.addEventListener('click', () => window.Health && window.Health.heal(1));
+      row.append(hurt, heal);
+      tabMain.appendChild(row);
+    }
+
     // CHAT tab: character + LLM params. Applies to the NEXT message sent.
     addText('chatModel', 'model', false, tabChat);
     addText('chatUrl', 'server', false, tabChat);

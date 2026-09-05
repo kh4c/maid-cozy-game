@@ -124,6 +124,7 @@ window.Chat = (() => {
   async function send(userText) {
     const text = (userText || '').trim();
     if (!text || busy) return;
+    if (window.Health && window.Health.dead) return; // she's out — talk UI is hidden
     busy = true;
     clearInterval(typeTimer);
     history.push({ role: 'user', content: text });

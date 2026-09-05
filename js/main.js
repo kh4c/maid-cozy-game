@@ -102,6 +102,13 @@
     reportError('chat failed: ' + err.message);
   }
 
+  // ---- Maid health (9 hearts; faint locks control + hides talk UI) ------------
+  try {
+    window.Health.init();
+  } catch (err) {
+    reportError('health failed: ' + err.message);
+  }
+
   // ---- Sound manager (BGM + gear volume panel; starts on first gesture) --------------
   try {
     window.Sound.init();
@@ -147,7 +154,9 @@
     const dtSec = Math.min(ticker.deltaMS / 1000, 0.05);
     const s = window.Settings.settings;
 
-    const a = window.EditMode.active ? { x: 0, y: 0 } : window.Input.axis();
+    const a = (window.EditMode.active || (window.Health && window.Health.dead))
+      ? { x: 0, y: 0 } // fainted: no control until respawn
+      : window.Input.axis();
     const view = character.view;
     view.x += a.x * s.speed * dtSec;
     view.y += a.y * s.speed * dtSec;
