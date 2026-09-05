@@ -680,10 +680,11 @@ window.Brain = (() => {
 
   // ---- found-and-follow: searching must END in something -----------------------
   // While she's strolling on a "find ..." wish (or the memo is a live search
-  // wish) and a critter enters her 500px circle: stop wandering, LOOK at it
-  // (camera pans over for ~2.5s), tell master what she found, then shadow it
+  // wish) and a critter enters her eyes: stop wandering, LOOK at it
+  // (focus beat for ~2.5s), tell master what she found, then shadow it
   // at ~170-280px instead of fleeing. Announced once per search; follow ends
-  // when the pack is lost (>500px for 6s), master says stop, or she faints.
+  // when the pack is lost (>LOSE_R for the grace window), master says stop, or she faints.
+  const LOSE_R = 1400;        // lose-it range — how far the pack may drift before she calls it lost
   let searchDone = false;   // this search already paid off
   let following = false;    // shadowing a found pack right now
   let followLostAcc = 0;    // seconds since the pack left her circle
@@ -921,14 +922,14 @@ window.Brain = (() => {
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       const n = p && p.enemies && p.enemies.nearest;
-      if (!n || n.dist > 900 || leftSpot(n.x, n.y)) {
+      if (!n || n.dist > LOSE_R || leftSpot(n.x, n.y)) {
         // WIPED or lost? Check for survivors near where she last saw them.
         // No one breathing there → she KILLED them, not lost them: say so at
         // once (no grace-staring), with the body count. Survivors → grace, below.
         let live = null;
         try {
           const last = followTarget;
-          live = last && window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(last.x, last.y, 900) : null;
+          live = last && window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(last.x, last.y, LOSE_R) : null;
         } catch (e2) { live = null; }
         if (!live) {
           let wiped = 0;

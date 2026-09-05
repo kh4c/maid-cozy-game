@@ -45,19 +45,19 @@ window.Situation = (() => {
       }
     } catch (e) { /* deaf snapshot */ }
 
-    // enemies — SEE = the screen rect (1280x720 around the camera center),
-    // so on-screen critters always register, corners included, and off-screen
-    // bands above/below never do. REACH (who she fires at / approaches) stays
+    // enemies — SEE = bigger than the screen now (1920x1080 day around the camera
+    // center, ~80% at night), so she spots distant packs before they fill the
+    // frame, corners included. REACH (who she fires at / approaches) stays
     // distance-based — that's the brain's job, not the eyes'.
     let enemies = { total: 0, hostile: 0, nearest: null, list: [] };
     try {
       let vc = null;
       try { vc = window.__maidCamera && window.__maidCamera.viewCenter ? window.__maidCamera.viewCenter() : null; } catch (e) {}
       if (window.Enemies && vc && typeof window.Enemies.senseView === 'function') {
-        // NIGHT: vision is limited — she sees a smaller circle of the world (~80%)
+        // NIGHT: vision is limited — she sees ~80% of her day eyes
         const night = !!(window.Settings && Number(window.Settings.settings.worldTime) === 1);
-        const hw = night ? 512 : 640, hh = night ? 288 : 360;
-        enemies = window.Enemies.senseView(p.x, p.y, vc.x, vc.y, hw, hh); // eyes = the screen (smaller in the dark)
+        const hw = night ? 768 : 960, hh = night ? 432 : 540;
+        enemies = window.Enemies.senseView(p.x, p.y, vc.x, vc.y, hw, hh); // wide eyes (narrower in the dark)
       } else if (window.Enemies && typeof window.Enemies.sense === 'function') {
         enemies = window.Enemies.sense(p.x, p.y, 750); // no camera (tests) — full-circle fallback
       } else if (window.Enemies && typeof window.Enemies.hostileCount === 'function') {
