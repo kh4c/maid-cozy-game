@@ -738,7 +738,7 @@ window.Brain = (() => {
     if (r === 'epic') return `An EPIC, shining purple — ${best.price} coins easy… please say I can keep the change.`;
     if (r === 'rare') return `Ooh — a blue-banded RARE, worth about ${best.price} coins! My tail's twitching…`;
     if (r === 'uncommon') return `Some nice green-banded ones in there — pocket money, about ${best.price} coins for the best.`;
-    return `Just commons, a coin or two each. Honestly not worth the bullets…`;
+    return `Just commons, a coin or two each — pocket change, but money is money.`;
   }
   function dirWord(dx, dy) {
     const ax = Math.abs(dx), ay = Math.abs(dy);
@@ -751,7 +751,21 @@ window.Brain = (() => {
   function distWord(d) {
     if (d < 200) return 'right here';
     if (d < 350) return 'just ahead';
-    return 'over there';
+    if (d < 600) return 'over there';
+    return 'a way off';
+  }
+  // Pan helper: glance at (x,y) ONLY when it's off the player's screen.
+  // On-screen finds need no camera move (direction words carry them); recall
+  // destinations can sit ~900px away in memory, not in eyes — show those.
+  function panIfOffscreen(x, y, secs) {
+    try {
+      const cam = window.__maidCamera;
+      const r = cam && cam.viewRect ? cam.viewRect() : null;
+      if (!r) return false;
+      if (Math.abs(x - r.x) < r.hw - 40 && Math.abs(y - r.y) < r.hh - 40) return false;
+      if (cam.lookAt) cam.lookAt(x, y, secs || 2.5);
+      return true;
+    } catch (e) { return false; }
   }
   function searchingNow() {
     if (strollDir) return true;
@@ -853,11 +867,12 @@ window.Brain = (() => {
       followLostAcc = 0; followAcc = 0;
       try { followKills0 = memory.kills | 0; } catch (e2) {}
       searchDone = true;
-      const why = `${Math.round(aDist - bDist)}px closer`;
+      const gap = Math.round(aDist - bDist);
+      const why = gap > 300 ? 'much closer' : 'closer';
       const line = `*turns, pointing ${bDir}* Heads up, master — another pack ${distWord(bDist)}, to the ${bDir}, ${why}. Leaving these for the better prize!`;
       try { pushEvent(`switched shadow to a ${why} pack ${bDir}`); } catch (e2) {}
       queueNews({
-        facts: { total: p.enemies.total, dir: bDir, dist: distWord(bDist), distPx: bDist, bestRarity: avail.rarity || 'common', bestColor: rarityWord(avail.rarity || 'common'), bestPrice: bVal, hostile: p.enemies.hostile, ordered: false, switched: why, prev: `the old pack (~${Math.round(aDist)}px)` },
+        facts: { total: p.enemies.total, dir: bDir, dist: distWord(bDist), distPx: bDist, bestRarity: avail.rarity || 'common', bestColor: rarityWord(avail.rarity || 'common'), bestPrice: bVal, hostile: p.enemies.hostile, ordered: false, switched: why, prev: `the old pack (${distWord(aDist)})` },
         fallback: line,
       });
       showThought(`*switching shadow — ${why}*`, ['🔎 better pack', `💰 ~${packValue(p)}`], 0);
@@ -869,6 +884,7 @@ window.Brain = (() => {
     following = true;
     followLostAcc = 0;
     const n = en.nearest;
+    panIfOffscreen(n.x, n.y, 2.5); // usually a no-op (finds are on-screen by construction) — fires for genuinely off-screen ones
     const dir = dirWord(n.dx, n.dy);
     const best = bestPrize(en) || n;
     followTarget = { x: (best && best.x !== undefined ? best.x : n.x), y: (best && best.y !== undefined ? best.y : n.y) };
@@ -902,7 +918,7 @@ window.Brain = (() => {
     const facts = { total: en.total, dir: bDir, dist: distWord(n.dist), distPx: n.dist | 0, bestRarity: best.rarity || 'common', bestColor: rarityWord(best.rarity || 'common'), bestPrice: best.price || 2, hostile: en.hostile, ordered: !!(attackOrder && performance.now() - lastAskAt < 45000) };
     if (prev) {
       facts.prev = `${prev.total || 1} to the ${prev.dir || '?'} (${prev.dist || 'nearby'})`;
-      facts.compare = `the new one is ${distWord(n.dist)} (~${n.dist | 0}px) vs ${prev.dist || 'nearby'} (~${prev.distPx | 0}px) before — say which is closer and which you'd take first`;
+      facts.compare = `the new one is ${distWord(n.dist)} vs ${prev.dist || 'nearby'} before — say which is closer and which you'd take first`;
     }
     queueNews({ facts, fallback: line });
     showThought(`*found ${en.total === 1 ? 'it' : `all ${en.total} of them`} — best is ${best.rarity}*`, ['🔎 found', `💰 ~${packValue(en)}`, '👀 waiting orders'], 0);
@@ -1387,6 +1403,7 @@ window.Brain = (() => {
       return;
     }
     recallTarget = { x: g.x, y: g.y, until: performance.now() + 90000, tag: g.tag };
+    panIfOffscreen(g.x, g.y, 2.5); // the den can sit ~900px away in memory, not in eyes — glance at it while turning back
     stopFollow(); stopStroll(); searchDone = false;
     if (movingTask()) clearTask('recall march takes the feet'); // latest explicit command wins feet
     note(`recalling the [${g.tag}] group — marching back`);

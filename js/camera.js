@@ -86,7 +86,14 @@ window.Camera = (() => {
       } catch (e) { return null; }
     }
 
-    return { update, snap, shake, lookAt, viewCenter, toWorld };
+    // view rect in WORLD coords — pan decisions ("is that find on screen?")
+    function viewRect() {
+      try {
+        return { x: app.screen.width / 2 - worldContainer.x, y: app.screen.height / 2 - worldContainer.y, hw: app.screen.width / 2, hh: app.screen.height / 2 };
+      } catch (e) { return { x: 0, y: 0, hw: 640, hh: 360 }; }
+    }
+
+    return { update, snap, shake, lookAt, viewCenter, viewRect, toWorld };
   }
   return { create };
 })();

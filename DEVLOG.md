@@ -2,6 +2,23 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Pan returns (off-screen only) + no more pixel-talk
+- **Pan is back, but conditional.** `camera.viewRect()` + brain `panIfOffscreen()`: on-screen
+  finds never move the camera (direction words carry them); recall marches glance 2.5s at the
+  remembered den, which can sit ~900px away in memory rather than eyes. foundIt carries the
+  same guard as a safety net. Rationale for the old removal stands: rect-eyes == the fixed
+  1280×720 canvas, so search-finds are on-screen by construction — only memory-finds can be
+  somewhere you're not looking.
+- **"near 300px" fixed.** The leak was the chat model blending snapshot numbers into speech.
+  Three plugs: switch/compare/fallback templates speak words only ("much closer", "the old
+  pack (over there)", no `(~320px)` asides); new send-time Voice rule (distances in plain
+  words, purse quoted exactly); distWord gained a 4th band ("a way off" past 600px). Coin
+  appraisals ("about 12 coins") stay — knowing prices is fine, filtering by them is gone; the
+  last filter-flavored template ("not worth the bullets…") now reads "pocket change, but
+  money is money."
+- Tests: new hpan (8 checks: no-pan on-screen, pan-to-den on recall, words-not-pixels far
+  find). 9/9 suites green.
+
 ## 2026-09-06 — Money-is-money: the worth filter is gone
 - **No more bars, no more min-N.** `huntMin`, skip-pins, `[too cheap]`, mid-follow abandon,
   recall-exemptions, task `min` args, the think-prompt HUNT FILTER — all deleted. Now it's find
