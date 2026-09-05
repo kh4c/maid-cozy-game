@@ -289,10 +289,25 @@ window.Chat = (() => {
       const url = (s.chatUrl || '').replace(/\/$/, '');
       if (!url) throw new Error('no chat url');
       const f = facts || {};
+      // event-specific instruction: the facts block is shared, the ask changes
+      const EV = {
+        found: `you just SPOTTED critters in the field. Announce it to master NOW in your own voice: 1-2 short sentences, in-character, *action* allowed.`,
+        wiped: `the pack you were watching is now ALL DEAD (you killed them). Report it to master NOW in your own voice: 1 short sentence, in-character, *action* allowed — bones tired or proud, your pick. Never promise to remember this pack.`,
+        leave: `you just WALKED AWAY from the pack in view, on master's order. Say so briefly in your own voice: 1 short sentence, in-character, *action* allowed. No pin, no promise to come back.`,
+        switch: `you LEFT the pack you were shadowing for a BETTER/CLOSER one. Say so briefly in your own voice: 1 short sentence, in-character, *action* allowed.`,
+        'posture-find': `master just told you to GO FIND critters. Acknowledge in your own voice: 1 short sentence, in-character, *action* allowed. Confirm you will watch and hold fire until told otherwise.`,
+        'posture-heel': `master just told you to HEEL (stay close, hold position). Acknowledge in your own voice: 1 short sentence, in-character, *action* allowed. You will announce what you see but chase nothing.`,
+        'posture-hunt': `master just told you to HUNT — everything in reach dies until they say stop. Acknowledge in your own voice: 1 short sentence, in-character, *action* allowed. Eager, annoyed, or dutiful — your call.`,
+        chatter: `you have been working quietly for a while — report in to master NOW in your own voice: 1 short sentence, in-character, *action* allowed. Mention how the job feels (boring, tense, nice day for it). No new events happened — do not invent any.`,
+      };
       let sysText = (s.chatSystem || 'You are Cosette, a tsundere maid game companion.') +
-        `\n\n[EVENT — you just SPOTTED critters in the field. Announce it to master NOW in your own voice: 1-2 short sentences, in-character, *action* allowed. ` +
-        `Facts (quote EXACTLY, never invent or round): ${f.total || 1} critter(s) ${f.dist || 'nearby'}, to the ${f.dir || 'east'}. Best one: ${f.bestColor || ''} ${f.bestRarity || 'common'} worth ~${f.bestPrice || 2} coins. ` +
-        `${(f.hostile | 0) > 0 ? 'Some look HOSTILE (angry).' : (f.ordered ? 'Master ordered the engagement.' : 'You will HOLD and watch — say you await orders.')} ` +
+        `\n\n[EVENT — ${EV[f.event] || EV.found} ` +
+        (f.event === 'wiped'
+          ? `Facts (quote EXACTLY, never invent): ${f.kills} killed this pack${f.purse != null ? `, purse now ${f.purse} coins` : ''}. `
+          : f.event && (f.event.startsWith('posture') || f.event === 'chatter')
+            ? `No numbers needed — just say how it's going in character.${f.kills != null ? ` (This life so far: ${f.kills} kills${f.purse != null ? `, ${f.purse} coins in purse` : ''} — you may mention these EXACTLY.)` : ''} `
+            : `Facts (quote EXACTLY, never invent or round): ${f.total || 1} critter(s) ${f.dist || 'nearby'}, to the ${f.dir || 'east'}. Best one: ${f.bestColor || ''} ${f.bestRarity || 'common'} worth ~${f.bestPrice || 2} coins. `) +
+        `${(f.hostile | 0) > 0 && f.event !== 'wiped' && !(f.event || '').startsWith('posture') ? 'Some look HOSTILE (angry).' : (f.ordered && f.event === 'found' ? 'Master ordered the engagement.' : f.event === 'found' ? 'You will HOLD and watch — say you await orders.' : '')} ` +
         `${f.prev ? `Context: you already reported another pack (${f.prev}). ${f.compare || 'Say which pack is closer and which you would take first, and why.'} ` : ''}` +
         `${f.switched ? `You left the old pack for this one because it is ${f.switched} — say why, briefly. ` : ''}` +
         `${f.aged ? `You spotted this ${f.aged}s ago (the news waited its turn) — mention it may have moved since. ` : ''}` +

@@ -166,7 +166,7 @@ window.Brain = (() => {
     } catch (e) {}
     searchDone = false; // re-arm: a DIFFERENT pack may found; the left one just cools down, unfiled
     note(`left the pack (${why || 'master said so'}) — walking away, no pin, no memory`);
-    sayUnlessBusy('*nods, lowering her gun* Leaving them be, master — walking on.');
+    genLine('leave', {}, '*nods, lowering her gun* Leaving them be, master — walking on.');
   }
   function setMemo(text, from) {
     memo = { text: String(text || '').slice(0, 240), from: String(from || '').slice(0, 120), at: performance.now() };
@@ -775,6 +775,23 @@ window.Brain = (() => {
     showThought(`*found ${en.total === 1 ? 'it' : `all ${en.total} of them`} — best is ${best.rarity}*`, ['🔎 found', `💰 ~${packValue(en)}`, '👀 waiting orders'], 0);
     if (objective && objective.kind === 'heel') stopFollow(); // heel: announced, never shadowed
   }
+  // ---- generated one-liners: facts in, HER words out (template = crash fallback)
+  // Every proactive report goes through Chat.announce like the found-line does;
+  // the LLM says it in persona. These replace the old hardcoded strings —
+  // "all clear, scooping up coins" verbatim, forever, was the worst offender.
+  function genLine(event, facts, fallback) {
+    // fire-and-forget generation; if the LLM is down the fallback template says
+    // the same facts plainly, so the report is never LOST — only less pretty.
+    let chatBusy = false;
+    try { chatBusy = !!(window.Chat && window.Chat.isBusy && window.Chat.isBusy()); } catch (e) {}
+    if (chatBusy) { queueNews({ text: fallback }); return; } // mid-exchange: template via queue, next pump generates for bigger news
+    try {
+      if (window.Chat && typeof window.Chat.announce === 'function') {
+        window.Chat.announce(Object.assign({ event }, facts), fallback).catch(() => {});
+      } else sayUnlessBusy(fallback);
+    } catch (e) { sayUnlessBusy(fallback); }
+  }
+
   function followTick(dt) {
     if (!following) return;
     if (objective && objective.kind === 'heel') { stopFollow(); return; } // heel holds — never shadows
@@ -795,14 +812,15 @@ window.Brain = (() => {
           let wiped = 0;
           try { wiped = Math.max(0, (memory.kills | 0) - (followKills0 | 0)); } catch (e2) {}
           stopFollow();
-          const line = wiped > 0
-            ? `*wipes her brow, grinning* All clear, master — ${wiped} down! Coins on the ground, scooping up.`
+          const fb = wiped > 0
+            ? `*wipes her brow* All clear, master — ${wiped} down. Coins on the ground.`
             : `*looks around* All clear, master — nothing left standing.`;
-          let said = false;
-          try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
-          if (!said) queueNews({ text: line });
           showThought(`*all clear — ${wiped} down*`, ['⚔️ wiped', '💰 scooping'], 0);
-          try { pushEvent(`wiped the pack she was shadowing${wiped ? ` (${wiped} kills)` : ''}`); } catch (e) {}
+          try { pushEvent(`wiped the pack she was shadowing${wiped ? ` (${wiped} kills)` : ''}`); } catch (e2) {}
+          genLine('wiped', {
+            kills: wiped,
+            purse: (() => { try { return window.Inventory && window.Inventory.purse ? window.Inventory.purse() : null; } catch (e3) { return null; } })(),
+          }, fb);
           return;
         }
         // pack gone — don't loiter: an empty field or a standing job means
@@ -890,7 +908,7 @@ window.Brain = (() => {
       // FIND is locate + report + shadow — it does NOT arm the trigger.
       searchDone = false;
       note('standing posture: find');
-      sayUnlessBusy(`*salutes* Eyes open, master — I'll find them and report back. No shooting till you say so!`);
+      genLine('posture-find', {}, `*salutes* Eyes open, master — I'll find them and report back. No shooting till you say so!`);
       return;
     }
     if (objective.kind === 'heel') {
@@ -898,7 +916,7 @@ window.Brain = (() => {
       // never fire unless bitten (hostiles self-defend through combatDrive).
       stopFollow(); stopStroll();
       note('standing posture: heel');
-      sayUnlessBusy(`*settles in place* Staying put, master — I'll call out what I see, but I'm not chasing anything.`);
+      genLine('posture-heel', {}, `*settles in place* Staying put, master — I'll call out what I see, but I'm not chasing anything.`);
       return;
     }
     // HUNT (quota words like "earn 300" land here too): standing authorization
@@ -907,7 +925,7 @@ window.Brain = (() => {
     lastAskAt = performance.now();
     searchDone = false;
     note('standing posture: hunt');
-    sayUnlessBusy(`*cracks her knuckles* Hunting, master — everything in reach falls till you say stop!`);
+    genLine('posture-hunt', {}, `*cracks her knuckles* Hunting, master — everything in reach falls till you say stop!`);
   }
   function clearObjective() {
     if (!objective) return;
@@ -958,13 +976,12 @@ window.Brain = (() => {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       if (!p) return;
       if (p.enemies && p.enemies.hostile > 0) return; // busy fighting — shoot, don't chat
-      let line = null;
-      if (objective && objective.kind === 'find') line = `*sniffing the air* Still searching, master — eyes open, no shot yet.`;
-      else if (objective && objective.kind === 'heel') line = `*settled, watching* Holding here, master — all quiet.`;
-      else if (objective) line = `*sniffing the air* Still on the hunt, master — ${memory.kills} down this life.`;
-      else if (following) line = `*crouched, watching* Still watching them... waiting on your word.`;
+      const purse = (() => { try { return window.Inventory && window.Inventory.purse ? window.Inventory.purse() : null; } catch (e2) { return null; } })();
+      if (objective && objective.kind === 'find') genLine('chatter', { job: 'finding critters' }, `*sniffing the air* Still searching, master — eyes open, no shot yet.`);
+      else if (objective && objective.kind === 'heel') genLine('chatter', { job: 'holding position beside you' }, `*settled, watching* Holding here, master — all quiet.`);
+      else if (objective) genLine('chatter', { job: 'hunting', kills: memory.kills | 0, purse }, `*sniffing the air* Still on the hunt, master — ${memory.kills} down this life.`);
+      else if (following) genLine('chatter', { job: 'watching a pack, awaiting your word' }, `*crouched, watching* Still watching them... waiting on your word.`);
       else return;
-      sayUnlessBusy(line);
     } catch (e) {}
   }
 
