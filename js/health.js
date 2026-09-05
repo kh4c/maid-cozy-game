@@ -13,7 +13,7 @@ window.Health = (() => {
     if (!el) return;
     let s = '';
     for (let i = 0; i < MAX; i++) {
-      s += i < hp ? '<span class="hp-on">♥</span>' : '<span class="hp-off">♥</span>';
+      s += i < hp ? '<span class="px-heart hp-on"></span>' : '<span class="px-heart hp-off"></span>';
     }
     el.innerHTML = s;
     el.title = hp + '/' + MAX;

@@ -106,15 +106,59 @@ canvas { display: block; }
 #chat-input::placeholder { color: rgba(242, 239, 255, 0.4); }
 #chat-input:focus { border-color: rgba(157, 148, 255, 0.7); }
 
-/* ---- Health: hearts HUD, hurt flash, faint veil ------------------------------ */
+/* ---- Health: pixel hearts HUD, hurt flash, faint veil ------------------------- */
+/* Hearts are pure CSS pixel art (box-shadow blocks) — no image files.
+   Panel is transparent: just the hearts floating under the HUD bar. */
 #hearts {
-  position: absolute; top: 44px; left: 10px; z-index: 5;
-  font: 18px/1 monospace; letter-spacing: 2px;
-  background: rgba(10, 8, 20, 0.55); padding: 5px 9px; border-radius: 6px;
+  position: absolute; top: 46px; left: 12px; z-index: 5;
+  display: flex; gap: 8px; padding: 0; background: none;
   pointer-events: none; user-select: none;
 }
-#hearts .hp-on  { color: #ff5d73; text-shadow: 0 0 6px rgba(255, 93, 115, 0.8); }
-#hearts .hp-off { color: rgba(255, 255, 255, 0.16); }
+.px-heart {
+  --px: 5px; /* pixel block size — heart renders 7x6 blocks (35x30px) */
+  width: var(--px); height: var(--px);
+  margin: 0 calc(var(--px) * 6) calc(var(--px) * 5) 0;
+}
+.px-heart.hp-on {
+  color: #ff5d73;
+  box-shadow:
+    calc(var(--px)*1) 0 0 0 currentColor, calc(var(--px)*2) 0 0 0 currentColor,
+    calc(var(--px)*4) 0 0 0 currentColor, calc(var(--px)*5) 0 0 0 currentColor,
+    0 var(--px) 0 0 currentColor,
+    calc(var(--px)*1) var(--px) 0 0 currentColor, calc(var(--px)*2) var(--px) 0 0 currentColor,
+    calc(var(--px)*3) var(--px) 0 0 currentColor, calc(var(--px)*4) var(--px) 0 0 currentColor,
+    calc(var(--px)*5) var(--px) 0 0 currentColor, calc(var(--px)*6) var(--px) 0 0 currentColor,
+    0 calc(var(--px)*2) 0 0 currentColor,
+    calc(var(--px)*1) calc(var(--px)*2) 0 0 currentColor, calc(var(--px)*2) calc(var(--px)*2) 0 0 currentColor,
+    calc(var(--px)*3) calc(var(--px)*2) 0 0 currentColor, calc(var(--px)*4) calc(var(--px)*2) 0 0 currentColor,
+    calc(var(--px)*5) calc(var(--px)*2) 0 0 currentColor, calc(var(--px)*6) calc(var(--px)*2) 0 0 currentColor,
+    calc(var(--px)*1) calc(var(--px)*3) 0 0 currentColor, calc(var(--px)*2) calc(var(--px)*3) 0 0 currentColor,
+    calc(var(--px)*3) calc(var(--px)*3) 0 0 currentColor, calc(var(--px)*4) calc(var(--px)*3) 0 0 currentColor,
+    calc(var(--px)*5) calc(var(--px)*3) 0 0 currentColor,
+    calc(var(--px)*2) calc(var(--px)*4) 0 0 currentColor, calc(var(--px)*3) calc(var(--px)*4) 0 0 currentColor,
+    calc(var(--px)*4) calc(var(--px)*4) 0 0 currentColor,
+    calc(var(--px)*3) calc(var(--px)*5) 0 0 currentColor;
+}
+.px-heart.hp-off {
+  color: rgba(255, 255, 255, 0.16);
+  box-shadow:
+    calc(var(--px)*1) 0 0 0 currentColor, calc(var(--px)*2) 0 0 0 currentColor,
+    calc(var(--px)*4) 0 0 0 currentColor, calc(var(--px)*5) 0 0 0 currentColor,
+    0 var(--px) 0 0 currentColor,
+    calc(var(--px)*1) var(--px) 0 0 currentColor, calc(var(--px)*2) var(--px) 0 0 currentColor,
+    calc(var(--px)*3) var(--px) 0 0 currentColor, calc(var(--px)*4) var(--px) 0 0 currentColor,
+    calc(var(--px)*5) var(--px) 0 0 currentColor, calc(var(--px)*6) var(--px) 0 0 currentColor,
+    0 calc(var(--px)*2) 0 0 currentColor,
+    calc(var(--px)*1) calc(var(--px)*2) 0 0 currentColor, calc(var(--px)*2) calc(var(--px)*2) 0 0 currentColor,
+    calc(var(--px)*3) calc(var(--px)*2) 0 0 currentColor, calc(var(--px)*4) calc(var(--px)*2) 0 0 currentColor,
+    calc(var(--px)*5) calc(var(--px)*2) 0 0 currentColor, calc(var(--px)*6) calc(var(--px)*2) 0 0 currentColor,
+    calc(var(--px)*1) calc(var(--px)*3) 0 0 currentColor, calc(var(--px)*2) calc(var(--px)*3) 0 0 currentColor,
+    calc(var(--px)*3) calc(var(--px)*3) 0 0 currentColor, calc(var(--px)*4) calc(var(--px)*3) 0 0 currentColor,
+    calc(var(--px)*5) calc(var(--px)*3) 0 0 currentColor,
+    calc(var(--px)*2) calc(var(--px)*4) 0 0 currentColor, calc(var(--px)*3) calc(var(--px)*4) 0 0 currentColor,
+    calc(var(--px)*4) calc(var(--px)*4) 0 0 currentColor,
+    calc(var(--px)*3) calc(var(--px)*5) 0 0 currentColor;
+}
 #hurt-flash {
   position: absolute; inset: 0; z-index: 30; pointer-events: none; opacity: 0;
   background: radial-gradient(ellipse at center, rgba(255, 30, 60, 0.12) 40%, rgba(255, 30, 60, 0.5) 100%);
