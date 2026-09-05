@@ -37,9 +37,10 @@ window.Chat = (() => {
     typeTimer = setInterval(() => {
       i += 2;
       $('dialog-text').innerHTML = formatReply(full.slice(0, i));
-      if (i >= full.length) clearInterval(typeTimer);
+      if (i >= full.length) { clearInterval(typeTimer); typeTimer = null; }
     }, 24);
   }
+  function isSpeaking() { return typeTimer !== null; } // typewriter mid-line — queue, don't clobber
 
   // Re-render the last reply (e.g. actions toggle flipped mid-display).
   function rerender() {
@@ -144,8 +145,8 @@ window.Chat = (() => {
   // model names it from a closed verb vocabulary — no regexes on our side.
   function buildTaskInstr() {
     return (
-      '[TASK: if the master wants an ONGOING behavior — not chat, not a one-shot move — also output one final line task=[[verb args]] using ONLY this vocabulary: circle [cw|ccw], patrol [radius px], goto [x y world coords], quota [N coins] [min M coins], hunt [min N coins], follow-pack, clear. ' +
-      'E.g. "just keep circling" → task=[[circle cw]]. "earn 200 coins" → task=[[quota 200]]. "earn 300, only prey worth 5+, we are low on ammo" → task=[[quota 300 min 5]]. "only prey worth 5+ coins" → task=[[hunt min 5]]. "come here" is one-shot ([move] tag), not a task. Pure chat: omit the line. This line is stripped from the dialog.]'
+      '[TASK: if the master wants an ONGOING behavior — not chat, not a one-shot move — also output one final line task=[[verb args]] using ONLY this vocabulary: circle [cw|ccw], patrol [radius px], goto [x y world coords], quota [N coins] [min M coins], hunt [min N coins], find [min N coins], follow-pack, clear. ' +
+      'E.g. "just keep circling" → task=[[circle cw]]. "earn 200 coins" → task=[[quota 200]]. "earn 300, only prey worth 5+, we are low on ammo" → task=[[quota 300 min 5]]. "only prey worth 5+ coins" → task=[[hunt min 5]]. "just find some critters" → task=[[find]] (locate + report, NO shooting). "find only prey worth 5+" → task=[[find min 5]]. "come here" is one-shot ([move] tag), not a task. Pure chat: omit the line. This line is stripped from the dialog.]'
     );
   }
   function extractTask(reply) {
@@ -319,6 +320,9 @@ window.Chat = (() => {
         `\n\n[EVENT — you just SPOTTED critters in the field. Announce it to master NOW in your own voice: 1-2 short sentences, in-character, *action* allowed. ` +
         `Facts (quote EXACTLY, never invent or round): ${f.total || 1} critter(s) ${f.dist || 'nearby'}, to the ${f.dir || 'east'}. Best one: ${f.bestColor || ''} ${f.bestRarity || 'common'} worth ~${f.bestPrice || 2} coins. ` +
         `${(f.hostile | 0) > 0 ? 'Some look HOSTILE (angry).' : (f.ordered ? 'Master ordered the engagement.' : 'You will HOLD and watch — say you await orders.')} ` +
+        `${f.prev ? `Context: you already reported another pack (${f.prev}). ${f.compare || 'Say which pack is closer and which you would take first, and why.'} ` : ''}` +
+        `${f.switched ? `You left the old pack for this one because it is ${f.switched} — say why, briefly. ` : ''}` +
+        `${f.aged ? `You spotted this ${f.aged}s ago (the news waited its turn) — mention it may have moved since. ` : ''}` +
         `No combat/move/intent/task tags — just the announcement. This is proactive, not a reply to master.]`;
       try {
         if (window.Situation && typeof window.Situation.snapshot === 'function') {
@@ -346,5 +350,5 @@ window.Chat = (() => {
     } catch (e) { try { return say(fb); } catch (e2) { return false; } }
   }
 
-  return { init, send, say, announce, rerender, newLife, isBusy: () => busy };
+  return { init, send, say, announce, rerender, newLife, isBusy: () => busy, isSpeaking };
 })();

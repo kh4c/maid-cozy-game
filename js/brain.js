@@ -30,7 +30,7 @@ window.Brain = (() => {
     attackOrder = false; // new life: gun down
     try { attackScope = 'blanket'; } catch (e) {}
     try { stopFollow(); } catch (e) {}
-    try { known = []; recallTarget = null; objective = null; currentTask = null; taskState = {}; huntMin = 0; followTarget = null; followExempt = false; target = null; } catch (e) {} // new life: old grudges expire
+    try { known = []; recallTarget = null; objective = null; currentTask = null; taskState = {}; huntMin = 0; followTarget = null; followExempt = false; target = null; lastSwitchAt = -1e9; } catch (e) {} // new life: old grudges expire
     try { memory.events.push(`(new life — ${reason})`); } catch (e) {}
   }
   // note('kill', n) / note('hurt') / note('flee') — called by gun/health/main
@@ -264,18 +264,21 @@ window.Brain = (() => {
     if (DISMISS_RE.test(t) && wasOnPack) dismissCurrent(tagFor(t));
     // movement wishes start the stroll even with no direction known
     if (/(find|look for|search|go|wander|explore|patrol|somewhere|anywhere)/.test(t) && !/(stop|don.t|cease)/.test(t)) beginStroll();
-    // plain "find some critters" defaults to a thrifty standing hunt: worth≥5
-    // (uncommon+) + hunt objective ON. An explicit quota/objective wins; a
-    // "min N" stays untouched; "anything/commons" lifts the bar to 0.
-    // (Master's norm: low ammo, every bullet must earn.)
-    if (/(find|look for|search)/.test(t) && !objective && !/\bmin\b/.test(t)) {
-      if (/(anything|any critter|commons?|everything|whatever|don't care|do not care)/.test(t)) {
-        if (huntMin !== 0) { huntMin = 0; note('hunt bar lifted — anything goes'); }
-      } else {
-        huntMin = 5;
-        setObjective({ kind: 'hunt' });
-        note('default hunt: worth ≥5c + standing hunt ON (plain find request)');
-      }
+    // FIND vs HUNT: the verb picks the goal. "find / look for / search" = FIND:
+    // locate + announce + shadow, trigger stays OFF (hostiles still self-defend).
+    // "hunt ..." = HUNT: kill-authorized + min-5 default bar. "worth N / at least
+    // N" puts a bar on the find ("find some critter worth 5"); bare find reports
+    // everything. An explicit quota/objective/min-word wins; "anything / commons"
+    // lifts the bar to 0. Attack words in the same breath ("find and kill them")
+    // keep kill behavior — the FIND goal never disarms an order.
+    if (/(find|look for|search)/.test(t) && !objective && !/\bmin\b/.test(t) && !wantsAttack(t)) {
+      if (/(worth|at least|minimum)/.test(t)) {
+        const wm = t.match(/(worth|at least|minimum)[^\d]{0,12}(\d+)/);
+        huntMin = wm ? Math.max(1, parseInt(wm[2], 10)) : 5;
+      } else if (/(anything|any critter|commons?|everything|whatever|don't care|do not care)/.test(t)) huntMin = 0;
+      else huntMin = 0; // bare find: report everything, no bar
+      setObjective({ kind: 'find' });
+      note(`find goal: report everything${huntMin > 0 ? ` worth ≥${huntMin}c` : ''}, hold fire`);
     }
     if (/(stop|come here|stay|halt|stand down)/.test(t)) stopStroll();
   }
@@ -682,13 +685,48 @@ window.Brain = (() => {
   let following = false;    // shadowing a found pack right now
   let followLostAcc = 0;    // seconds since the pack left her circle
   let followAcc = 0;        // approach-order throttle
-  let pendingSay = null;    // found-line waiting for a free chat box
+  let newsQueue = []; // announcements the dialog missed: { text } or { facts, fallback }. Cap 4 — oldest drops, newest always wins.
+  let newsBusy = false; // an announce() generation is in flight — pump waits, never overlaps
+  function queueNews(item) {
+    try { item.at = performance.now(); } catch (e) {}
+    newsQueue.push(item);
+    if (newsQueue.length > 4) newsQueue.shift();
+  }
+  function chatFree() {
+    // dialog usable right now? busy exchange, mid-typewriter, dead, edit — all wait
+    try {
+      if (window.Health && window.Health.dead) return false;
+      if (window.EditMode && window.EditMode.active) return false;
+      if (window.Chat && window.Chat.isBusy && window.Chat.isBusy()) return false;
+      if (window.Chat && window.Chat.isSpeaking && window.Chat.isSpeaking()) return false;
+      return true;
+    } catch (e) { return false; }
+  }
+  function newsPump() {
+    // every tick: if news waits AND the dialog is free, deliver ONE (serial —
+    // generations never overlap, typewriter never clobbers). Failures stay
+    // queued: nothing is ever silently dropped, it just waits its turn.
+    if (newsBusy || !newsQueue.length || !chatFree()) return;
+    const item = newsQueue[0];
+    const done = (ok) => { newsBusy = false; if (ok) newsQueue.shift(); };
+    try {
+      if (item.facts && window.Chat && typeof window.Chat.announce === 'function') {
+        newsBusy = true;
+        const ageS = Math.round((performance.now() - (item.at || performance.now())) / 1000);
+        const facts = ageS > 8 ? Object.assign({}, item.facts, { aged: ageS }) : item.facts;
+        window.Chat.announce(facts, item.fallback).then(done).catch(() => done(false));
+      } else if (window.Chat && window.Chat.say) {
+        let ok = false;
+        try { ok = !!window.Chat.say(item.text || item.fallback); } catch (e) { ok = false; }
+        if (ok) newsQueue.shift();
+      } else newsQueue.shift(); // no chat surface at all — drop, don't wedge the queue
+    } catch (e) { newsBusy = false; }
+  }
   let huntMin = 0; // hunt filter: only packs holding a critter worth >= this (0 = none)
   let followTarget = null; // last seen pos of the followed pack (recallable)
   let followKills0 = 0; // kill count when the shadow started — wiped = kills since
   let followExempt = false; // recalled pack: master's word outranks the filter until she leaves it
   let skipSayAt = -1e9; // throttle for the "beneath our bullets" line
-  let pendingSayAcc = 0, pendingSayTries = 0;
   const FOLLOW_DIST = 280;  // shadow at this range (keep-distance owns <170)
   const OBSERVE_DIST = 340; // observing a calm pack: stand off, watch, wait for orders
   const RANK = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 };
@@ -734,20 +772,13 @@ window.Brain = (() => {
     try { return /find|search/i.test(memo.text); } catch (e) { return false; }
   }
   function searchWatch(dt) {
-    // retry a blocked found-line (chat was busy) a few times
-    if (pendingSay) {
-      pendingSayAcc += dt;
-      if (pendingSayAcc > 2 && pendingSayTries < 3) {
-        pendingSayAcc = 0; pendingSayTries += 1;
-        try { if (window.Chat && window.Chat.say && window.Chat.say(pendingSay)) pendingSay = null; } catch (e) {}
-      } else if (pendingSayTries >= 3) pendingSay = null;
-    }
-    if (following) return;
+    newsPump(); // queued announcements drain whenever the dialog is free — even mid-shadow
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       if (!p || !p.enemies) return;
       if (recallTarget && performance.now() > recallTarget.until) recallTarget = null; // march expired
+      if (following) { switchWatch(p); return; } // shadowing A: only a clearly better pack interrupts (below)
       const avail = findAvail(p);
       if (recallTarget) {
         // marching BACK to a remembered pack — straight line, no wandering.
@@ -776,7 +807,7 @@ window.Brain = (() => {
           const line = `Hm... they've moved on, master. No sign of the ${tag} ones here.`;
           let said = false;
           try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
-          if (!said) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
+          if (!said) queueNews({ text: line });
           note('marched back, but the pack had moved on');
           return;
         }
@@ -819,6 +850,48 @@ window.Brain = (() => {
       foundIt(view, false);
     } catch (e) {}
   }
+  let lastSwitchAt = -1e9; // anti-thrash: at most one shadow-switch per ~20s
+  function switchWatch(p) {
+    // Shadowing pack A while pack B walks into view: only a CLEARLY better
+    // prize interrupts — closer by 150px+ or worth 2x+ (and never farther).
+    // Never off an explicit kill: a fresh kill word or a surgical latch means
+    // obedience beats opportunism. A movement task owns the feet — never here.
+    try {
+      if (movingTask()) return;
+      if (!followTarget) return;
+      if (target) return; // surgical latch: master's color order, hands off
+      if (attackOrder && performance.now() - lastKillWordAt < 45000) return; // fresh kill word: hands off
+      if (performance.now() - lastSwitchAt < 20000) return;
+      const avail = findAvail(p);
+      if (!avail) return;
+      const aDist = Math.hypot(followTarget.x - p.px, followTarget.y - p.py);
+      const bDist = avail.dist | 0;
+      let aVal = 0;
+      try {
+        const aLive = window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(followTarget.x, followTarget.y, 900) : null;
+        aVal = (aLive && aLive.price) | 0;
+      } catch (e2) {}
+      const bVal = (avail.price) | 0;
+      const nearer = (aDist - bDist) > 150;
+      const richer = aVal > 0 && bVal >= aVal * 2 && bDist <= aDist;
+      if (!nearer && !richer) return;
+      if (huntMin > 0 && !followExempt && bVal < huntMin) return; // B isn't worth it either
+      lastSwitchAt = performance.now();
+      const bDir = dirWord(avail.dx, avail.dy);
+      followTarget = { x: avail.x, y: avail.y };
+      followLostAcc = 0; followAcc = 0;
+      try { followKills0 = memory.kills | 0; } catch (e2) {}
+      searchDone = true;
+      const why = nearer ? `${Math.round(aDist - bDist)}px closer` : `worth ${bVal}c vs ${aVal}c`;
+      const line = `*turns, pointing ${bDir}* Heads up, master — another pack ${distWord(bDist)}, to the ${bDir}, ${why}. Leaving these for the better prize!`;
+      try { pushEvent(`switched shadow to a ${why} pack ${bDir}`); } catch (e2) {}
+      queueNews({
+        facts: { total: p.enemies.total, dir: bDir, dist: distWord(bDist), distPx: bDist, bestRarity: avail.rarity || 'common', bestColor: rarityWord(avail.rarity || 'common'), bestPrice: bVal, hostile: p.enemies.hostile, ordered: false, switched: why, prev: `the old pack (~${Math.round(aDist)}px)` },
+        fallback: line,
+      });
+      showThought(`*switching shadow — ${why}*`, ['🔎 better pack', `💰 ~${packValue(p)}`], 0);
+    } catch (e) {}
+  }
   function foundIt(en, opportunistic) {
     searchDone = true;
     followExempt = false; // a fresh find earns no exemption — only a recall march does (set after)
@@ -845,20 +918,23 @@ window.Brain = (() => {
     // on-screen by construction — panning would shove OTHER visible packs out
     // of the rect (phantom "lost") and yank the click-to-move surface.
     // Direction words ("to the north-east") carry the where.
-    // Generated found-line: the CHAT voice announces from these facts; the
-    // template `line` below is the safety net (model down/busy/dead).
+    // Generated found-line goes through the NEWS QUEUE (serial, never dropped —
+    // the pump speaks them one at a time whenever the dialog is free). If an
+    // earlier find is still waiting its turn, carry it as comparison so she
+    // reports which pack is closer and which she'd take first.
+    let prev = null;
     try {
-      if (window.Chat && typeof window.Chat.announce === 'function') {
-        const facts = { total: en.total, dir: bDir, dist: distWord(n.dist), bestRarity: best.rarity || 'common', bestColor: rarityWord(best.rarity || 'common'), bestPrice: best.price || 2, hostile: en.hostile, ordered: !!(attackOrder && performance.now() - lastAskAt < 45000) };
-        window.Chat.announce(facts, line)
-          .then((ok) => { if (!ok) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; } })
-          .catch(() => { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; });
-      } else if (window.Chat && window.Chat.say) {
-        let said = false;
-        try { said = window.Chat.say(line); } catch (e) { said = false; }
-        if (!said) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
+      for (let i = newsQueue.length - 1; i >= 0; i--) {
+        const f = newsQueue[i] && newsQueue[i].facts;
+        if (f && !f.switched) { prev = f; break; }
       }
-    } catch (e) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
+    } catch (e) {}
+    const facts = { total: en.total, dir: bDir, dist: distWord(n.dist), distPx: n.dist | 0, bestRarity: best.rarity || 'common', bestColor: rarityWord(best.rarity || 'common'), bestPrice: best.price || 2, hostile: en.hostile, ordered: !!(attackOrder && performance.now() - lastAskAt < 45000) };
+    if (prev) {
+      facts.prev = `${prev.total || 1} to the ${prev.dir || '?'} (${prev.dist || 'nearby'})`;
+      facts.compare = `the new one is ${distWord(n.dist)} (~${n.dist | 0}px) vs ${prev.dist || 'nearby'} (~${prev.distPx | 0}px) before — say which is closer and which you'd take first`;
+    }
+    queueNews({ facts, fallback: line });
     showThought(`*found ${en.total === 1 ? 'it' : `all ${en.total} of them`} — best is ${best.rarity}*`, ['🔎 found', `💰 ~${packValue(en)}`, '👀 waiting orders'], 0);
   }
   function followTick(dt) {
@@ -885,7 +961,7 @@ window.Brain = (() => {
             : `*looks around* All clear, master — nothing left standing.`;
           let said = false;
           try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
-          if (!said) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
+          if (!said) queueNews({ text: line });
           showThought(`*all clear — ${wiped} down*`, ['⚔️ wiped', '💰 scooping'], 0);
           try { pushEvent(`wiped the pack she was shadowing${wiped ? ` (${wiped} kills)` : ''}`); } catch (e) {}
           return;
@@ -987,7 +1063,7 @@ window.Brain = (() => {
   // every wiped pack, and the purse is checked actively. Completes itself at
   // target (stands down + reports); an explicit stop or death drops it.
   // Hierarchy: latest explicit command > standing objective > defaults.
-  let objective = null; // { kind: 'coins', target } | { kind: 'hunt' }
+  let objective = null; // { kind: 'coins', target } | { kind: 'hunt' } | { kind: 'find' }
   function purseNow() {
     try { return (window.Inventory && window.Inventory.state ? window.Inventory.state().coins : 0) | 0; } catch (e) { return 0; }
   }
@@ -998,12 +1074,21 @@ window.Brain = (() => {
     if (chatBusy) return;
     let said = false;
     try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
-    if (!said) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
+    if (!said) queueNews({ text: line });
   }
   function setObjective(o) {
     objective = o;
     try { objective.milestone = 0; } catch (e) {} // progress chatter starts fresh
     if (!objective) return;
+    if (objective.kind === 'find') {
+      // FIND is locate + report + shadow — it does NOT arm the trigger.
+      // (A standing kill order keeps its own lifecycle; stop still clears all.)
+      searchDone = false;
+      const bar = huntMin > 0 ? ` (worth ≥${huntMin}c only)` : '';
+      note(`standing objective set: find${bar}`);
+      sayUnlessBusy(`*salutes* Eyes open, master — I'll find them and report back${bar}. No shooting till you say so!`);
+      return;
+    }
     setAttackOrder(true, 'standing objective');
     attackScope = 'blanket'; // quotas hunt the pack, not one color
     lastAskAt = performance.now();
@@ -1046,7 +1131,9 @@ window.Brain = (() => {
       return;
     }
     if (/(keep|continue)\s+\w*\s*(finding|killing|hunting|searching)/.test(t)) {
-      if (!objective || objective.kind !== 'hunt') setObjective({ kind: 'hunt' });
+      // "keep killing/hunting" = HUNT; bare "keep finding/searching" = FIND (no trigger)
+      if (/(killing|hunting)/.test(t)) { if (!objective || objective.kind !== 'hunt') setObjective({ kind: 'hunt' }); }
+      else if (!objective || objective.kind !== 'find') setObjective({ kind: 'find' });
     }
   }
   function objectiveTick(dt) {
@@ -1091,6 +1178,7 @@ window.Brain = (() => {
       const purse = purseNow(), need = Math.max(0, objective.target - purse);
       return `EARN ${objective.target} COINS — purse now ${purse}, ${need} to go. This OVERRIDES the defaults: keep finding + killing pack after pack until filled; do NOT stop after one group; freshness never expires while the quota stands. When filled: stand down, report, stop firing.`;
     }
+    if (objective.kind === 'find') return `FIND critters${huntMin > 0 ? ` worth ≥${huntMin}c` : ''} — locate + announce + shadow each pack; HOLD fire on calm packs (this goal arms nothing); hostiles still self-defend; re-arm the search after every wipe/loss; stands until master says stop. If several packs are visible, compare distance + best value and recommend which to take first — master picks, you hold.`;
     return 'KEEP FINDING + KILLING indefinitely until master says stop — overrides one-pack defaults; re-arm the search after every wipe; freshness never expires.';
   }
   function getObjectiveText() {
@@ -1100,6 +1188,7 @@ window.Brain = (() => {
       const purse = purseNow(), need = Math.max(0, objective.target - purse);
       return `earn ${objective.target} coins (purse ${purse}, ${need} to go) — keep hunting pack after pack.`;
     }
+    if (objective.kind === 'find') return `find critters${huntMin > 0 ? ` worth ≥${huntMin}c` : ''} — locate + report + shadow, HOLD fire unless master orders or they turn hostile.`;
     return 'keep finding + killing until told to stop.';
   }
 
@@ -1109,7 +1198,7 @@ window.Brain = (() => {
   // stop clears. circle/patrol/goto steer the feet every 0.5s; quota/hunt/
   // follow-pack wire into the existing standing systems. Threats suspend the
   // movement verbs automatically — survival first, performance later.
-  const TASK_DEFS = { circle: 1, patrol: 1, goto: 1, quota: 1, hunt: 1, 'follow-pack': 1 };
+  const TASK_DEFS = { circle: 1, patrol: 1, goto: 1, quota: 1, hunt: 1, find: 1, 'follow-pack': 1 };
   let currentTask = null; // { verb, arg, at, src }
   let taskState = {};     // per-task runtime (circle angle, patrol waypoints…)
   let taskAcc = 0;
@@ -1138,6 +1227,13 @@ window.Brain = (() => {
       if (huntMin > 0) note(mm ? `hunt filter: only packs with a critter worth ≥${huntMin}c (cheaper ones get noted and skipped)` : 'hunt filter: default bar worth ≥5c (say "anything" to lift it)');
       if (!objective) setObjective({ kind: 'hunt' });
     }
+    else if (verb === 'find') {
+      // model-ordered FIND: locate + report, trigger stays OFF (same as memo finds)
+      const fm = String(currentTask.arg || '').match(/min(?:imum|price)?\s*(\d+)/);
+      huntMin = fm ? Math.max(1, parseInt(fm[1], 10)) : 0;
+      if (huntMin > 0) note(`find filter: only packs with a critter worth ≥${huntMin}c get announced`);
+      if (!objective) setObjective({ kind: 'find' });
+    }
     else if (verb === 'follow-pack') { if (!following && !strollDir) { try { beginStroll(); } catch (e) {} } }
     else { if (huntMin > 0) note('hunt filter lifted — it rode with the hunt task'); huntMin = 0; }
     note(`task: ${verb}${currentTask.arg ? ' ' + currentTask.arg : ''} (${currentTask.src})`);
@@ -1165,7 +1261,7 @@ window.Brain = (() => {
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     if (window.Stamina && !window.Stamina.canMove()) return;
     const v = currentTask.verb;
-    if (v === 'quota' || v === 'hunt') return; // objective system drives those
+    if (v === 'quota' || v === 'hunt' || v === 'find') return; // objective system drives those
     if (v === 'follow-pack') {
       // standing behavior like a quota: re-arm after every wipe
       if (!following && !recallTarget) {
@@ -1212,20 +1308,21 @@ window.Brain = (() => {
   // ---- chatter: she thinks out loud while working --------------------------------
   // Long jobs go quiet otherwise — every ~55s of active work she reports in:
   // quota tally, task status, the watch. Never interrupts a fight, never cuts
-  // in line ahead of something important (pendingSay), never backlogs.
+  // in line ahead of something important (queued news), never backlogs.
   let chatterAcc = 0;
   function chatterTick(dt) {
     chatterAcc += dt;
     if (chatterAcc < 55) return;
     chatterAcc = 0;
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
-    if (pendingSay) return; // something important waiting — don't cut in
+    if (newsQueue.length || newsBusy) return; // something important waiting — don't cut in
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       if (!p) return;
       if (p.enemies && p.enemies.hostile > 0) return; // busy fighting — shoot, don't chat
       let line = null;
       if (objective && objective.kind === 'coins') line = `*counts on her fingers* ${purseNow()}/${objective.target} coins, master — still hunting!`;
+      else if (objective && objective.kind === 'find') line = `*sniffing the air* Still searching, master — eyes open, no shot yet.`;
       else if (objective) line = `*sniffing the air* Still on the hunt, master — ${memory.kills} down this life.`;
       else if (currentTask && currentTask.verb === 'circle') line = `*still spinning* Circling, master — say when you're dizzy!`;
       else if (currentTask && currentTask.verb === 'patrol') line = `*scanning the grass* Patrolling... all quiet so far.`;
@@ -1301,7 +1398,7 @@ window.Brain = (() => {
       const line = `*turns up her nose* ${opinion === 'too small' ? 'These runts' : 'These ones'}? As you wish — leaving them behind. (But I'll remember where they den, master, in case you change your mind!)`;
       let said = false;
       try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
-      if (!said) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
+      if (!said) queueNews({ text: line });
       try { pushEvent(`dismissed a [${opinion}] pack — looking elsewhere, spot remembered`); } catch (e) {}
     } catch (e) {}
   }
@@ -1344,7 +1441,7 @@ window.Brain = (() => {
       if (!chatBusy) {
         let said = false;
         try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
-        if (!said) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
+        if (!said) queueNews({ text: line });
       }
       return;
     }
@@ -1355,7 +1452,7 @@ window.Brain = (() => {
     const line = `Those ${g.tag} ones? I remember where they den — turning back, master!`;
     let said = false;
     try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
-    if (!said) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
+    if (!said) queueNews({ text: line });
   }
   // A skipped (too-cheap) pack gets a [too cheap] memory pin so "actually,
   // kill those" can march straight back to it. Chatter throttled to 60s.
@@ -1382,6 +1479,7 @@ window.Brain = (() => {
       const bits = [];
       if (objective) {
         if (objective.kind === 'coins') bits.push(`🎯 ${purseNow()}/${objective.target}c`);
+        else if (objective.kind === 'find') bits.push('🔎 finding…');
         else bits.push('🎯 hunt on');
       }
       if (currentTask) bits.push(`📋 ${currentTask.verb}${currentTask.arg ? ' ' + currentTask.arg : ''}`);

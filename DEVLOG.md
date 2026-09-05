@@ -2,6 +2,25 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — FIND goal + news queue + smarter second finds
+- **FIND is a goal now.** The verb picks the goal: "find / look for / search" = FIND (locate +
+  announce + shadow, trigger stays OFF — hostiles still self-defend); "hunt" = HUNT (kill +
+  min-5 default); "earn N" = QUOTA. "find some critter worth 5" = FIND with a bar (small-fry
+  skipped, 5c announced, still no fire); bare find reports everything. Goal HUD reads
+  `🔎 finding…` vs `🎯 hunt on`. Think-model told: under FIND, compare packs and recommend —
+  master picks, she holds. (Last turn's hunt-default moves to HUNT where thrift belongs.)
+- **News queue replaces the 3-try found-line.** Every dialog announcement queues
+  (`{text}` or `{facts,fallback}`, cap 4, newest wins) and a pump speaks them serially whenever
+  the dialog is free (not busy, not mid-typewriter via new `Chat.isSpeaking`, not dead) — even
+  mid-shadow. Nothing is silently dropped anymore; delayed finds are announced as delayed
+  ("spotted 30s ago — may have moved").
+- **Second pack while shadowing.** `switchWatch`: a clearly better prize (closer by 150px+ or
+  worth 2x+ and not farther, max 1 switch/20s) moves the shadow + announces why ("300px closer
+  — leaving these for the better prize"); a still-waiting earlier find rides along as comparison
+  ("which is closer, which you'd take first"). Never off a surgical latch or a fresh kill word —
+  obedience beats opportunism. (N-suite 7/7, M3 comparison/switch/age, L-suite rewritten 15/15;
+  all 6 legacy suites untouched-green.)
+
 ## 2026-09-06 — Generated found-lines + default hunt min-5
 - **Found-line is generated now, not templated.** `Chat.announce(facts, template)`: the CHAT voice
   receives the facts (count, dir, dist, best color/rarity/value, hostile?, ordered?) plus the live
