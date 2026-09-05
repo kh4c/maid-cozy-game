@@ -208,6 +208,10 @@ window.Brain = (() => {
       const hb = $('sense-line');
       if (hb && window.Situation) hb.textContent = window.Situation.hudLine();
     } catch (e) { /* buttons are cosmetic */ }
+    try {
+      const gl = $('goal-line');
+      if (gl) { const t = getGoalHud(); if (gl.textContent !== t) gl.textContent = t; }
+    } catch (e) {}
   }
 
   // ---- thought box (HER box, not chat's) ------------------------------------
@@ -1198,6 +1202,7 @@ window.Brain = (() => {
       return bits.join(' · ') || '💤 idle';
     } catch (e) { return '💤 idle'; }
   }
+  function getKnownText(px, py) {
     // one-liner for the snapshot so BOTH minds know the remembered packs
     pruneKnown();
     try {
@@ -1275,5 +1280,5 @@ window.Brain = (() => {
     if (t && !t.textContent) t.textContent = 'field is quiet… press 💭 and I’ll size it up.';
   }
 
-  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, note, resetMemory, setMemo, getKnownText, recallStatus, getObjectiveText, setTask, clearTask, getTaskText, get thinking() { return thinking; } };
+  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, note, resetMemory, setMemo, getKnownText, getGoalHud, recallStatus, getObjectiveText, setTask, clearTask, getTaskText, get thinking() { return thinking; } };
 })();
