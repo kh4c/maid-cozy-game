@@ -842,10 +842,13 @@ window.Brain = (() => {
       searchDone = true;
       const gap = Math.round(aDist - bDist);
       const why = gap > 300 ? 'much closer' : 'closer';
-      const line = `*turns, pointing ${bDir}* Heads up, master — another pack ${distWord(bDist)}, to the ${bDir}, ${why}. Leaving these for the better prize!`;
+      const swHunter = avail.pack === 'lone';
+      const line = swHunter
+        ? `*turns, pointing ${bDir}* Heads up, master — a hunter ${distWord(bDist)}, to the ${bDir}, ${why}. Leaving these for the red ring!`
+        : `*turns, pointing ${bDir}* Heads up, master — another pack ${distWord(bDist)}, to the ${bDir}, ${why}. Leaving these for the better prize!`;
       try { pushEvent(`switched shadow to a ${why} pack ${bDir}`); } catch (e2) {}
       queueNews({
-        facts: { total: p.enemies.total, dir: bDir, dist: distWord(bDist), distPx: bDist, bestRarity: avail.rarity || 'common', bestColor: ringWord(avail), bestPrice: bVal, hostile: p.enemies.hostile, ordered: false, switched: why, prev: `the old pack (${distWord(aDist)})` },
+        facts: { total: p.enemies.total, dir: bDir, dist: distWord(bDist), distPx: bDist, species: swHunter ? 'hunter' : 'critter', bestRarity: avail.rarity || 'common', bestColor: ringWord(avail), bestPrice: bVal, hostile: p.enemies.hostile, ordered: false, switched: why, prev: `the old pack (${distWord(aDist)})` },
         fallback: line,
       });
       showThought(`*switching shadow — ${why}*`, ['🔎 better pack', `💰 ~${packValue(p)}`], 0);
@@ -860,18 +863,25 @@ window.Brain = (() => {
     focusBeat(n.x, n.y, 2.5); // EVERY find gets the beat — lean in, slow-mo breath, ease back
     const dir = dirWord(n.dx, n.dy);
     const best = bestPrize(en) || n;
+    // species check FIRST — a lone hunter is named hunter, never "critters",
+    // and she never asks permission for one (it won't stay calm; the gun is right to fire)
+    const isHunter = !!((best && best.pack === 'lone') || (n && n.pack === 'lone'));
     followTarget = { x: (best && best.x !== undefined ? best.x : n.x), y: (best && best.y !== undefined ? best.y : n.y) };
     try { followKills0 = memory.kills | 0; } catch (e) { followKills0 = 0; }
     const bDir = best && best.dx !== undefined ? dirWord(best.dx, best.dy) : dir;
     const freshOrder = performance.now() - lastAskAt < 45000 || (objective && objective.kind === 'hunt'); // hunt posture never goes stale
     const feeling = huntingFeeling(best);
     const stance = en.hostile > 0
-      ? `Careful, master — ${en.hostile === en.total ? 'they all look' : 'some look'} angry!`
+      ? (isHunter ? `Careful, master — it's angry! Engaging!` : `Careful, master — ${en.hostile === en.total ? 'they all look' : 'some look'} angry!`)
       : (attackOrder && freshOrder)
         ? `Engaging as ordered!`
-        : `Holding fire, master — want them dead?`;
-    const line = `*gasps, pointing ${bDir}* Found ${en.total === 1 ? 'it' : `them — ${en.total} critters`} ${distWord(n.dist)}, to the ${bDir}! ` +
-      `${feeling} ${stance}`;
+        : isHunter
+          ? `That's a hunter, master — red ring. It won't stay calm long; weapons ready.`
+          : `Holding fire, master — want them dead?`;
+    const line = isHunter
+      ? `*gasps, pointing ${bDir}* Found a hunter — red ring, ${distWord(n.dist)}, to the ${bDir}! ${feeling} ${stance}`
+      : `*gasps, pointing ${bDir}* Found ${en.total === 1 ? 'it' : `them — ${en.total} critters`} ${distWord(n.dist)}, to the ${bDir}! ` +
+        `${feeling} ${stance}`;
     try { pushEvent(`found ${en.total} critter(s) ${bDir} — best ${best.rarity} (~${packValue(en)} coins)`); } catch (e) {}
     // The focus beat above IS the camera move: lean in + slow-mo for a breath,
     // then ease back to her. Direction words ("to the north-east") carry the
@@ -888,7 +898,7 @@ window.Brain = (() => {
       }
     } catch (e) {}
     const newsStamp = performance.now(); // guard: this exact pack's queued line dies when the pack is shadowed/left
-    const facts = { total: en.total, dir: bDir, dist: distWord(n.dist), distPx: n.dist | 0, bestRarity: best.rarity || 'common', bestColor: ringWord(best), bestPrice: best.price || 2, hostile: en.hostile, ordered: !!(attackOrder && freshOrder), staleKey: 'pack', staleAt: newsStamp };
+    const facts = { total: en.total, dir: bDir, dist: distWord(n.dist), distPx: n.dist | 0, species: isHunter ? 'hunter' : 'critter', bestRarity: best.rarity || 'common', bestColor: ringWord(best), bestPrice: best.price || 2, hostile: en.hostile, ordered: !!(attackOrder && freshOrder), staleKey: 'pack', staleAt: newsStamp };
     if (prev) {
       facts.prev = `${prev.total || 1} to the ${prev.dir || '?'} (${prev.dist || 'nearby'})`;
       facts.compare = `the new one is ${distWord(n.dist)} vs ${prev.dist || 'nearby'} before — say which is closer and which you'd take first`;
@@ -935,15 +945,10 @@ window.Brain = (() => {
           let wiped = 0;
           try { wiped = Math.max(0, (memory.kills | 0) - (followKills0 | 0)); } catch (e2) {}
           stopFollow();
-          const fb = wiped > 0
-            ? `*wipes her brow* All clear, master — ${wiped} down. Coins on the ground.`
-            : `*looks around* All clear, master — nothing left standing.`;
+          // No dialog here by doctrine — no "all clear" message. The thought
+          // chip below + coin pings say enough; she only speaks on news.
           showThought(`*all clear — ${wiped} down*`, ['⚔️ wiped', '💰 scooping'], 0);
           try { pushEvent(`wiped the pack she was shadowing${wiped ? ` (${wiped} kills)` : ''}`); } catch (e2) {}
-          genLine('wiped', {
-            kills: wiped,
-            purse: (() => { try { return window.Inventory && window.Inventory.purse ? window.Inventory.purse() : null; } catch (e3) { return null; } })(),
-          }, fb);
           return;
         }
         // pack gone — don't loiter: an empty field or a standing job means
