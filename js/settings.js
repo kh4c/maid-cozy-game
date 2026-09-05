@@ -45,6 +45,39 @@ window.Settings = (() => {
   }
 
   // ---- Dev panel -----------------------------------------------------------
+  // Two tabs: MAIN (gameplay/Live2D sliders) and CHAT (LLM character + params).
+  let tabMain = null, tabChat = null;
+  const textControls = []; // { key, el } — text inputs/textareas (autosave debounced)
+
+  // Single-line text input or multi-line textarea bound to a settings key.
+  // Saves debounced while typing so a long system prompt never gets lost.
+  function addText(key, label, multiline, parent) {
+    const box = parent || tabChat || document.getElementById('devpanel');
+    const row = document.createElement('div');
+    row.className = 'trow';
+    const lab = document.createElement('label');
+    lab.textContent = label;
+    const el = document.createElement(multiline ? 'textarea' : 'input');
+    if (!multiline) el.type = 'text';
+    el.value = settings[key] ?? '';
+    el.spellcheck = false;
+    el.addEventListener('input', () => {
+      settings[key] = el.value;
+      saveSoon();
+    });
+    row.append(lab, el);
+    box.appendChild(row);
+    textControls.push({ key, el });
+  }
+
+  function selectTab(which) {
+    if (!tabMain || !tabChat) return;
+    const main = which === 'main';
+    tabMain.style.display = main ? 'block' : 'none';
+    tabChat.style.display = main ? 'none' : 'block';
+    const btns = document.querySelectorAll('#devpanel .tabs button');
+    btns.forEach((b) => b.classList.toggle('active', b.dataset.tab === which));
+  }
   let panelVisible = false;
   const controls = []; // { key, slider, val }
   let onChange = null;  // called with (key) when a slider moves
@@ -56,8 +89,8 @@ window.Settings = (() => {
     panel.style.display = panelVisible ? 'block' : 'none';
   }
 
-  function addSlider(key, min, max, step) {
-    const panel = document.getElementById('devpanel');
+  function addSlider(key, min, max, step, parent) {
+    const panel = parent || tabMain || document.getElementById('devpanel');
     const row = document.createElement('div');
     row.className = 'row';
     const label = document.createElement('label');
@@ -80,6 +113,27 @@ window.Settings = (() => {
 
   function buildPanel(onChangeFn) {
     onChange = onChangeFn;
+    const panel = document.getElementById('devpanel');
+
+    // tab bar: MAIN | CHAT
+    const tabRow = document.createElement('div');
+    tabRow.className = 'tabs';
+    for (const [id, label] of [['main', 'MAIN'], ['chat', 'CHAT']]) {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.dataset.tab = id;
+      if (id === 'main') b.classList.add('active');
+      b.addEventListener('click', () => selectTab(id));
+      tabRow.appendChild(b);
+    }
+    panel.appendChild(tabRow);
+    tabMain = document.createElement('div');
+    tabMain.id = 'devtab-main';
+    tabChat = document.createElement('div');
+    tabChat.id = 'devtab-chat';
+    tabChat.style.display = 'none';
+    panel.append(tabMain, tabChat);
+
     addSlider('speed', 20, 500, 10);
     addSlider('idleFps', 1, 30, 1);
     addSlider('runFps', 1, 30, 1);
@@ -91,6 +145,13 @@ window.Settings = (() => {
     addSlider('l2dx', 0, 1, 0.02);
     addSlider('l2dy', -1, 0.5, 0.02);
     addSlider('l2dExpr', 0, 6, 1); // 0=auto, 1..6 pin: happy/soft_smile/surprised/smug/pouty/sleepy
+
+    // CHAT tab: character + LLM params. Applies to the NEXT message sent.
+    addText('chatModel', 'model', false, tabChat);
+    addText('chatUrl', 'server', false, tabChat);
+    addSlider('chatTokens', 50, 2000, 50, tabChat); // max tokens per reply
+    addSlider('chatTemp', 0, 2, 0.05, tabChat);     // temperature
+    addText('chatSystem', 'persona', true, tabChat);
 
     const btnRow = document.createElement('div');
     btnRow.className = 'btns';

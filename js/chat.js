@@ -29,15 +29,15 @@ window.Chat = (() => {
     history.push({ role: 'user', content: text });
     setText('…');
     try {
-      const c = window.CONFIG.llm;
-      const res = await fetch(c.url.replace(/\/$/, '') + '/v1/chat/completions', {
+      const s = window.Settings.settings; // live Chat-tab values (persisted)
+      const res = await fetch(s.chatUrl.replace(/\/$/, '') + '/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: c.model,
-          messages: [{ role: 'system', content: c.system }, ...history.slice(-11)],
-          max_tokens: c.maxTokens,
-          temperature: 0.8,
+          model: s.chatModel,
+          messages: [{ role: 'system', content: s.chatSystem }, ...history.slice(-11)],
+          max_tokens: Number(s.chatTokens) || 600,
+          temperature: (s.chatTemp === undefined || s.chatTemp === '' ? 0.8 : Number(s.chatTemp)),
         }),
       });
       if (!res.ok) {
