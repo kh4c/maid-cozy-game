@@ -66,6 +66,7 @@ window.Health = (() => {
     pendingShake = 1; // full camera rattle on the killing blow
     sfx('die.ogg', 0.85 + Math.random() * 0.15);
     try { window.Brain && window.Brain.resetMemory && window.Brain.resetMemory('fainted'); } catch (e) {}
+    try { window.Chat && window.Chat.newLife && window.Chat.newLife('fainted'); } catch (e) {} // fence last life's quotas out of the chat log
     render();
     setTalkUI(false); // dialog + chat gone while she's out
     const veil = document.getElementById('faint-veil');

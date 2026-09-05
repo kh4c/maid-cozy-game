@@ -154,6 +154,15 @@ window.Chat = (() => {
     return { verb: (parts[0] || '').toLowerCase(), arg: parts.slice(1).join(' ') };
   }
 
+  function newLife(reason) {
+    // Death boundary: brain/pockets/objectives reset elsewhere, but this log
+    // does not — without a marker she cites LAST life's quotas as current.
+    // A marker (not a wipe) keeps the talk readable while fencing old orders off.
+    try {
+      history.push({ role: 'user', content: `[new life — she fainted${reason ? ' (' + reason + ')' : ''} and woke up fresh with empty pockets: every past quota, order, and promise EXPIRED. Only master's NEW words count from here.]` });
+      if (history.length > 20) history = history.slice(-20);
+    } catch (e) {}
+  }
   async function send(userText) {
     const text = (userText || '').trim();
     if (!text || busy) return;
@@ -206,6 +215,7 @@ window.Chat = (() => {
       } catch (e) { /* chat works deaf too */ }
       // Grounding rule (every reply): the live block outranks history + promises.
       sysText += '\n\n[Grounding rule: the [Live situation] block above is ground truth — it outranks chat history and any past promise you made. If it shows 0 enemies and no live Known groups, NEVER agree to attack, hunt, or "go back and kill" anything. Say the field is empty or that group is already dead. Never say OK to killing what is not there.]';
+      sysText += '\n\n[Money + goals: the purse total in [Live situation] is the ONLY money figure you may quote — copy it EXACTLY, never round, estimate, or reuse an older number (if no purse is shown, say you will check the bag). A quota/goal exists ONLY if the Objective line shows one, or master set it AFTER the latest [new life] marker — NEVER cite a quota from before the marker or from older chat as if it still stands.]';
       if (recallState === 'dead') {
         sysText += '\n\n[Ground truth NOW: master is sending you back after a pack you already wiped — no live remembered pack exists. Do NOT agree. Tell them plainly they are already dead (cite your kills), refuse the hunt, offer to scoop the dropped coins instead. Your intent=[[..]] line must read: the recalled pack is already dead — stand down, no attack, report the kills.]';
       }
@@ -291,5 +301,5 @@ window.Chat = (() => {
     });
   }
 
-  return { init, send, say, rerender, isBusy: () => busy };
+  return { init, send, say, rerender, newLife, isBusy: () => busy };
 })();

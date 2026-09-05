@@ -528,6 +528,7 @@ window.Brain = (() => {
   let pendingSay = null;    // found-line waiting for a free chat box
   let huntMin = 0; // hunt filter: only packs holding a critter worth >= this (0 = none)
   let followTarget = null; // last seen pos of the followed pack (recallable)
+  let followKills0 = 0; // kill count when the shadow started — wiped = kills since
   let followExempt = false; // recalled pack: master's word outranks the filter until she leaves it
   let skipSayAt = -1e9; // throttle for the "beneath our bullets" line
   let pendingSayAcc = 0, pendingSayTries = 0;
@@ -663,6 +664,7 @@ window.Brain = (() => {
     const dir = dirWord(n.dx, n.dy);
     const best = bestPrize(en) || n;
     followTarget = { x: (best && best.x !== undefined ? best.x : n.x), y: (best && best.y !== undefined ? best.y : n.y) };
+    try { followKills0 = memory.kills | 0; } catch (e) { followKills0 = 0; }
     const bDir = best && best.dx !== undefined ? dirWord(best.dx, best.dy) : dir;
     const freshOrder = performance.now() - lastAskAt < 45000;
     const feeling = huntingFeeling(best);
@@ -687,6 +689,28 @@ window.Brain = (() => {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       const n = p && p.enemies && p.enemies.nearest;
       if (!n || n.dist > 700 || isDismissed(n.x, n.y)) {
+        // WIPED or lost? Check for survivors near where she last saw them.
+        // No one breathing there → she KILLED them, not lost them: say so at
+        // once (no grace-staring), with the body count. Survivors → grace, below.
+        let live = null;
+        try {
+          const last = followTarget;
+          live = last && window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(last.x, last.y, 900) : null;
+        } catch (e2) { live = null; }
+        if (!live) {
+          let wiped = 0;
+          try { wiped = Math.max(0, (memory.kills | 0) - (followKills0 | 0)); } catch (e2) {}
+          stopFollow();
+          const line = wiped > 0
+            ? `*wipes her brow, grinning* All clear, master — ${wiped} down! Coins on the ground, scooping up.`
+            : `*looks around* All clear, master — nothing left standing.`;
+          let said = false;
+          try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
+          if (!said) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
+          showThought(`*all clear — ${wiped} down*`, ['⚔️ wiped', '💰 scooping'], 0);
+          try { pushEvent(`wiped the pack she was shadowing${wiped ? ` (${wiped} kills)` : ''}`); } catch (e) {}
+          return;
+        }
         // pack gone — don't loiter: an empty field or a standing job means
         // move on fast (2s grace); otherwise the full 6s for stragglers.
         const total = (p && p.enemies && p.enemies.total) || 0;
@@ -1159,7 +1183,21 @@ window.Brain = (() => {
       }
     } catch (err) {}
   }
-  function getKnownText(px, py) {
+  function getGoalHud() {
+    // one-liner for the HUD: her OVERALL goal + CURRENT task, plain words.
+    // Goal = standing objective (survives task swaps); task = latest verb.
+    try {
+      const bits = [];
+      if (objective) {
+        if (objective.kind === 'coins') bits.push(`🎯 ${purseNow()}/${objective.target}c`);
+        else bits.push('🎯 hunt on');
+      }
+      if (currentTask) bits.push(`📋 ${currentTask.verb}${currentTask.arg ? ' ' + currentTask.arg : ''}`);
+      else if (!objective) return '💤 idle';
+      if (huntMin > 0 && !/min/.test(currentTask ? (currentTask.arg || '') : '')) bits.push(`min ${huntMin}+`);
+      return bits.join(' · ') || '💤 idle';
+    } catch (e) { return '💤 idle'; }
+  }
     // one-liner for the snapshot so BOTH minds know the remembered packs
     pruneKnown();
     try {
