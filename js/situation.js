@@ -89,6 +89,11 @@ window.Situation = (() => {
     try {
       if (window.Enemies && typeof window.Enemies.priceListText === 'function') lines.push(window.Enemies.priceListText());
     } catch (e) { /* she appraises from memory then */ }
+    // remembered packs (dismissed earlier, with her opinion of them)
+    try {
+      const kt = window.Brain && typeof window.Brain.getKnownText === 'function' ? window.Brain.getKnownText(p.x, p.y) : '';
+      if (kt) lines.push(`Known groups (walked away earlier, spots remembered): ${kt}.`);
+    } catch (e) { /* she forgets, like the rest of us */ }
     return { px: p.x, py: p.y, hp, max, dead, weapon, enemies, text: lines.join('\n') };
   }
 

@@ -29,7 +29,7 @@ window.Brain = (() => {
     memo = { text: 'No tactical intent yet — treat as casual watch.', from: '', at: -1e9 }; // new life: old wishes expire
     attackOrder = false; // new life: gun down
     try { stopFollow(); } catch (e) {}
-    try { dismissed = []; } catch (e) {} // new life: old grudges expire
+    try { known = []; recallTarget = null; } catch (e) {} // new life: old grudges expire
     try { memory.events.push(`(new life — ${reason})`); } catch (e) {}
   }
   // note('kill', n) / note('hurt') / note('flee') — called by gun/health/main
@@ -134,13 +134,17 @@ window.Brain = (() => {
     memo = { text: String(text || '').slice(0, 240), from: String(from || '').slice(0, 120), at: performance.now() };
     pushEvent(`master's wish noted: ${memo.text.slice(0, 60)}`);
     const t = memo.text.toLowerCase();
+    const wasOnPack = following || searchDone; // capture BEFORE stop clears it
+    // "actually kill those / go back / those ones" — master changed their
+    // mind about a dismissed pack: march back to the remembered spot.
+    if (RECALL_RE.test(t)) recallLast();
     // stop FIRST — negation beats attack words ("don't kill those" = stand down)
     if (wantsStop(t)) { setAttackOrder(false, 'master said stop'); stopFollow(); stopStroll(); }
     else if (wantsAttack(t)) { setAttackOrder(true, 'master ordered'); lastAskAt = performance.now(); } // memo wish counts as fresh intent
     // "not big enough, find another" while she's on a pack: dismiss THIS
     // group (ignored ~3 min) and walk AWAY to look elsewhere — she must
     // never re-find the same group. Falls through to normal handling below.
-    if (/(another|other group|not big|too small|different|bigger|elsewhere|not (good|worth)|skip (this|these|them)|leave (them|it|these))/.test(t) && (following || searchDone)) dismissCurrent();
+    if (/(another|other group|not big|too small|different|bigger|elsewhere|not (good|worth)|skip (this|these|them)|leave (them|it|these)|not interested|don't want|do not want)/.test(t) && wasOnPack) dismissCurrent(tagFor(t));
     // movement wishes start the stroll even with no direction known
     if (/(find|look for|search|go|wander|explore|patrol|somewhere|anywhere)/.test(t) && !/(stop|don.t|cease)/.test(t)) beginStroll();
     if (/(stop|come here|stay|halt|stand down)/.test(t)) stopStroll();
@@ -336,6 +340,7 @@ window.Brain = (() => {
         `Critters have RARITY with coin value (common / uncommon-green / RARE-blue / EPIC-purple / LEGENDARY-gold — the snapshot lists it). Rare+ finds are announced to master already; still WAIT for orders before firing calm ones, however shiny. ` +
         `Price list, KNOW it cold (coins per kill): common 2 · uncommon 5 · rare 12 · epic 25 · legendary 60. Quote values when you report or discuss a find. ` +
         `A FRESH standing order overrides HOLD: comply while grumbling. ` +
+        `KNOWN GROUPS: packs you walked away from are REMEMBERED with your opinion ("too small" / "not interested" / "saved for later" — listed in the snapshot). They stay ignored while dismissed, but if master says "actually kill those / go back / those ones", march straight back to the remembered spot and re-engage. If you arrive and the pack is gone, say so plainly. ` +
         `ANNOYANCE LEVEL: ${annoyance()} — ${annoyanceFlavor(annoyance())}\n` +
         `${memoText()}\n` +
         `SESSION MEMORY (this life only):\n${memoryText()}\n` +
@@ -552,16 +557,39 @@ window.Brain = (() => {
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
-      if (!p || !p.enemies || !p.enemies.nearest) return;
-      // dismissed groups don't count — first non-dismissed critter in reach.
-      // Only runts in view → keep strolling elsewhere, never re-find them.
-      let avail = null;
-      try {
-        for (const e of (p.enemies.list || [])) {
-          if (e.dist <= 650 && !isDismissed(e.x, e.y)) { avail = e; break; }
+      if (!p || !p.enemies) return;
+      if (recallTarget && performance.now() > recallTarget.until) recallTarget = null; // march expired
+      const avail = findAvail(p);
+      if (recallTarget) {
+        // marching BACK to a remembered pack — straight line, no wandering.
+        // Its dismissal is lifted while the march lasts (see findAvail).
+        if (avail && nearRecall(avail.x, avail.y)) {
+          const view = { total: p.enemies.total, hostile: p.enemies.hostile, nearest: avail, list: p.enemies.list };
+          foundIt(view, false);
+          recallTarget = null;
+          known = known.filter((k) => Math.hypot(k.x - avail.x, k.y - avail.y) > 300); // hunted now, not skipped
+          return;
         }
-      } catch (e) {}
-      if (!avail) return;
+        const dx = recallTarget.x - p.px, dy = recallTarget.y - p.py;
+        const len = Math.hypot(dx, dy) || 1;
+        if (len < 250) {
+          // arrived — nobody here. The pack moved on.
+          known = known.filter((k) => Math.hypot(k.x - recallTarget.x, k.y - recallTarget.y) > 300);
+          const tag = recallTarget.tag; recallTarget = null;
+          const line = `Hm... they've moved on, master. No sign of the ${tag} ones here.`;
+          let said = false;
+          try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
+          if (!said) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
+          note('marched back, but the pack had moved on');
+          return;
+        }
+        if (window.Stamina && !window.Stamina.canMove()) return; // tired — hold
+        try { window.Input && window.Input.order && window.Input.order(dx / len, dy / len, 1.0); } catch (e) {}
+        return;
+      }
+      // dismissed groups don't count — first non-dismissed critter in reach.
+      // Only rejects in view → keep strolling elsewhere, never re-find them.
+      if (!p.enemies.nearest || !avail) return;
       const view = { total: p.enemies.total, hostile: p.enemies.hostile, nearest: avail, list: p.enemies.list };
       if (!searchingNow()) {
         // opportunistic: a RARE+ wandering into view gets announced + observed
@@ -636,35 +664,94 @@ window.Brain = (() => {
   }
   function stopFollow() { following = false; followLostAcc = 0; }
 
-  // ---- dismissed groups: "not big enough, find another" -----------------------
-  // Dismissed spots are ignored by search/follow for ~3 min, so she can never
-  // re-find the pack she just rejected. Old entries age out on their own.
-  let dismissed = []; // [{ x, y, at }]
-  function isDismissed(x, y) {
+  // ---- known groups: dismissed packs are REMEMBERED, not forgotten -----------
+  // "not interested / too small, find another" tags the pack with her opinion
+  // and ignores it ~3 min — but the spot stays in memory ~5 min, so "actually,
+  // kill those / go back / those ones" can march her back to it. Old entries
+  // age out on their own; death clears everything (new life, fresh eyes).
+  let known = []; // [{ x, y, at, tag }]
+  let recallTarget = null; // { x, y, until, tag } — marching back to a remembered pack
+  const RECALL_RE = /(actually|after all|second thought|chang(?:e|ed|ing)(?: my| the)? mind|go back|those (ones|guys|runts|critters)|them anyway|fine[,.]?\s*(kill|get))/;
+  function pruneKnown() {
     const now = performance.now();
-    dismissed = dismissed.filter((d) => now - d.at < 180000);
-    return dismissed.some((d) => Math.hypot(d.x - x, d.y - y) < 260);
+    known = known.filter((k) => now - k.at < 5 * 60 * 1000);
   }
-  function dismissCurrent() {
+  function isDismissed(x, y) {
+    pruneKnown();
+    const now = performance.now();
+    return known.some((k) => (now - k.at) < 180000 && Math.hypot(k.x - x, k.y - y) < 260);
+  }
+  function nearRecall(x, y) {
+    // the recalled pack's dismissal is lifted while the march lasts
+    if (!recallTarget || performance.now() > recallTarget.until) return false;
+    return Math.hypot(recallTarget.x - x, recallTarget.y - y) < 300;
+  }
+  function tagFor(text) {
+    // her opinion of the pack, from master's words — stored with the memory
+    const t = String(text || '').toLowerCase();
+    if (/(not big|too small|small|runt|tiny|weak)/.test(t)) return 'too small';
+    if (/(not interested|don't care|do not care|boring|meh|pass|don't want|do not want)/.test(t)) return 'not interested';
+    if (/(later|save|keep them|spare)/.test(t)) return 'saved for later';
+    return 'skipped';
+  }
+  function findAvail(p) {
+    // first critter in reach that counts: not dismissed — unless it's the
+    // recalled pack she's marching back to (dismissal lifted for that one)
+    try {
+      for (const e of (p.enemies.list || [])) {
+        if (e.dist <= 650 && (!isDismissed(e.x, e.y) || nearRecall(e.x, e.y))) return e;
+      }
+    } catch (e) {}
+    return null;
+  }
+  function dismissCurrent(tag) {
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       const n = p && p.enemies && p.enemies.nearest;
-      if (n) dismissed.push({ x: n.x, y: n.y, at: performance.now() });
+      const opinion = tag || 'too small';
+      if (n) {
+        pruneKnown();
+        known.push({ x: n.x, y: n.y, at: performance.now(), tag: opinion });
+        if (known.length > 8) known.shift();
+      }
       stopFollow();
       searchDone = false; // re-arm: allowed to find a DIFFERENT group
-      // walk AWAY from the runts, then keep strolling elsewhere
+      // walk AWAY from the rejects, then keep strolling elsewhere
       if (p && n) {
         let dx = p.px - n.x, dy = p.py - n.y;
         const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
         strollDir = { x: dx, y: dy }; strollAcc = 0;
         try { window.Input.order(dx, dy, 2.5); } catch (e) {}
       } else beginStroll();
-      const line = `*turns up her nose* These runts? As you wish — leaving them behind. I'll find bigger fish!`;
+      const line = `*turns up her nose* ${opinion === 'too small' ? 'These runts' : 'These ones'}? As you wish — leaving them behind. (But I'll remember where they den, master, in case you change your mind!)`;
       let said = false;
       try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
       if (!said) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
-      try { pushEvent('dismissed a too-small pack — looking elsewhere'); } catch (e) {}
+      try { pushEvent(`dismissed a [${opinion}] pack — looking elsewhere, spot remembered`); } catch (e) {}
     } catch (e) {}
+  }
+  function recallLast() {
+    // master changed their mind — march back to the freshest remembered pack
+    pruneKnown();
+    if (!known.length) { note('master said go back, but no groups remembered'); return; }
+    const g = known.slice().sort((a, b) => b.at - a.at)[0];
+    recallTarget = { x: g.x, y: g.y, until: performance.now() + 90000, tag: g.tag };
+    stopFollow(); stopStroll(); searchDone = false;
+    note(`recalling the [${g.tag}] group — marching back`);
+    const line = `Those ${g.tag} ones? I remember where they den — turning back, master!`;
+    let said = false;
+    try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
+    if (!said) { pendingSay = line; pendingSayAcc = 0; pendingSayTries = 0; }
+  }
+  function getKnownText(px, py) {
+    // one-liner for the snapshot so BOTH minds know the remembered packs
+    pruneKnown();
+    try {
+      return known.map((k) => {
+        const dx = k.x - px, dy = k.y - py;
+        return `"${k.tag}" ~${Math.round(Math.hypot(dx, dy))}px ${dirWord(dx, dy)}`;
+      }).join('; ');
+    } catch (e) { return ''; }
   }
 
   // ---- built-in keep-distance reflex -----------------------------------------
@@ -734,5 +821,5 @@ window.Brain = (() => {
     if (t && !t.textContent) t.textContent = 'field is quiet… press 💭 and I’ll size it up.';
   }
 
-  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, note, resetMemory, setMemo, get thinking() { return thinking; } };
+  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, note, resetMemory, setMemo, getKnownText, get thinking() { return thinking; } };
 })();
