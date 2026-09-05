@@ -77,7 +77,7 @@ window.Entities = (() => {
       s.anchor.set(0.5);
       s.visible = false;
       layer.addChild(s);
-      puffs.push({ s, life: 0, max: 1, vx: 0, vy: 0, grow: 1 });
+      puffs.push({ s, life: 0, max: 1, vx: 0, vy: 0, s0: 0.5, rot: 0, a0: 1 });
     }
     let idx = 0;
     let spawnAcc = 0;
@@ -92,19 +92,23 @@ window.Entities = (() => {
           spawnAcc -= 0.05;
           const p = puffs[idx];
           idx = (idx + 1) % POOL;
-          p.max = p.life = 0.6 + Math.random() * 0.3;
+          p.max = p.life = 0.5 + Math.random() * 0.5;
           p.s.texture = texs[(Math.random() * texs.length) | 0];
           p.s.visible = true;
-          // spawn at the feet, kicked slightly opposite the travel direction
+          // spawn around the feet, kicked slightly opposite the travel direction
           p.s.position.set(
-            x - nx * 10 + (Math.random() * 16 - 8),
-            y - 4 + (Math.random() * 6 - 3)
+            x - nx * 10 + (Math.random() * 28 - 14),
+            y - 4 + (Math.random() * 12 - 6)
           );
-          p.s.scale.set(0.35 + Math.random() * 0.25);
-          p.grow = 0.9 + Math.random() * 0.5;
-          p.vx = -nx * 24 + (Math.random() * 20 - 10);
-          p.vy = -26 - Math.random() * 18;
-          p.s.alpha = 1;
+          // start big, shrink to ~30% by end of life
+          p.s0 = 0.5 + Math.random() * 0.4;
+          p.s.scale.set(p.s0);
+          p.s.rotation = Math.random() * Math.PI * 2;
+          p.rot = (Math.random() - 0.5) * 6; // spin either way, up to ~3 rad/s
+          p.vx = -nx * 24 + (Math.random() * 44 - 22);
+          p.vy = -26 - Math.random() * 30;
+          p.a0 = 0.7 + Math.random() * 0.3;
+          p.s.alpha = p.a0;
         }
       } else {
         spawnAcc = 0;
@@ -118,8 +122,9 @@ window.Entities = (() => {
         p.s.y += p.vy * dtSec;
         p.vx *= (1 - 2 * dtSec);
         p.vy *= (1 - 2 * dtSec);
-        p.s.scale.set(p.s.scale.x + p.grow * dtSec);
-        p.s.alpha = 1 - t;
+        p.s.rotation += p.rot * dtSec;
+        p.s.scale.set(p.s0 * (1 - 0.7 * t)); // shrink to ~30% as it dissipates
+        p.s.alpha = p.a0 * (1 - t);
       }
     }
 
