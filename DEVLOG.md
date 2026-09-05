@@ -2,6 +2,30 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Phase-1 rebuild: posture + trigger doctrine, auto-defend unconditional
+- **The narrowed contract is live.** Think's whole vocabulary: `[mode:find|hunt|heel]`
+  (only from idleness — a standing posture ignores think's mode votes), `[fire:secs]`,
+  `[cease]`. Task executor (circle/patrol/goto/quota/follow-pack), `[aim:*]`, `[target:]`,
+  `[move:]/[run:]` think-tags, surgical color latching, known-pack memory, recall marches,
+  quota objectives (counting, purse-watching, milestones, finish stand-down) — all deleted.
+  "Earn 300 coins" parses as plain hunt: no counting, no finish line, stop is the only off-ramp.
+- **Trigger doctrine (combatDrive):** hostile in reach → fire, no orders needed. Calm + fresh
+  kill words or hunt posture → fire the whole pack (money is money). Calm + unauthorized →
+  hold + found-line asks "want them dead?". Stop → `setAttackOrder(false)` + clearObjective
+  releases the trigger instantly (order is a LATCH, not a clock — freshness also requires
+  attackOrder, so stop can't be out-lived by a 5s-old ask).
+- **Auto-defend cut as a switch:** the 🛡️ button is gone; she always thinks when danger nears.
+  Guarding herself is what a maid does, not a toggle. `autoDefend` config key deleted.
+- **Flee reflex is code now:** weak (HP ≤ 4 or stamina < 30%) + hostile inside 250px → legs
+  run on their own (1.2s away-legs every 0.4s check). Strong + hostile = flinch + gun handle it.
+- **News-queue hygiene:** a new life resets searchDone/lastRareNote (fresh eyes); resetMemory
+  also clears the annoyance clock. Found-lines flush once even though foundIt also set
+  `following` (queue is serial, announce is async — harness drains microtasks).
+- Tests: new hposture (mode-from-idle, mode-held-under-posture, hostile-fires-unordered,
+  stop-ceases, flee weak/tired, stands strong); hfilter rewritten (money-is-money, hunt-posture
+  never stale, leave-no-memory, quota-words=hunt, HUD posture-only); hfound rewritten (heel
+  announces-but-never-shadows, leave walks away, "go back" asks which). 10/10 suites green.
+
 ## 2026-09-06 — The shadow holds (no more approach-flinch yo-yo)
 - **The awkward dance explained:** followTick walked her in with 210px legs while keepDistance
   independently shoved her out of anything inside 170px — approach, overshoot, flinch back,

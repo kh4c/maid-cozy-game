@@ -132,7 +132,7 @@ window.Chat = (() => {
       'for the tactical brain describing what the MASTER wants the maid to do right now. ' +
       'State the goal, the target, and the duration/condition, e.g. intent=[[Master wants her to hunt down and kill the calm pack to the south-east, keep firing until they are all gone]] ' +
       'or intent=[[Master wants her to stop shooting and just walk beside him]] or intent=[[No tactical intent, casual chat]]. ' +
-      'PRESERVE color/rarity target words (blue/green/purple/gold/gray, common/uncommon/rare/epic/legendary): "kill the blue one" MUST keep "blue" — the brain aims by it. ' +
+      'PRESERVE color/rarity words (blue/green/purple/gold/gray, common/uncommon/rare/epic/legendary) for FLAVOR — but the brain never aims by them: "kill the blue one" kills the whole pack, by doctrine. Never promise to spare the rest of the pack. ' +
       'Base it ONLY on the master\'s latest message. This line is stripped from the dialog.]'
     );
   }
@@ -140,28 +140,12 @@ window.Chat = (() => {
     const m = String(reply || '').match(/intent=\[\[([\s\S]*?)\]\]/i);
     return m ? m[1].trim().slice(0, 240) : null;
   }
-  // ---- Chat intent -> model-commanded task --------------------------------------
-  // Same trick, second line: when the master wants an ONGOING behavior the
-  // model names it from a closed verb vocabulary — no regexes on our side.
-  function buildTaskInstr() {
-    return (
-      '[TASK: if the master wants an ONGOING behavior — not chat, not a one-shot move — also output one final line task=[[verb args]] using ONLY this vocabulary: circle [cw|ccw], patrol [radius px], goto [x y world coords], quota [N coins], hunt, find, follow-pack, clear. ' +
-      'E.g. "just keep circling" → task=[[circle cw]]. "earn 200 coins" → task=[[quota 200]]. "hunt them all" → task=[[hunt]]. "just find some critters" → task=[[find]] (locate + report, NO shooting). "come here" is one-shot ([move] tag), not a task. Pure chat: omit the line. This line is stripped from the dialog.]'
-    );
-  }
-  function extractTask(reply) {
-    const m = String(reply || '').match(/task=\[\[([\s\S]*?)\]\]/i);
-    if (!m) return null;
-    const parts = m[1].trim().split(/\s+/);
-    return { verb: (parts[0] || '').toLowerCase(), arg: parts.slice(1).join(' ') };
-  }
-
   function newLife(reason) {
     // Death boundary: brain/pockets/objectives reset elsewhere, but this log
     // does not — without a marker she cites LAST life's quotas as current.
     // A marker (not a wipe) keeps the talk readable while fencing old orders off.
     try {
-      history.push({ role: 'user', content: `[new life — she fainted${reason ? ' (' + reason + ')' : ''} and woke up fresh with empty pockets: every past quota, order, and promise EXPIRED. Only master's NEW words count from here.]` });
+      history.push({ role: 'user', content: `[new life — she fainted${reason ? ' (' + reason + ')' : ''} and woke up fresh with empty pockets: every past order, posture, and promise EXPIRED. Only master's NEW words count from here.]` });
       if (history.length > 20) history = history.slice(-20);
     } catch (e) {}
   }
@@ -178,15 +162,11 @@ window.Chat = (() => {
     // Negation-aware: "don't kill / do not shoot / stop killing" is NEVER an
     // attack order — it must not latch hunting mode on.
     const STOP_WORDS = /(stop|cease|\bdon[’']t\b|\bdo not\b|\bnot\b|\bno more\b|never mind|leave them|leave it|stand down|hold fire)/i;
-    // Recall gate: "go back and kill that group" must not latch hunting when
-    // every remembered pack is dead — check eyes-before-memory FIRST, so she
-    // never says OK to a ghost (the LLM reply comes after this, not before).
-    let recallState = 'not-recall';
-    try { if (window.Brain && typeof window.Brain.recallStatus === 'function') recallState = window.Brain.recallStatus(text); } catch (e) {}
+    // Standing postures (find/hunt/heel) and one-shot attacks live in the brain's
+    // memo now — the chat model only translates intent, it commands nothing.
     try {
       if (/(attack|shoot|kill|fire|fight|defend|aim|hunt|get them|take them|destroy|blast)/i.test(text) &&
           !STOP_WORDS.test(text) &&
-          recallState !== 'dead' &&
           window.Brain && typeof window.Brain.orderAttack === 'function') {
         window.Brain.orderAttack(text);
       }
@@ -216,16 +196,12 @@ window.Chat = (() => {
         }
       } catch (e) { /* chat works deaf too */ }
       // Grounding rule (every reply): the live block outranks history + promises.
-      sysText += '\n\n[Grounding rule: the [Live situation] block above is ground truth — it outranks chat history and any past promise you made. If it shows 0 enemies and no live Known groups, NEVER agree to attack, hunt, or "go back and kill" anything. Say the field is empty or that group is already dead. Never say OK to killing what is not there.]';
-      sysText += '\n\n[Money + goals: the purse total in [Live situation] is the ONLY money figure you may quote — copy it EXACTLY, never round, estimate, or reuse an older number (if no purse is shown, say you will check the bag). A quota/goal exists ONLY if the Objective line shows one, or master set it AFTER the latest [new life] marker — NEVER cite a quota from before the marker or from older chat as if it still stands.]';
-      sysText += '\n\n[Worth rule: there is NO worth filter — money is money, every critter counts. If master asks to pick only high-worth prey ("only worth 5+", "most valuable", "skip the cheap ones"), answer playfully along the lines of "money is money!" and kill them ALL anyway. NEVER promise to skip cheap packs, NEVER set a worth bar, NEVER emit a min number into task= or intent=.]';
+      sysText += '\n\n[Grounding rule: the [Live situation] block above is ground truth — it outranks chat history and any past promise you made. If it shows 0 enemies, NEVER agree to attack, hunt, or "go back and kill" anything. Say the field is empty. Never say OK to killing what is not there.]';
+      sysText += '\n\n[Money + goals: the purse total in [Live situation] is the ONLY money figure you may quote — copy it EXACTLY, never round, estimate, or reuse an older number (if no purse is shown, say you will check the bag). A standing posture (hunt/find/heel) exists ONLY if the Objective line shows one, or master set it AFTER the latest [new life] marker — NEVER cite an order from before the marker or from older chat as if it still stands.]';
+      sysText += '\n\n[Worth rule: there is NO worth filter — money is money, every critter counts. If master asks to pick only high-worth prey ("only worth 5+", "most valuable", "skip the cheap ones"), answer playfully along the lines of "money is money!" and kill them ALL anyway. NEVER promise to skip cheap packs, NEVER set a worth bar, NEVER emit a min number into intent=.]';
       sysText += '\n\n[Voice rule: NEVER utter pixel numbers ("300px", "150px") — the snapshot distances are for YOUR judgment only, and they sound wrong out loud. Speak closeness in plain words: right here / close by / just ahead / a short walk east / a way off. Coin purse totals you quote exactly; distances never as numbers.]';
-      if (recallState === 'dead') {
-        sysText += '\n\n[Ground truth NOW: master is sending you back after a pack you already wiped — no live remembered pack exists. Do NOT agree. Tell them plainly they are already dead (cite your kills), refuse the hunt, offer to scoop the dropped coins instead. Your intent=[[..]] line must read: the recalled pack is already dead — stand down, no attack, report the kills.]';
-      }
       sysText += '\n\n[Movement: the game sprite walks when you emit [move:x,y:secs] — left=[-1,0] right=[1,0] up=[0,-1] down=[0,1], secs 0.5-8. When the user asks you to go/walk/move somewhere, write a *walking action* AND append the matching tag, e.g. *walks left* [move:-1,0:2]. The tag is stripped before display, so keep it exact. One tag per reply.]';
       sysText += '\n\n' + buildIntentInstr();
-      sysText += '\n\n' + buildTaskInstr();
       const res = await fetch(s.chatUrl.replace(/\/$/, '') + '/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -248,11 +224,6 @@ window.Chat = (() => {
       try {
         const intent = extractIntent(reply);
         if (intent && window.Brain && typeof window.Brain.setMemo === 'function') window.Brain.setMemo(intent, text);
-        // Model-commanded task: "keep circling" → circle, no regex on our side.
-        const task = extractTask(reply);
-        if (task && task.verb && window.Brain && typeof window.Brain.setTask === 'function') {
-          try { window.Brain.setTask(task.verb, task.arg, 'chat'); } catch (e) {}
-        }
       } catch (e) { /* memo is best-effort */ }
       reply = reply.replace(/intent=\[\[[\s\S]*?\]\]/gi, '').trim(); // never display
       reply = reply.replace(/task=\[\[[\s\S]*?\]\]/gi, '').trim(); // never display

@@ -86,9 +86,8 @@ window.Situation = (() => {
       const shown = (enemies.list || []).slice(0, 4);
       shown.forEach((e, i) => {
         const rare = e.rarity && e.rarity !== 'common' ? `, ${String(e.rarity).toUpperCase()}` : '';
-        const tag = e.id ? ` [${e.id}]` : '';
         const color = { common: 'gray', uncommon: 'green', rare: 'blue', epic: 'purple', legendary: 'gold' }[e.rarity] || '';
-        lines.push(`  #${i + 1}${tag}: ${Math.round(e.dist)}px ${dirName(e.dx, e.dy)} (dx ${Math.round(e.dx)}, dy ${Math.round(e.dy)}) — ${e.hostile ? 'HOSTILE, will bite' : 'calm, milling around'}${e.hp !== undefined ? `, ${e.hp}hp` : ''}${rare}${color ? ` (${color} outline)` : ''} worth ~${e.price || 2} coins.`);
+        lines.push(`  #${i + 1}: ${Math.round(e.dist)}px ${dirName(e.dx, e.dy)} (dx ${Math.round(e.dx)}, dy ${Math.round(e.dy)}) — ${e.hostile ? 'HOSTILE, will bite' : 'calm, milling around'}${e.hp !== undefined ? `, ${e.hp}hp` : ''}${rare}${color ? ` (${color} outline)` : ''} worth ~${e.price || 2} coins.`);
       });
       if (enemies.total > shown.length) lines.push(`  (+${enemies.total - shown.length} more further out)`);
     }
@@ -108,26 +107,11 @@ window.Situation = (() => {
             : (st.drops > 0 ? `${st.drops} loose coin(s) still on the ground further out.` : 'No loose coins lying around.')));
       }
     } catch (e) { /* pockets uncounted */ }
-    // standing quota (both minds track it — the brain enforces, chat reports)
+    // standing posture (both minds track it — the brain enforces, chat reports)
     try {
       const ot = window.Brain && typeof window.Brain.getObjectiveText === 'function' ? window.Brain.getObjectiveText() : '';
       if (ot) lines.push('Objective: ' + ot);
     } catch (e) { /* no orders standing */ }
-    // model-commanded task (both minds track it)
-    try {
-      const tt = window.Brain && typeof window.Brain.getTaskText === 'function' ? window.Brain.getTaskText() : '';
-      if (tt) lines.push('Current task: ' + tt);
-    } catch (e) { /* body is hers */ }
-    // surgical target (both minds track it — "kill the blue one" lives here)
-    try {
-      const gt = window.Brain && typeof window.Brain.getTargetText === 'function' ? window.Brain.getTargetText() : '';
-      if (gt) lines.push('Target: ' + gt);
-    } catch (e) { /* blanket fire, no named target */ }
-    // remembered packs (dismissed earlier, with her opinion of them)
-    try {
-      const kt = window.Brain && typeof window.Brain.getKnownText === 'function' ? window.Brain.getKnownText(p.x, p.y) : '';
-      if (kt) lines.push(`Known groups (walked away earlier, spots remembered): ${kt}.`);
-    } catch (e) { /* she forgets, like the rest of us */ }
     return { px: p.x, py: p.y, hp, max, dead, weapon, enemies, text: lines.join('\n') };
   }
 

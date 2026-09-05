@@ -49,9 +49,8 @@ window.CONFIG = {
     chatTemp: 0.8,
     chatActions: 0, // 0 = hide *action* text (pure dialogue), 1 = show highlighted (Chat-tab toggle)
     chatStatus: 'Location: open grassland, standing beside you in the field',
-    // Survival brain (separate from chat): aim authority + auto-think cadence.
+    // Survival brain (separate from chat): aim authority + think cadence.
     aimMode: 'ai',   // she owns the gun — cursor aim removed, always 'ai'
-    autoDefend: 0,      // 0 = think only on 💭 · 1 = auto-think when danger nears
     brainInterval: 6,   // seconds between auto thinks while danger is near
     brainTokens: 300,   // max tokens per tactical thought (short + cheap)
     chatSystem: `[Character]

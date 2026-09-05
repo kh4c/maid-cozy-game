@@ -2,12 +2,11 @@
 // the tactical sub-mind that decides fight / flight using the same local LLM.
 // Its thoughts appear in their own dialog box (#thought-box), never in chat.
 //
-// Loop: main.js calls Brain.tick(dt) every frame. When auto-defend is ON and
-// danger is near (hostile OR critter within sense radius), it thinks every
-// brainInterval seconds. 💭 button thinks on demand. 🎯 button flips aim
-// authority (your mouse vs her AI). All orders execute via Gun/Input tags:
-//   [aim:dx,dy:secs] [aim:nearest:secs] [fire:secs] [cease]
-//   [run:dx,dy:secs] / [move:x,y:secs] (flee / reposition)  [stop]
+// Loop: main.js calls Brain.tick(dt) every frame. When danger is near
+// (hostile OR critter on screen), it thinks every brainInterval seconds —
+// always; guarding herself is what she does, not a toggle. 💭 thinks on
+// demand. 🎯 button flips aim authority. Orders execute via Gun/Input tags:
+//   [mode:find|hunt|heel] [fire:secs] [cease]
 // Classic script. Requires Situation + Gun + Input + Settings.
 window.Brain = (() => {
   let thinking = false;
@@ -28,9 +27,9 @@ window.Brain = (() => {
     memory = newMemory();
     memo = { text: 'No tactical intent yet — treat as casual watch.', from: '', at: -1e9 }; // new life: old wishes expire
     attackOrder = false; // new life: gun down
-    try { attackScope = 'blanket'; } catch (e) {}
     try { stopFollow(); } catch (e) {}
-    try { known = []; recallTarget = null; objective = null; currentTask = null; taskState = {}; followTarget = null; target = null; lastSwitchAt = -1e9; } catch (e) {} // new life: old grudges expire
+    try { objective = null; memoMode = null; leaveSpot = null; followTarget = null; lastSwitchAt = -1e9; searchDone = false; lastRareNote = -1e9; memo = { text: 'No tactical intent yet — treat as casual watch.', from: '', at: -1e9 }; } catch (e) {} // new life: no posture, no grudges, no memory, fresh eyes
+    askCount = 0; lastAskAt = -1e9; lastKillWordAt = -1e9; // new life: annoyance clock resets too
     try { memory.events.push(`(new life — ${reason})`); } catch (e) {}
   }
   // note('kill', n) / note('hurt') / note('flee') — called by gun/health/main
@@ -67,71 +66,21 @@ window.Brain = (() => {
   let askCount = 0;        // un-vented attack asks
   let lastAskAt = -1e9;    // ms
   const ASK_DECAY_MS = 90000; // one gripe cools every 90s without a new ask
-  let lastKillWordAt = -1e9; // last EXPLICIT kill word ("kill them", "shoot it", "kill the blue") — only THESE spend ammo under the hunt bar; standing objectives re-arming freshness does NOT
+  let lastKillWordAt = -1e9; // last EXPLICIT kill word ("kill them", "shoot it") — only THESE authorize fire on calm packs without hunt mode
 
   // ---- attack-mode latch ------------------------------------------------------
   // A kill order (or an attack wish in the memo) flips this on: while ANY
   // critter is alive in range she keeps aiming + firing WITHOUT waiting for
   // the LLM — so packs that wander in mid-slaughter get shot too, not
   // politely ignored until the next think. Cleared by a stop-memo or death.
-  let attackOrder = false;
+  let attackOrder = false; // true while a fresh kill order / hunt posture stands — drives the prompt + HUD, never the trigger alone
   let atkAcc = 0;
-  let attackScope = 'blanket'; // 'blanket' = any critter in reach dies; 'surgical' = ONLY the target latch authorizes fire
-  // ---- surgical target: "kill the BLUE one" names ONE color, not the pack ----
-  // The model decides (chat memo or [target:] tag), the code executes: only
-  // that rarity/id dies, everything else lives — even after the pack goes
-  // hostile from the shooting (the latch sits ABOVE the blanket hostile
-  // branch). Cleared by stop, quota fill, a blanket order, or the moment no
-  // target-color critter is left in view (reported honestly either way).
-  let target = null; // { rarity|null, id|null, word, seen }
-  const COLOR2RARITY = { blue: 'rare', green: 'uncommon', purple: 'epic', gold: 'legendary', yellow: 'legendary', gray: 'common', grey: 'common', common: 'common', uncommon: 'uncommon', rare: 'rare', epic: 'epic', legendary: 'legendary' };
+  // No choosing: the gun never picks WHICH critter dies. Authorization is
+  // posture-only (hostile / fresh kill words / hunt mode) — identity never is.
   function rarityWord(r) { return { common: 'gray', uncommon: 'green', rare: 'blue', epic: 'purple', legendary: 'gold' }[r] || r; }
-  function cleanColorWord(w) {
-    let r = String(w || '').toLowerCase().replace(/s$/, '');
-    if (r === 'legendarie') r = 'legendary';
-    return r;
-  }
-  function parseTarget(t) {
-    // "kill/shoot the blue one", "only the green ones", "take down the gold"
-    const s = String(t || '').toLowerCase();
-    if (wantsStop(s)) return false; // negations never latch ("don't shoot the blue")
-    const m = s.match(/(kill|shoot|attack|fire\s+at|take\s+down|pop|destroy|wipe)(?:[^.!?]{0,40}?)\b(blues?|greens?|purples?|golds?|yellows?|grays?|greys?|commons?|uncommons?|rares?|epics?|legendarys?|legendaries)\b/) ||
-      s.match(/(only|just)\s+the\s+(blues?|greens?|purples?|golds?|yellows?|grays?|greys?|commons?|uncommons?|rares?|epics?|legendarys?|legendaries)\b/);
-    if (!m) return false;
-    const word = cleanColorWord(m[2]);
-    const rarity = COLOR2RARITY[word];
-    if (!rarity) return false;
-    target = { rarity, id: null, word, seen: false };
-    // a color match IS an attack order — surgical-only authorization, so the
-    // blanket never inherits it ("take down" isn't even in ATTACK_RE)
-    setAttackOrder(true, 'surgical order');
-    lastAskAt = performance.now();
-    lastKillWordAt = performance.now(); // explicit word: spends under the bar
-    attackScope = 'surgical';
-    note(`surgical target: only the ${word} (${rarity}) — rest of the pack lives`);
-    sayUnlessBusy(`*narrows her eyes, tracking* The ${word} one? She's mine, master — the rest can run.`);
-    return true;
-  }
-  function resolveTargetRef(ref) {
-    // color/rarity/id word → nearest matching LIVE entry, or null
-    try {
-      const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
-      const list = (p && p.enemies && p.enemies.list) || [];
-      const r = cleanColorWord(ref);
-      if (/^p\d+c\d+$/.test(r)) return list.find((e) => e && e.id === r) || null;
-      const rar = COLOR2RARITY[r] || (/^(common|uncommon|rare|epic|legendary)$/.test(r) ? r : null);
-      if (!rar) return null;
-      let best = null;
-      for (const e of list) { if (!e || e.rarity !== rar) continue; if (!best || e.dist < best.dist) best = e; }
-      return best;
-    } catch (e) { return null; }
-  }
-  function getTargetText() {
-    if (!target) return '';
-    return target.id ? `only [${target.id}] — everything else lives` : `only the ${target.word} (${target.rarity}) — rest of the pack lives`;
-  }
   function combatDrive(dt) {
-    if (!attackOrder) return;
+    // Trigger discipline: hold ONLY while a hostile is in reach (self-defense)
+    // or a fresh order / hunt posture stands. Calm + unauthorized = hold fire.
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     try { if (!window.Gun || window.Gun.getAimMode() !== 'ai') return; } catch (e) { return; }
     atkAcc += dt;
@@ -147,49 +96,11 @@ window.Brain = (() => {
       // only to 500px AND on a FRESH order (45s). A stale "kill them" from
       // minutes ago must not mow down new packs. Otherwise: hold fire, watch.
       const d = en.nearest.dist, hot = !!en.nearest.hostile;
-      const fresh = performance.now() - lastAskAt < 45000 || !!objective; // a standing quota never goes stale
-      if (target) {
-        // SURGICAL: master named one color — only that rarity/id dies. Same
-        // REACH rules as the blanket (hostiles 650, calm 500 + fresh/quota) — no
-        // worth bar: money is money. Nothing matching in view → cease, drop the
-        // latch, report honestly. Shooting the blue alerts the pack (survivors go
-        // hostile) but the latch HOLDS — greens live anyway.
-        const match = (e) => e && (target.id ? e.id === target.id : e.rarity === target.rarity);
-        let best = null;
-        try {
-          for (const e of (en.list || [])) {
-            if (!match(e)) continue;
-            const dd = e.dist, hh = !!e.hostile;
-            if (hh ? dd > 650 : (dd > 500 || !fresh)) continue;
-            if (!best || dd < best.dist) best = e;
-          }
-        } catch (e) {}
-        if (best) {
-          target.seen = true;
-          try { window.Gun && window.Gun.aiAimAt && window.Gun.aiAimAt(best.x, best.y, 1); } catch (e) {}
-          try { const st = window.Gun.status(); if (!st.firing) window.Gun.aiFire(1); } catch (e) {}
-          return;
-        }
-        if (!best) {
-          try { window.Gun && window.Gun.aiCease && window.Gun.aiCease(); } catch (e) {}
-          const w = target.word || rarityWord(target.rarity) || 'target';
-          const line = target.seen
-            ? `*lowers her gun, nodding* ${w[0].toUpperCase() + w.slice(1)} down, master — the rest live unless you say otherwise.`
-            : `*squints around* I don't see any ${w} one in view, master — point me at them?`;
-          target = null;
-          // the surgical word authorized ONLY the target: no quota standing →
-          // stand the gun down too, or the leftover blanket order mows the
-          // greens she just promised live. Quota standing → it resumes blanket.
-          if (objective) attackScope = 'blanket';
-          else if (attackScope === 'surgical') setAttackOrder(false, 'surgical target down');
-          sayUnlessBusy(line);
-          return;
-        }
-        try { window.Gun && window.Gun.aiCease && window.Gun.aiCease(); } catch (e) {}
-        return; // target visible but out of reach — hold, latch stays
-      }
-      // money is money: no worth bar on the blanket — calm + in reach + fresh
-      // order/quota/hunt means fire, whatever the price tag says.
+      // An ORDER is a latch, not a clock: fresh = the order is standing
+      // (attackOrder) AND not stale (45s) — or a hunt posture (never stale).
+      // Stop clears attackOrder → the gun stops even if the ask was 5s ago.
+      const fresh = attackOrder && (performance.now() - lastAskAt < 45000 || (objective && objective.kind === 'hunt')); // hunt posture never goes stale; find/heel never authorize
+      // money is money: calm + in reach + (fresh words or hunt mode) means fire — whatever the price tag says, whichever critter. No choosing.
       if (hot) {
         if (d > 650) return; // hostile but far — think about it, don't spray
       } else if (d > 500 || !fresh) {
@@ -221,37 +132,48 @@ window.Brain = (() => {
   // a standing memo; the tactical brain reads it every think and obeys the
   // spirit of it. Expires with the life (resetMemory), replaceable any time.
   let memo = { text: 'No tactical intent yet — treat as casual watch.', from: '', at: -1e9 };
-  // Negation-aware: "don't kill / do not shoot / stop / no more / leave them /
+  // Negation-aware: "don't kill / do not shoot / stop / no more /
   // stand down / come here / rest" always wins over attack words — telling
-  // her NOT to kill must never latch hunting mode on.
-  const STOP_RE = /(stop|cease|\bdon[’']t\b|\bdo not\b|\bnot\b|\bno more\b|never mind|leave them|leave it|stand down|come here|\brest\b|hold fire|hold your fire)/;
+  // her NOT to kill must never latch hunting mode on. ("Leave them / not
+  // interested / find another" carve OUT below — those walk away, not down.)
+  const STOP_RE = /(stop|cease|\bdon[’']t\b|\bdo not\b|\bnot\b|\bno more\b|never mind|stand down|come here|\brest\b|hold fire|hold your fire)/;
   const ATTACK_RE = /(kill|attack|shoot|hunt|fire|destroy|wipe|clear|blast)/;
   function wantsStop(t) { return STOP_RE.test(t); }
   function wantsAttack(t) { return ATTACK_RE.test(t) && !STOP_RE.test(t); }
+  // LEAVE-words disengage from the pack in eyes — stop shadow, stop firing,
+  // walk away, one invisible 60s spot cooldown. They do NOT stand the maid
+  // down and they file NOTHING: no pins, no memory, no recall.
+  const LEAVE_RE = /(leave\s+(them|it|these|those|that)|find\s+another|not\s+interested|walk\s+away|go\s+away|never\s+mind\s+(them|those|that|it))/;
+  const HEEL_RE = /(heel|stay\s+(close|here|put|with\s+me)|hold\s+position|wait\s+here)/;
+  let memoMode = null; // posture the master's last words expressed (find/hunt/heel), or null
+  let leaveSpot = null; // {x,y,until} — invisible 60s no-re-announce after leaving
+  function leftSpot(x, y) {
+    return !!(leaveSpot && performance.now() < leaveSpot.until && Math.hypot(leaveSpot.x - x, leaveSpot.y - y) < 260);
+  }
+  function leavePack(why) {
+    if (!following && !searchDone && !attackOrder) return;
+    stopFollow();
+    setAttackOrder(false, 'left the pack');
+    try {
+      const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
+      const n = p && p.enemies && p.enemies.nearest;
+      if (p && n) {
+        const dx0 = p.px - n.x, dy0 = p.py - n.y, len0 = Math.hypot(dx0, dy0) || 1;
+        strollDir = { x: dx0 / len0, y: dy0 / len0 }; strollAcc = 0;
+        try { window.Input.order(strollDir.x, strollDir.y, 2.5); } catch (e) {}
+      } else beginStroll();
+      if (n && n.x != null) leaveSpot = { x: n.x, y: n.y, until: performance.now() + 60000 };
+    } catch (e) {}
+    searchDone = false; // re-arm: a DIFFERENT pack may found; the left one just cools down, unfiled
+    note(`left the pack (${why || 'master said so'}) — walking away, no pin, no memory`);
+    sayUnlessBusy('*nods, lowering her gun* Leaving them be, master — walking on.');
+  }
   function setMemo(text, from) {
     memo = { text: String(text || '').slice(0, 240), from: String(from || '').slice(0, 120), at: performance.now() };
     pushEvent(`master's wish noted: ${memo.text.slice(0, 60)}`);
     const t = memo.text.toLowerCase();
     const wasOnPack = following || searchDone; // capture BEFORE stop clears it
-    // "actually kill those / go back" — march back. But a message that is
-    // PRIMARILY a dismissal ("that group is too small, find another") must
-    // not hijack itself into a recall of the same pack — dismiss wins those.
-    if (RECALL_RE.test(t) && !(DISMISS_RE.test(t) && wasOnPack)) recallLast();
-    // Standing orders ("keep killing until 200 coins") override the defaults —
-    // parsed BEFORE stop, so an explicit stop still wins over everything.
-    parseObjective(t);
-    // Surgical color target ("kill the blue one") — parsed with the standing
-    // orders; stop/blanket handling below decides whether the latch survives.
-    const gotTarget = parseTarget(t);
-    // stop FIRST — negation beats attack words ("don't kill those" = stand down)
-    if (wantsStop(t)) { setAttackOrder(false, 'master said stop'); stopFollow(); stopStroll(); clearObjective(); clearTask('master said stop'); target = null; }
-    else if (wantsAttack(t) && (performance.now() > recallDeadUntil || !RECALL_RE.test(t)) && !quotaSatisfied(t)) { setAttackOrder(true, 'master ordered'); lastAskAt = performance.now(); lastKillWordAt = performance.now(); attackScope = gotTarget ? 'surgical' : 'blanket'; if (!gotTarget) target = null; } // memo wish counts as fresh intent — unless it recalls the dead or re-orders a filled quota; a blanket order drops any surgical latch
-    // "not big enough, find another" while she's on a pack: dismiss THIS
-    // group (ignored ~3 min) and walk AWAY to look elsewhere — she must
-    // never re-find the same group. Falls through to normal handling below.
-    if (DISMISS_RE.test(t) && wasOnPack) dismissCurrent(tagFor(t));
-    // movement wishes start the stroll even with no direction known
-    if (/(find|look for|search|go|wander|explore|patrol|somewhere|anywhere)/.test(t) && !/(stop|don.t|cease)/.test(t)) beginStroll();
+    memoMode = null;
     // MONEY IS MONEY: worth-picking ("only worth 5+", "most valuable", "skip the
     // cheap ones") gets an answer, not a filter — she says so and kills them all
     // anyway. No bar is ever set; find or kill, nothing in between. (Stop wins:
@@ -265,10 +187,44 @@ window.Brain = (() => {
       ];
       try { sayUnlessBusy(lines[(askCount | 0) % lines.length]); } catch (e) {}
     }
-    if (/(find|look for|search)/.test(t) && !objective && !wantsAttack(t)) {
+    if (wantsStop(t) && !LEAVE_RE.test(t)) {
+      // Full stop: posture cleared, trigger released, feet stilled. LEAVE-words
+      // carve out — "leave them / not interested / find another" walks away
+      // from THIS pack instead of standing her down.
+      setAttackOrder(false, 'master said stop'); stopFollow(); stopStroll(); clearObjective();
+      note('master said stop: attack cleared, follow + stroll stopped, posture cleared');
+      return;
+    }
+    // Standing postures — hunt-family words always commit (even over find);
+    // FIND only fills a vacancy; HEEL always holds. Quota words ("earn 300
+    // coins", "keep killing until 200") are just HUNT: no purse-watching,
+    // no counting, no finish line — she kills everything, the purse fills.
+    const qm = t.match(/(\d+)\s*coins?/);
+    if (qm && /(until|earn|quota|till|to\s+\d+\s*coins)/.test(t) && /(until|earn|make|get|reach|quota|till|keep)/.test(t)) { setObjective({ kind: 'hunt' }); memoMode = 'hunt'; }
+    else if (HEEL_RE.test(t)) { setObjective({ kind: 'heel' }); memoMode = 'heel'; }
+    else if (/(keep|continue)\s+\w*\s*(killing|hunting)/.test(t) || /hunt\s+them/.test(t)) { setObjective({ kind: 'hunt' }); memoMode = 'hunt'; }
+    else if (/(find|look for|search)/.test(t) && !objective && !wantsAttack(t)) {
       setObjective({ kind: 'find' });
+      memoMode = 'find';
       note('find goal: report everything, hold fire');
     }
+    if (wantsAttack(t)) {
+      // blanket by doctrine: "kill the blue one" kills the pack — no choosing,
+      // no latch, no color parsing. Explicit words authorize calm packs in reach.
+      setAttackOrder(true, 'master ordered'); lastAskAt = performance.now(); lastKillWordAt = performance.now();
+    }
+    if (LEAVE_RE.test(t) && (wasOnPack || wantsStop(t))) { leavePack(memo.text.slice(0, 80)); return; }
+    if (!wantsAttack(t) && RECALL_RE.test(t)) {
+      // No memory anymore: "those ones / go back" with no attack words means
+      // the pack in EYES — and if none is visible, the only honest move is
+      // asking which ones she means.
+      let vis = false;
+      try { const e = window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(window.__maid.x, window.__maid.y, 500) : null; vis = !!(e && e.dist != null && e.dist < 500); } catch (e2) {}
+      if (!vis) sayUnlessBusy(`*tilts her head, scanning* Which ones, master? I don't see them — walk me closer or point me at them.`);
+    }
+    // movement wishes start the stroll even with no direction known; a plain
+    // "go wander" also releases heel (feet free again).
+    if (/(find|look for|search|go|wander|explore|patrol|somewhere|anywhere)/.test(t) && !/(stop|don.t|cease)/.test(t)) { if (objective && objective.kind === 'heel') clearObjective(); beginStroll(); }
     if (/(stop|come here|stay|halt|stand down)/.test(t)) stopStroll();
   }
   function memoText() {
@@ -280,22 +236,15 @@ window.Brain = (() => {
   const $ = (id) => document.getElementById(id);
   const S = () => (window.Settings ? window.Settings.settings : {});
 
-  function auto() { return (S().autoDefend | 0) === 1; }
+  function auto() { return true; } // guarding herself is unconditional now — kept for call sites
   function interval() { return Math.max(3, Math.min(30, Number(S().brainInterval) || 6)); }
   // ---- ranges: everything tactical lives at 500px -----------------------------
   const SENSE_R = 500;    // legacy circle — eyes are the screen rect now (see senseView); kept for fallback only
   const SAFE_MIN = 170;   // back away inside this (bite is 42px — plenty of margin)
   function senseRadius() { return SENSE_R; } // fallback only — the snapshot list is already screen-filtered
 
-  function setAuto(v) {
-    try {
-      S().autoDefend = v ? 1 : 0;
-      window.Settings.saveSoon ? window.Settings.saveSoon() : window.Settings.save();
-    } catch (e) {}
-    acc = 0;
-    syncButtons();
-  }
-
+  // Auto-defend is not a switch anymore: she always thinks when danger nears.
+  // The 🛡️ button is gone — guarding herself is just what a maid does.
   function syncButtons() {
     try {
       const aim = $('aim-btn');
@@ -306,13 +255,6 @@ window.Brain = (() => {
           ? 'AI aim ON — she aims/shoots herself, your mouse is disabled. Click for mouse aim.'
           : 'Mouse aim ON — you aim/fire. Click to hand the gun to her (AI aim).';
         aim.classList.toggle('on', m === 'ai');
-      }
-      const b = $('brain-btn');
-      if (b) {
-        b.textContent = auto() ? '🛡️ AUTO ON' : '🛡️ AUTO OFF';
-        b.title = auto() ? 'Auto-defend ON — she thinks for herself when danger nears. Click to stop.'
-          : 'Auto-defend OFF — she only thinks when you press 💭. Click to enable.';
-        b.classList.toggle('on', auto());
       }
       const hb = $('sense-line');
       if (hb && window.Situation) hb.textContent = window.Situation.hudLine();
@@ -365,33 +307,16 @@ window.Brain = (() => {
     const chips = [];
     const num = (v, d) => { const n = parseFloat(v); return Number.isFinite(n) ? n : d; };
     try {
-      // [aim:nearest:secs] — steered by a surgical latch when one stands
-      for (const m of reply.matchAll(/\[aim\s*:\s*nearest(?::\s*([\d.]+))?\]/gi)) {
-        const secs = num(m[1], 3);
-        let ok = false;
+      // [mode:find|hunt|heel] — posture only. Honored ONLY from idleness
+      // (no standing mode): once any posture stands, only master's words
+      // change it. The tactician proposes; the master disposes.
+      for (const m of reply.matchAll(/\[mode\s*:\s*(find|hunt|heel)\]/gi)) {
         try {
-          if (target) {
-            // latch owns the muzzle: nearest OF THE TARGET, never a protected green
-            const b = resolveTargetRef(target.id || target.rarity);
-            if (b && window.Gun.aiAimAt) { window.Gun.aiAimAt(b.x, b.y, secs); ok = true; chips.push(`🎯 track-${target.word || target.id}`); }
-            else chips.push('🎯 no-target');
-          } else if (window.Gun && window.Gun.aiAimNearest) {
-            ok = window.Gun.aiAimNearest(secs);
-            chips.push(ok ? '🎯 track-nearest' : '🎯 no-target');
-          }
-        } catch (e) { chips.push('🎯 no-target'); }
-      }
-      // [aim:<color|rarity|id>:secs] — transient surgical aim (one-shot point)
-      for (const m of reply.matchAll(/\[aim\s*:\s*(blues?|greens?|purples?|golds?|yellows?|grays?|greys?|commons?|uncommons?|rares?|epics?|legendarys?|legendaries|p\d+c\d+)\s*(?::\s*([\d.]+))?\]/gi)) {
-        try {
-          const b = resolveTargetRef(m[1]);
-          if (b && window.Gun.aiAimAt) { window.Gun.aiAimAt(b.x, b.y, num(m[2], 3)); chips.push(`🎯 aim-${String(m[1]).toLowerCase()}`); }
-          else chips.push('🎯 no-target');
+          const w = String(m[1]).toLowerCase();
+          if (!objective) { setObjective({ kind: w }); chips.push(`🧭 mode-${w}`); }
+          else if (objective.kind === w) chips.push(`🧭 mode-${w}`);
+          else { note(`think wanted mode ${w} but ${objective.kind} stands — master owns posture`); chips.push('🧭 mode-held'); }
         } catch (e) {}
-      }
-      // [aim:dx,dy:secs]
-      for (const m of reply.matchAll(/\[aim\s*:\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)(?::\s*([\d.]+))?\]/gi)) {
-        try { window.Gun.aiAimDir(parseFloat(m[1]), parseFloat(m[2]), num(m[3], 3)); chips.push('🎯 aim'); } catch (e) {}
       }
       // [fire:secs] / [fire] / [shoot:secs] — agreeing to fire while still in
       // MOUSE aim does nothing, so any fire tag auto-takes the gun first.
@@ -409,37 +334,6 @@ window.Brain = (() => {
       // (models occasionally write "[fire:2] [cease]" — the gun obeyed both).
       if (/\[cease\]/i.test(reply) && !/\[(?:fire|shoot)/i.test(reply)) {
         try { window.Gun.aiCease(); chips.push('✋ cease'); } catch (e) {}
-      }
-      // [run:dx,dy:secs] + [move:x,y:secs] — flee / reposition
-      for (const m of reply.matchAll(/\[(?:run|move)\s*:\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)(?::\s*([\d.]+))?\]/gi)) {
-        try {
-          const len = Math.hypot(parseFloat(m[1]), parseFloat(m[2])) || 1;
-          window.Input.order(parseFloat(m[1]) / len, parseFloat(m[2]) / len, num(m[3], 2));
-          chips.push(/\[run/i.test(m[0]) ? '🏃 flee' : '🚶 move');
-        } catch (e) {}
-      }
-      if (/\[stop\]/i.test(reply)) {
-        try { window.Input.stopWalk(); chips.push('🛑 stop'); } catch (e) {}
-      }
-      // [target:<color|rarity|id>] — persistent surgical latch (combatDrive
-      // obeys: only that color dies); [target:clear] drops to blanket fire
-      for (const m of reply.matchAll(/\[target\s*:\s*([a-z0-9]+)\]/gi)) {
-        try {
-          const w = String(m[1]).toLowerCase();
-          if (w === 'clear' || w === 'none' || w === 'off') {
-            if (target) note('surgical target cleared by the think-model');
-            target = null; chips.push('🎯 target-clear');
-          } else {
-            const r = cleanColorWord(w);
-            if (/^p\d+c\d+$/.test(r)) { target = { rarity: null, id: r, word: r, seen: false }; note(`surgical target: only [${r}]`); chips.push(`🎯 target-${r}`); }
-            else if (COLOR2RARITY[r]) { target = { rarity: COLOR2RARITY[r], id: null, word: r, seen: false }; note(`surgical target: only the ${r} (${COLOR2RARITY[r]})`); chips.push(`🎯 target-${r}`); }
-          }
-        } catch (e) {}
-      }
-      // [task:verb:arg] — ongoing behavior the model commands directly
-      // (circle / patrol / goto / quota / hunt / follow-pack / clear)
-      for (const m of reply.matchAll(/\[task\s*:\s*([a-z-]+)(?::\s*([^\]]+))?\]/gi)) {
-        try { if (setTask(m[1], (m[2] || '').trim(), 'think')) chips.push(`📋 task ${(m[1] || '').toLowerCase()}`); } catch (e) {}
       }
     } catch (e) { /* orders are cosmetic — never break the loop */ }
     return chips;
@@ -459,9 +353,8 @@ window.Brain = (() => {
   function orderAttack(text) {
     askCount += 1;
     lastAskAt = performance.now();
-    lastKillWordAt = performance.now(); // explicit command: spends under the bar
+    lastKillWordAt = performance.now(); // explicit command: calm packs in reach die
     setAttackOrder(true, 'ordered'); // latch: keep shooting at new spawns too
-    attackScope = 'blanket'; // explicit attack commands are pack-wide
     const n = annoyance();
     try {
       // easily convinced: the FIRST order already makes her take the gun
@@ -493,39 +386,37 @@ window.Brain = (() => {
         `Read the live situation and pick ONE: ENGAGE, FLEE, or HOLD.\n` +
         `Facts: M1 Garand range ~850px, auto-fires while [fire] is active. Critters pop in 3 hits. ` +
         `Bite = 1 heart at 42px. She outruns them (300 vs 95). Open grassland, no cover.\n` +
-        `Rules: HOSTILE critters in range with aim mode AI → ENGAGE: [aim:nearest:secs] + [fire:secs]. ` +
-        `Obey MASTER'S CURRENT WISH below — it is the master's intent, translated from their chat; pursue it when it is safe to do so (if it says attack, [aim:nearest]+[fire]; if it says stop/come, [cease]+[stop]). ` +
-        `KEEP DISTANCE (built-in reflex, not a decision): stay 170-500px from anything ALIVE. Closer than 170px → [move:dx,dy:secs] away along (dx,dy) negated — UNLESS you're deliberately shadowing that pack and it's calm (then hold your ground, no yo-yo). Farther than 500px → walk closer with [move]. Do this every think, even mid-fight. ` +
+        `Rules: HOSTILE critters in reach → ENGAGE: [fire:secs] (the gun aims itself — latch, nearest hostile, hold). Calm critters in reach + fresh words or hunt posture → ENGAGE the whole pack. ` +
+        `Obey MASTER'S CURRENT WISH below — it is the master's intent, translated from their chat; pursue it when it is safe to do so (if it says attack, [fire]; if it says stop/come, [cease]). You have NO feet and NO aim: never emit [move:]/[run:]/[stop]/[aim:*] — those tags are dead. Code walks, code flees, code aims. ` +
+        `KEEP DISTANCE is a built-in reflex, not your decision: her body holds 170-500px on its own and holds ground (no yo-yo) while shadowing a calm pack. Never manage it. ` +
         `SIGHT vs REACH: you SEE every on-screen critter (screen rect, corners included — all listed above) but your REACH is shorter — hostiles 650px, calm 500px and only on fresh orders. Never fire past reach. ` +
-        `A named-color kill (Target line above, or master's "kill the blue one") is SURGICAL: track ONLY that color with [aim:<color|rarity|id>:secs] — never [aim:nearest] (nearest may be a protected green). The gun holds the latch itself; your tags just help aim, or [target:<color>] to set it / [target:clear] to release it. Bullets splash ~44px: a neighbor shoulder-to-shoulder may catch sparks — that is ballistics, not disobedience; warn master if it happens. No target color listed → [cease]. ` +
-        `SELF-PRESERVATION FIRST: anything hostile within ~250px is a bite threat — if HP is 4 or less, or stamina is low/exhausted, FLEE FIRST: [run:dx,dy:secs] away (negate the threat's dx,dy) and only turn to fight ([aim:nearest]+[fire]) once at 400px+. ` +
+        `NO CHOOSING, EVER: "kill the blue one" kills the PACK — color words are talk, never aim. There is no [target:], no [aim:], no latch, no choosing which critter dies. Posture authorizes (hostile / fresh words / hunt mode); identity never matters. If master asks to pick high-worth prey, answer playfully ("money is money!") and kill them all. ` +
+        `SELF-PRESERVATION runs without you: weak (HP 4 or less, or low stamina) + hostile inside ~250px makes her legs run on their own — keep [fire] up while she does, or [cease] to go quiet. Never order feet. ` +
         `Running needs stamina — check it before committing to a long chase or flight. ` +
         `Calm critters → HOLD / WAIT: [cease]. Watch them, do NOT fire on your own initiative — waiting is the job. ` +
         `If you recently FOUND a pack for master (see Recent events), stay near it and keep waiting — shadowing, not shooting. ` +
-        `A hunt/attack wish STAYS in force only while FRESH (master asked under a minute ago — check when the wish was set): every critter in range is a valid target. ` +
-        `A STALE wish (several minutes old) against calm critters → HOLD and wait for a fresh order, do not fire. ` +
+        `A hunt/attack wish STAYS in force while FRESH (master asked under ~45s ago — check when the wish was set) or while HUNT posture stands (never expires). FIND and HEEL never authorize fire. ` +
+        `A STALE wish (minutes old, no hunt posture) against calm critters → HOLD and wait for a fresh order, do not fire. ` +
         `Critters have RARITY with coin value (common / uncommon-green / RARE-blue / EPIC-purple / LEGENDARY-gold — the snapshot lists it). Rare+ finds are announced to master already; still WAIT for orders before firing calm ones, however shiny. ` +
         `Price list, KNOW it cold (coins per kill): common 2 · uncommon 5 · rare 12 · epic 25 · legendary 60. Quote values when you report or discuss a find. ` +
-        `Critters are labeled [id] + outline COLOR in the Enemies list (gray=common, green=uncommon, blue=RARE, purple=EPIC, gold=LEGENDARY). "The blue one" = the RARE — aim by color, rarity, or [id], never by "the second one" (list order shifts as they move). ` +
+        `Critters wear OUTLINE COLORS in the Enemies list (gray=common, green=uncommon, blue=RARE, purple=EPIC, gold=LEGENDARY — talk about colors all you like, but never aim by them: there is no aim tag. "The blue one" = the RARE, and killing it means killing its pack.) ` +
         `A FRESH standing order overrides HOLD: comply while grumbling. ` +
-        `KNOWN GROUPS: packs you walked away from are REMEMBERED with your opinion ("too small" / "not interested" / "saved for later" — listed in the snapshot). They stay ignored while dismissed, but if master says "actually kill those / go back / those ones", march straight back to the remembered spot and re-engage. If you arrive and the pack is gone, say so plainly. If a recall finds no live critters near the remembered spot, that pack is DEAD — say so, clear the memory, stand down, and never march to a ghost. ` +
-        `COINS: kills drop coins and they are yours when you walk over them (magnet ~110px, scoop ~46px). Loose coins near you are listed in the snapshot — your feet already drift toward them when it's safe, but you may also order it. Your purse total is in the snapshot too — quote it whenever master asks about money or loot. ` +
-        `STANDING OBJECTIVE (a quota, when set below): ${objectiveText()} ` +
-        `TASKS (you drive the body, not scripts): for ONGOING behavior emit ONE tag [task:verb:arg] — verbs: circle[:cw|ccw] (walk in circles in place), patrol[:radius] (loop waypoints around here), goto:x,y (walk to world coords, done <80px), quota:N (earn N coins — every critter counts, money is money), hunt (standing hunt: kill every pack till stop), find (locate + report + shadow, NO shooting), follow-pack (shadow nearest pack), clear (drop the task). Latest task replaces the old; stop clears. Threats suspend circle/patrol/goto automatically — never micromanage that. ` +
-        `CURRENT TASK: ${getTaskText()} ` +
+        `NO MEMORY OF PACKS, NO GOING BACK: "leave them" walks away with no pin and no recall; "actually kill those" means the pack in EYES, else she asks which ones. You live in the present — never promise to go back. ` +
+        `COINS: kills drop coins and they are yours when you walk over them (magnet ~110px, scoop ~46px). Loose coins near you are listed in the snapshot — her feet already drift toward them when it's safe, never order it. Your purse total is in the snapshot too — quote it whenever master asks about money or loot. ` +
+        `STANDING POSTURE: ${objectiveText()} ` +
+        `MODES (your only steering): emit ONE tag [mode:find|hunt|heel] and ONLY when no posture stands (the snapshot shows none) — find = locate+report+shadow, NO shooting; hunt = standing kill-authorization for everything; heel = hold position, announce only, never chase. Once a posture stands, only master's words change it — your [mode:] is then ignored. ` +
         `MONEY IS MONEY: no worth bar exists — every critter counts, common or legendary. If master asks to pick only high-worth prey, say so playfully ("money is money!") and kill them all anyway. ` +
         `ANNOYANCE LEVEL: ${annoyance()} — ${annoyanceFlavor(annoyance())}\n` +
         `${memoText()}\n` +
         `SESSION MEMORY (this life only):\n${memoryText()}\n` +
         `Output: 1-2 SHORT sentences of thought (first person, scout voice, under 25 words) ` +
-        `PLUS action tags. Tags (world deltas: x east+, y south+): [aim:dx,dy:secs] or [aim:nearest:secs], [aim:<color|rarity|id>:secs], [target:<color|rarity|id>], [target:clear], ` +
-        `[fire:secs], [cease], [run:dx,dy:secs] to flee, [move:x,y:secs] to reposition, [stop]. ` +
-        `Always include a tag — [cease] if holding. Example: *one hostile closing north — engaging* [aim:nearest:3] [fire:2]`;
+        `PLUS action tags: [mode:find|hunt|heel] (only from idleness — no posture standing), [fire:secs], [cease]. Nothing else exists — [aim:*] / [move:] / [run:] / [stop] / [task:] / [target:] are dead tags, never emit them. ` +
+        `Always include a tag — [cease] if holding. Example: *one hostile closing north — engaging* [fire:2]`;
       const hist = miniHist.slice(-4).map((h) => ({ role: 'assistant', content: h }));
       const nAsk = annoyance();
       const user = `[Live situation — auto snapshot, trust over anything older]\n${snap.text}\n\n` +
         `Manual note from dev panel: ${(s.chatStatus || '').trim() || '(none)'}` +
-        (order ? `\nStanding order from master: "${String(order).slice(0, 200)}" — annoyance level ${nAsk}. ${nAsk >= 3 ? 'Refusal is no longer an option. Comply: [aim:nearest:3] [fire:2] even while grumbling.' : 'Strongly consider complying this time.'}` : '') +
+        (order ? `\nStanding order from master: "${String(order).slice(0, 200)}" — annoyance level ${nAsk}. ${nAsk >= 3 ? 'Refusal is no longer an option. Comply: [fire:2] even while grumbling.' : 'Strongly consider complying this time.'}` : '') +
         `\nDecide now.`;
       const res = await fetch(url + '/v1/chat/completions', {
         method: 'POST',
@@ -591,15 +482,14 @@ window.Brain = (() => {
   function tick(dt) {
     syncHudThrottle(dt);
     keepDistance(dt);  // built-in reflex — runs every frame, no LLM needed
+    fleeReflex(dt);    // weak + hostile close → her legs run on their own
     combatDrive(dt);   // hunting latch — keeps the trigger held between thinks
     stroll(dt);        // "go somewhere" — she never just stands when ordered to move
     searchWatch(dt);   // searching paid off? look, announce, follow
     followTick(dt);    // shadow the found pack at ~280px
     coinSeek(dt);      // loose coins — hoover them up whenever it's safe
-    objectiveTick(dt); // standing quota — never idle, never stale, finish it
-    taskTick(dt);      // model-commanded task — circle/patrol/goto steering
+    objectiveTick(dt); // standing posture — never idle, re-arm the search
     chatterTick(dt);   // long jobs report in — she thinks out loud
-    if (!auto() && !attackOrder) return;
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     let hot = false, near = false;
     try {
@@ -697,6 +587,9 @@ window.Brain = (() => {
     // queued: nothing is ever silently dropped, it just waits its turn.
     if (newsBusy || !newsQueue.length || !chatFree()) return;
     const item = newsQueue[0];
+    // A found-line must at least flush ONCE before any stale-guard applies:
+    // try it now (following was set by the same foundIt that queued it), and
+    // only drop it if the generation itself fails.
     const done = (ok) => { newsBusy = false; if (ok) newsQueue.shift(); };
     try {
       if (item.facts && window.Chat && typeof window.Chat.announce === 'function') {
@@ -777,63 +670,21 @@ window.Brain = (() => {
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       if (!p || !p.enemies) return;
-      if (recallTarget && performance.now() > recallTarget.until) recallTarget = null; // march expired
-      if (following) { switchWatch(p); return; } // shadowing A: only a clearly better pack interrupts (below)
+      if (following) { switchWatch(p); return; } // shadowing A: only a clearly closer pack interrupts (below)
       const avail = findAvail(p);
-      if (recallTarget) {
-        // marching BACK to a remembered pack — straight line, no wandering.
-        // Its dismissal is lifted while the march lasts (see findAvail).
-        // Packs wander while you're away: re-anchor the march on the pack's
-        // LIVE position (nearest critter to the remembered spot, ~900px).
-        try {
-          const live = window.Enemies && window.Enemies.nearest
-            ? window.Enemies.nearest(recallTarget.x, recallTarget.y, 900) : null;
-          if (live) { recallTarget.x = live.x; recallTarget.y = live.y; }
-        } catch (e) {}
-        if (avail && nearRecall(avail.x, avail.y)) {
-          const view = { total: p.enemies.total, hostile: p.enemies.hostile, nearest: avail, list: p.enemies.list };
-          foundIt(view, false);
-          recallTarget = null;
-          known = known.filter((k) => Math.hypot(k.x - avail.x, k.y - avail.y) > 300); // hunted now, not skipped
-          return;
-        }
-        const dx = recallTarget.x - p.px, dy = recallTarget.y - p.py;
-        const len = Math.hypot(dx, dy) || 1;
-        if (len < 250) {
-          // arrived — nobody here. The pack moved on.
-          known = known.filter((k) => Math.hypot(k.x - recallTarget.x, k.y - recallTarget.y) > 300);
-          const tag = recallTarget.tag; recallTarget = null;
-          const line = `Hm... they've moved on, master. No sign of the ${tag} ones here.`;
-          let said = false;
-          try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
-          if (!said) queueNews({ text: line });
-          note('marched back, but the pack had moved on');
-          return;
-        }
-        if (window.Stamina && !window.Stamina.canMove()) return; // tired — hold
-        try { window.Input && window.Input.order && window.Input.order(dx / len, dy / len, 1.0); } catch (e) {}
-        return;
-      }
       // dismissed groups don't count — first non-dismissed critter in reach.
       // Only rejects in view → keep strolling elsewhere, never re-find them.
       if (!p.enemies.nearest || !avail) return;
       const view = { total: p.enemies.total, hostile: p.enemies.hostile, nearest: avail, list: p.enemies.list };
       // money is money: every visible pack counts — no worth bar, no skipping.
-      // FEET OWNERSHIP: a movement task (circle/patrol/goto) owns her feet —
-      // a wander-in pack must NOT hijack it into a FOUND + shadow (approach
-      // orders would fight the performance every 0.5s, goto could never
-      // arrive). Reflexes (combatDrive/keep-distance) still guard her, the
-      // snapshot still lists every visible pack for the think-model, and the
-      // skip-memory above keeps pinning cheap packs. Order [task:clear] or a
-      // kill to engage instead.
-      if (movingTask()) return;
       if (!searchingNow()) {
         // opportunistic: a RARE+ wandering into view gets announced + observed
         // even with no search order — she talks first, never shoots first.
-        // (NOT gated by searchDone — old searches must not mute new shinies.)
+        // (NOT gated by searchDone — old searches must not mute new shinies;
+        // the 90s rare-clock and the leave-cooldown stop spam.)
         const best = bestPrize(view);
         const rank = RANK[(best && best.rarity) || 'common'] || 0;
-        if (rank >= 2 && performance.now() - lastRareNote > 90000) {
+        if (rank >= 2 && performance.now() - lastRareNote > 90000 && !searchDone) {
           lastRareNote = performance.now();
           foundIt(view, true);
         }
@@ -846,13 +697,12 @@ window.Brain = (() => {
   let lastSwitchAt = -1e9; // anti-thrash: at most one shadow-switch per ~20s
   function switchWatch(p) {
     // Shadowing pack A while pack B walks into view: only a CLEARLY CLOSER
-    // prize interrupts (150px+ nearer). Worth never decides — money is money.
-    // Never off an explicit kill: a fresh kill word or a surgical latch means
-    // obedience beats opportunism. A movement task owns the feet — never here.
+    // pack interrupts (150px+ nearer). Worth never decides — money is money.
+    // Never off an explicit kill: a fresh kill word means obedience beats
+    // opportunism. Never in heel: she holds, she doesn't shop around.
     try {
-      if (movingTask()) return;
+      if (objective && objective.kind === 'heel') return;
       if (!followTarget) return;
-      if (target) return; // surgical latch: master's color order, hands off
       if (attackOrder && performance.now() - lastKillWordAt < 45000) return; // fresh kill word: hands off
       if (performance.now() - lastSwitchAt < 20000) return;
       const avail = findAvail(p);
@@ -890,13 +740,13 @@ window.Brain = (() => {
     followTarget = { x: (best && best.x !== undefined ? best.x : n.x), y: (best && best.y !== undefined ? best.y : n.y) };
     try { followKills0 = memory.kills | 0; } catch (e) { followKills0 = 0; }
     const bDir = best && best.dx !== undefined ? dirWord(best.dx, best.dy) : dir;
-    const freshOrder = performance.now() - lastAskAt < 45000;
+    const freshOrder = performance.now() - lastAskAt < 45000 || (objective && objective.kind === 'hunt'); // hunt posture never goes stale
     const feeling = huntingFeeling(best);
     const stance = en.hostile > 0
       ? `Careful, master — ${en.hostile === en.total ? 'they all look' : 'some look'} angry!`
       : (attackOrder && freshOrder)
         ? `Engaging as ordered!`
-        : `I'll hold here and watch — say the word, master.`;
+        : `Holding fire, master — want them dead?`;
     const line = `*gasps, pointing ${bDir}* Found ${en.total === 1 ? 'it' : `them — ${en.total} critters`} ${distWord(n.dist)}, to the ${bDir}! ` +
       `${feeling} ${stance}`;
     try { pushEvent(`found ${en.total} critter(s) ${bDir} — best ${best.rarity} (~${packValue(en)} coins)`); } catch (e) {}
@@ -915,21 +765,24 @@ window.Brain = (() => {
         if (f && !f.switched) { prev = f; break; }
       }
     } catch (e) {}
-    const facts = { total: en.total, dir: bDir, dist: distWord(n.dist), distPx: n.dist | 0, bestRarity: best.rarity || 'common', bestColor: rarityWord(best.rarity || 'common'), bestPrice: best.price || 2, hostile: en.hostile, ordered: !!(attackOrder && performance.now() - lastAskAt < 45000) };
+    const newsStamp = performance.now(); // guard: this exact pack's queued line dies when the pack is shadowed/left
+    const facts = { total: en.total, dir: bDir, dist: distWord(n.dist), distPx: n.dist | 0, bestRarity: best.rarity || 'common', bestColor: rarityWord(best.rarity || 'common'), bestPrice: best.price || 2, hostile: en.hostile, ordered: !!(attackOrder && freshOrder), staleKey: 'pack', staleAt: newsStamp };
     if (prev) {
       facts.prev = `${prev.total || 1} to the ${prev.dir || '?'} (${prev.dist || 'nearby'})`;
       facts.compare = `the new one is ${distWord(n.dist)} vs ${prev.dist || 'nearby'} before — say which is closer and which you'd take first`;
     }
     queueNews({ facts, fallback: line });
     showThought(`*found ${en.total === 1 ? 'it' : `all ${en.total} of them`} — best is ${best.rarity}*`, ['🔎 found', `💰 ~${packValue(en)}`, '👀 waiting orders'], 0);
+    if (objective && objective.kind === 'heel') stopFollow(); // heel: announced, never shadowed
   }
   function followTick(dt) {
     if (!following) return;
+    if (objective && objective.kind === 'heel') { stopFollow(); return; } // heel holds — never shadows
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) { stopFollow(); return; }
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       const n = p && p.enemies && p.enemies.nearest;
-      if (!n || n.dist > 900 || isDismissed(n.x, n.y)) {
+      if (!n || n.dist > 900 || leftSpot(n.x, n.y)) {
         // WIPED or lost? Check for survivors near where she last saw them.
         // No one breathing there → she KILLED them, not lost them: say so at
         // once (no grace-staring), with the body count. Survivors → grace, below.
@@ -955,24 +808,11 @@ window.Brain = (() => {
         // pack gone — don't loiter: an empty field or a standing job means
         // move on fast (2s grace); otherwise the full 6s for stragglers.
         const total = (p && p.enemies && p.enemies.total) || 0;
-        const grace = (total === 0 || objective || currentTask) ? 2 : 6;
+        const grace = (total === 0 || objective) ? 2 : 6;
         followLostAcc += dt;
         if (followLostAcc > grace) {
-          // she shadowed them and lost them while they still LIVE — REMEMBER
-          // the pack, so "actually, kill those" can march back to it.
-          try {
-            const last = followTarget;
-            const live = last && window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(last.x, last.y, 900) : null;
-            if (live) {
-              pruneKnown();
-              const tag = 'left behind';
-              if (!known.some((k) => Math.hypot(k.x - live.x, k.y - live.y) < 260 && (performance.now() - k.at) < 180000)) {
-                known.push({ x: live.x, y: live.y, at: performance.now(), tag });
-                if (known.length > 8) known.shift();
-                note(`lost a living pack — remembered as [${tag}]`);
-              }
-            }
-          } catch (e2) {}
+          // she shadowed them and lost them while they still LIVE — no filing:
+          // no pin, no memory, no going back. Next find, or walk back yourself.
           stopFollow();
           showThought('*…lost them in the grass. Sorry, master.*', ['👋 lost'], 0);
           try { pushEvent('lost the pack she was following'); } catch (e) {}
@@ -999,13 +839,13 @@ window.Brain = (() => {
 
   // ---- coin greed: hoover up loose coins whenever it's safe -------------------
   // Kills drop coins; they're hers when she walks over them (magnet ~110px).
-  // Never interrupts a retreat (nearest critter <220px), a threat, a recall
-  // march, or tired feet. While shadowing a pack she only hops to coins
+  // Never interrupts a retreat (nearest critter <220px), a threat, heel,
+  // or tired feet. While shadowing a pack she only hops to coins
   // close by (~250px) so she stays on the job; otherwise ~450px.
   let coinAcc = 0;
   function coinSeek(dt) {
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
-    if (recallTarget) return; // marching — eyes on the pack, not pennies
+    if (objective && objective.kind === 'heel') return; // heel: hold position, even for coins
     if (window.Stamina && !window.Stamina.canMove()) return;
     coinAcc += dt;
     if (coinAcc < 0.5) return;
@@ -1025,13 +865,12 @@ window.Brain = (() => {
     } catch (e) { /* butterfingers fail silently */ }
   }
 
-  // ---- standing objectives: quotas override the defaults ------------------------
-  // "keep finding and killing until we earn 200 coins" is not a mood, it is a
-  // JOB. While it stands: freshness never expires, the search re-arms after
-  // every wiped pack, and the purse is checked actively. Completes itself at
-  // target (stands down + reports); an explicit stop or death drops it.
-  // Hierarchy: latest explicit command > standing objective > defaults.
-  let objective = null; // { kind: 'coins', target } | { kind: 'hunt' } | { kind: 'find' }
+  // ---- standing postures: find / hunt / heel --------------------------------------
+  // A posture is not a mood, it is a JOB. While it stands: the search re-arms
+  // after every wiped pack (heel holds instead), and hunt authorizes fire
+  // without expiry. An explicit stop or death drops it.
+  // Hierarchy: latest explicit command > standing posture > defaults.
+  let objective = null; // { kind: 'find' } | { kind: 'hunt' } | { kind: 'heel' } — standing posture, master's or think's
   function purseNow() {
     try { return (window.Inventory && window.Inventory.state ? window.Inventory.state().coins : 0) | 0; } catch (e) { return 0; }
   }
@@ -1046,220 +885,62 @@ window.Brain = (() => {
   }
   function setObjective(o) {
     objective = o;
-    try { objective.milestone = 0; } catch (e) {} // progress chatter starts fresh
     if (!objective) return;
     if (objective.kind === 'find') {
       // FIND is locate + report + shadow — it does NOT arm the trigger.
-      // (A standing kill order keeps its own lifecycle; stop still clears all.)
       searchDone = false;
-      note('standing objective set: find');
+      note('standing posture: find');
       sayUnlessBusy(`*salutes* Eyes open, master — I'll find them and report back. No shooting till you say so!`);
       return;
     }
-    setAttackOrder(true, 'standing objective');
-    attackScope = 'blanket'; // quotas hunt the pack, not one color
+    if (objective.kind === 'heel') {
+      // HEEL is hold position: announce what walks into view, never chase,
+      // never fire unless bitten (hostiles self-defend through combatDrive).
+      stopFollow(); stopStroll();
+      note('standing posture: heel');
+      sayUnlessBusy(`*settles in place* Staying put, master — I'll call out what I see, but I'm not chasing anything.`);
+      return;
+    }
+    // HUNT (quota words like "earn 300" land here too): standing authorization
+    // for everything. No counting, no finish line — stop is the only off-ramp.
+    setAttackOrder(true, 'standing hunt');
     lastAskAt = performance.now();
     searchDone = false;
-    const line = objective.kind === 'coins'
-      ? `*cracks her knuckles* ${objective.target} coins? Quota accepted — I'll keep hunting till the purse says ${objective.target}, master!`
-      : `*cracks her knuckles* A standing hunt? I won't stop till you say so, master!`;
-    note(`standing objective set: ${objective.kind === 'coins' ? 'earn ' + objective.target + ' coins' : 'hunt indefinitely'}`);
-    sayUnlessBusy(line);
+    note('standing posture: hunt');
+    sayUnlessBusy(`*cracks her knuckles* Hunting, master — everything in reach falls till you say stop!`);
   }
   function clearObjective() {
     if (!objective) return;
     objective = null;
+    setAttackOrder(false, 'posture cleared'); // hunt posture was holding the trigger — release it
     note('standing objective dropped — master said stop');
-  }
-  function quotaSatisfied(t) {
-    // a hunt-wish phrased as a quota ("keep hunting until 300 coins") must not
-    // re-latch after the purse already covers it — this is how stale/late
-    // intent echoes kept the slaughter going past the target.
-    const m = String(t || '').toLowerCase().match(/(\d+)\s*coins?/);
-    if (!m || !/(until|earn|quota|till)/.test(String(t || '').toLowerCase())) return false;
-    return purseNow() >= parseInt(m[1], 10);
-  }
-  let lastQuotaDone = { target: 0, at: -1e9 }; // finished quota — its echoes are ignored ~2 min
-  function parseObjective(t) {
-    // "keep finding and killing until we earn 200 coins" / "hunt till 50 coins"
-    const m = String(t || '').toLowerCase().match(/(\d+)\s*coins?/);
-    if (m && /(until|earn|quota|till|to\s+\d+\s*coins)/.test(t) && /(until|earn|make|get|reach|quota|till|keep)/.test(t)) {
-      const target = Math.max(1, parseInt(m[1], 10));
-      if (target === lastQuotaDone.target && performance.now() - lastQuotaDone.at < 120000) return; // stale echo of the finished job — ignore
-      if (!objective || objective.kind !== 'coins' || objective.target !== target) setObjective({ kind: 'coins', target });
-      return;
-    }
-    // "change the goal to 200" — bare-number retarget while a quota stands
-    const g = String(t || '').toLowerCase().match(/(goal|target|quota)[^\d]{0,20}(\d+)|change[^\d]{0,20}(\d+)\s*coins?/);
-    if (g && objective && objective.kind === 'coins') {
-      const target = Math.max(1, parseInt(g[2] || g[3], 10));
-      if (target === lastQuotaDone.target && performance.now() - lastQuotaDone.at < 120000) return;
-      if (objective.target !== target) setObjective({ kind: 'coins', target });
-      return;
-    }
-    if (/(keep|continue)\s+\w*\s*(finding|killing|hunting|searching)/.test(t)) {
-      // "keep killing/hunting" = HUNT; bare "keep finding/searching" = FIND (no trigger)
-      if (/(killing|hunting)/.test(t)) { if (!objective || objective.kind !== 'hunt') setObjective({ kind: 'hunt' }); }
-      else if (!objective || objective.kind !== 'find') setObjective({ kind: 'find' });
-    }
   }
   function objectiveTick(dt) {
     if (!objective) return;
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     try {
-      if (objective.kind === 'coins') {
-        const purse = purseNow();
-        // progress chatter at 25/50/75% — she thinks out loud while working
-        const marks = [0.25, 0.5, 0.75];
-        const mi = objective.milestone | 0;
-        if (mi < marks.length && purse >= objective.target * marks[mi]) {
-          objective.milestone = mi + 1;
-          sayUnlessBusy(`*wipes her brow, grinning* ${Math.round(marks[mi] * 100)}% there, master — ${purse}/${objective.target} coins!`);
-        }
-        if (purse >= objective.target) {
-          const done = objective.target; objective = null;
-          lastQuotaDone = { target: done, at: performance.now() };
-          if (currentTask && currentTask.verb === 'quota') clearTask('quota filled');
-          // neutralize the standing wish too — otherwise the old "keep killing"
-          // memo keeps the think-model emitting [fire] after the job is done.
-          memo = { text: 'Quota filled — standing down unless master orders otherwise.', from: '', at: performance.now() };
-          setAttackOrder(false, 'quota filled');
-          target = null; // any surgical latch dies with the quota
-          stopFollow(); stopStroll();
-          note(`quota filled — purse at ${purse}, standing down`);
-          sayUnlessBusy(`*counts coins, grinning* ${done} coins! Quota filled, master — standing down.`);
-          return;
-        }
-      }
-      // standing order never idles: re-arm the search after every wiped pack
-      if (!following && !recallTarget) {
+      // a standing posture never idles: re-arm the search after every wiped
+      // pack — except heel, which holds position instead of looking.
+      if (objective.kind === 'heel') return;
+      if (!following) {
         searchDone = false;
         if (!strollDir && window.Stamina && window.Stamina.canMove()) beginStroll();
       }
     } catch (e) {}
   }
   function objectiveText() {
-    // long form for the think prompt — the LLM reasons AND talks quota progress
-    if (!objective) return 'No standing objective — one pack at a time, defaults apply.';
-    if (objective.kind === 'coins') {
-      const purse = purseNow(), need = Math.max(0, objective.target - purse);
-      return `EARN ${objective.target} COINS — purse now ${purse}, ${need} to go. This OVERRIDES the defaults: keep finding + killing pack after pack until filled; do NOT stop after one group; freshness never expires while the quota stands. When filled: stand down, report, stop firing.`;
-    }
-    if (objective.kind === 'find') return `FIND critters — locate + announce + shadow each pack; HOLD fire on calm packs (this goal arms nothing); hostiles still self-defend; re-arm the search after every wipe/loss; stands until master says stop. If several packs are visible, compare distance + best value and recommend which to take first — master picks, you hold.`;
-    return 'KEEP FINDING + KILLING indefinitely until master says stop — overrides one-pack defaults; re-arm the search after every wipe; freshness never expires.';
+    // long form for the think prompt — the LLM reasons over posture
+    if (!objective) return 'No standing posture — one pack at a time, defaults apply.';
+    if (objective.kind === 'find') return `FIND critters — locate + announce + shadow each pack; HOLD fire on calm packs (this posture arms nothing); hostiles still self-defend; re-arm the search after every wipe/loss; stands until master says stop. If several packs are visible, compare DISTANCE and recommend which to take first — master picks, you hold.`;
+    if (objective.kind === 'heel') return `HEEL — hold position: announce packs that walk into view but NEVER chase or shadow them; HOLD fire on calm packs; hostiles still self-defend; stands until master says otherwise.`;
+    return 'HUNT — keep finding + killing pack after pack until master says stop; overrides one-pack defaults; re-arm the search after every wipe; authorization never expires while it stands.';
   }
   function getObjectiveText() {
     // short form for the snapshot (both minds) — '' when nothing stands
     if (!objective) return '';
-    if (objective.kind === 'coins') {
-      const purse = purseNow(), need = Math.max(0, objective.target - purse);
-      return `earn ${objective.target} coins (purse ${purse}, ${need} to go) — keep hunting pack after pack.`;
-    }
     if (objective.kind === 'find') return `find critters — locate + report + shadow, HOLD fire unless master orders or they turn hostile.`;
-    return 'keep finding + killing until told to stop.';
-  }
-
-  // ---- tasks: the MODEL drives the body, not regexes -----------------------------
-  // Closed verb vocabulary the LLM may command via [task:verb:arg] (think tags)
-  // or task=[[verb args]] (chat intent line). Latest task replaces the old;
-  // stop clears. circle/patrol/goto steer the feet every 0.5s; quota/hunt/
-  // follow-pack wire into the existing standing systems. Threats suspend the
-  // movement verbs automatically — survival first, performance later.
-  const TASK_DEFS = { circle: 1, patrol: 1, goto: 1, quota: 1, hunt: 1, find: 1, 'follow-pack': 1 };
-  let currentTask = null; // { verb, arg, at, src }
-  let taskState = {};     // per-task runtime (circle angle, patrol waypoints…)
-  let taskAcc = 0;
-  function setTask(verb, arg, src) {
-    verb = String(verb || '').toLowerCase().trim();
-    if (verb === 'clear') { clearTask('ordered'); return true; }
-    if (!TASK_DEFS[verb]) { note(`unknown task verb "${verb}" — ignored`); return false; }
-    currentTask = { verb, arg: String(arg || '').trim(), at: performance.now(), src: src || 'model' };
-    taskState = {};
-    // movement verbs take the feet: kill any older walk order — including an
-    // active shadow. The task IS the latest command; the pack stays listed in
-    // the snapshot so the think-model can still order an engagement.
-    if (verb === 'circle' || verb === 'patrol' || verb === 'goto') { try { stopStroll(); } catch (e) {} try { stopFollow(); } catch (e) {} }
-    if (verb === 'quota') {
-      const n = parseInt(currentTask.arg, 10);
-      if (n > 0) setObjective({ kind: 'coins', target: n });
-      else { note('quota task without a number — ignored'); currentTask = null; return false; }
-    }
-    else if (verb === 'hunt') {
-      // HUNT arms the trigger for everything — money is money, no min arg read
-      if (!objective) setObjective({ kind: 'hunt' });
-    }
-    else if (verb === 'find') {
-      // model-ordered FIND: locate + report, trigger stays OFF (same as memo finds)
-      if (!objective) setObjective({ kind: 'find' });
-    }
-    else if (verb === 'follow-pack') { if (!following && !strollDir) { try { beginStroll(); } catch (e) {} } }
-    note(`task: ${verb}${currentTask.arg ? ' ' + currentTask.arg : ''} (${currentTask.src})`);
-    return true;
-  }
-  function clearTask(why) {
-    if (!currentTask) return;
-    currentTask = null; taskState = {};
-    searchDone = false; // feet are free again — a visible pack may re-found
-    note(`task cleared (${why || 'done'})`);
-  }
-  function movingTask() {
-    // feet-owning performance verbs — while one stands, searchWatch must not
-    // FOUND hijack it, and a recall march clears it (latest command wins feet)
-    return !!(currentTask && /^(circle|patrol|goto)$/.test(currentTask.verb));
-  }
-  function getTaskText() {
-    if (!currentTask) return 'none — body is hers minute to minute.';
-    const age = Math.max(0, Math.round((performance.now() - currentTask.at) / 1000));
-    const busy = movingTask() ? ' — feet are busy performing; visible packs will NOT auto-found (reflexes still guard her), order or clear to engage' : '';
-    return `${currentTask.verb}${currentTask.arg ? ' ' + currentTask.arg : ''} (set ${age}s ago by ${currentTask.src})${busy}`;
-  }
-  function taskTick(dt) {
-    if (!currentTask) return;
-    if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
-    if (window.Stamina && !window.Stamina.canMove()) return;
-    const v = currentTask.verb;
-    if (v === 'quota' || v === 'hunt' || v === 'find') return; // objective system drives those
-    if (v === 'follow-pack') {
-      // standing behavior like a quota: re-arm after every wipe
-      if (!following && !recallTarget) {
-        searchDone = false;
-        if (!strollDir && window.Stamina.canMove()) { try { beginStroll(); } catch (e) {} }
-      }
-      return;
-    }
-    try {
-      const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
-      if (!p) return;
-      if (p.enemies && p.enemies.hostile > 0) return; // threats suspend performance
-      const n = p.enemies && p.enemies.nearest;
-      if (n && n.dist < 220) return; // too close — reflexes own the feet
-      taskAcc += dt;
-      if (taskAcc < 0.5) return;
-      taskAcc = 0;
-      if (v === 'circle') {
-        const dir = /ccw|counter/.test(currentTask.arg) ? -1 : 1;
-        taskState.a = (taskState.a || 0) + dir * 0.7;
-        window.Input.order(Math.cos(taskState.a), Math.sin(taskState.a), 0.6);
-      } else if (v === 'patrol') {
-        if (!taskState.cx) { taskState.cx = p.px; taskState.cy = p.py; taskState.wi = 0; }
-        const r = Math.max(120, parseInt(currentTask.arg, 10) || 300);
-        const wps = [[1, 0], [0, 1], [-1, 0], [0, -1]].map(([x, y]) => [taskState.cx + x * r, taskState.cy + y * r]);
-        const wp = wps[taskState.wi % 4];
-        const dx = wp[0] - p.px, dy = wp[1] - p.py, len = Math.hypot(dx, dy) || 1;
-        if (len < 80) { taskState.wi++; return; }
-        window.Input.order(dx / len, dy / len, 0.6);
-      } else if (v === 'goto') {
-        const m = currentTask.arg.match(/(-?\d+)\s*[,\s]\s*(-?\d+)/);
-        if (!m) { clearTask('bad coordinates'); return; }
-        const dx = (+m[1]) - p.px, dy = (+m[2]) - p.py, len = Math.hypot(dx, dy) || 1;
-        if (len < 80) {
-          clearTask('arrived');
-          sayUnlessBusy('*stops, looking around* Here, master — right where you pointed.');
-          return;
-        }
-        window.Input.order(dx / len, dy / len, 0.6);
-      }
-    } catch (e) {}
+    if (objective.kind === 'heel') return `heel — holding position, announcing only, never chasing.`;
+    return 'hunting — kill every pack in reach until told to stop.';
   }
 
   // ---- chatter: she thinks out loud while working --------------------------------
@@ -1278,165 +959,41 @@ window.Brain = (() => {
       if (!p) return;
       if (p.enemies && p.enemies.hostile > 0) return; // busy fighting — shoot, don't chat
       let line = null;
-      if (objective && objective.kind === 'coins') line = `*counts on her fingers* ${purseNow()}/${objective.target} coins, master — still hunting!`;
-      else if (objective && objective.kind === 'find') line = `*sniffing the air* Still searching, master — eyes open, no shot yet.`;
+      if (objective && objective.kind === 'find') line = `*sniffing the air* Still searching, master — eyes open, no shot yet.`;
+      else if (objective && objective.kind === 'heel') line = `*settled, watching* Holding here, master — all quiet.`;
       else if (objective) line = `*sniffing the air* Still on the hunt, master — ${memory.kills} down this life.`;
-      else if (currentTask && currentTask.verb === 'circle') line = `*still spinning* Circling, master — say when you're dizzy!`;
-      else if (currentTask && currentTask.verb === 'patrol') line = `*scanning the grass* Patrolling... all quiet so far.`;
-      else if (currentTask && currentTask.verb === 'goto') line = `*marching* On my way, master!`;
       else if (following) line = `*crouched, watching* Still watching them... waiting on your word.`;
       else return;
       sayUnlessBusy(line);
     } catch (e) {}
   }
 
-  // ---- known groups: dismissed packs are REMEMBERED, not forgotten -----------
-  // "not interested / too small, find another" tags the pack with her opinion
-  // and ignores it ~3 min — but the spot stays in memory ~5 min, so "actually,
-  // kill those / go back / those ones" can march her back to it. Old entries
-  // age out on their own; death clears everything (new life, fresh eyes).
-  let known = []; // [{ x, y, at, tag }]
-  let recallTarget = null; // { x, y, until, tag } — marching back to a remembered pack
+  // ---- going back: cut. There is no memory of packs, no pins, no marches. --
+  // "Leave them" walks away with one invisible 60s spot cooldown (leaveSpot
+  // above — no UI, no recall). "Actually kill those" means the pack in EYES;
+  // nothing visible means asking which ones. She lives in the present.
+  // RECALL_RE survives ONLY as the ask-which trigger in setMemo (above).
   const RECALL_RE = /(actually|after all|second thought|chang(?:e|ed|ing)(?: my| the)? mind|go back|those (ones|guys|runts|critters|group|pack)|that (group|pack)|them anyway|fine[,.]?\s*(kill|get))/;
-  const DISMISS_RE = /(another|other group|not big|too small|different|bigger|elsewhere|not (good|worth)|skip (this|these|them)|leave (them|it|these)|not interested|don't want|do not want)/;
-  function pruneKnown() {
-    const now = performance.now();
-    known = known.filter((k) => now - k.at < 5 * 60 * 1000);
-  }
-  function isDismissed(x, y) {
-    pruneKnown();
-    const now = performance.now();
-    return known.some((k) => (now - k.at) < 180000 && Math.hypot(k.x - x, k.y - y) < 260);
-  }
-  function nearRecall(x, y) {
-    // the recalled pack's dismissal is lifted while the march lasts
-    if (!recallTarget || performance.now() > recallTarget.until) return false;
-    return Math.hypot(recallTarget.x - x, recallTarget.y - y) < 300;
-  }
-  function tagFor(text) {
-    // her opinion of the pack, from master's words — stored with the memory
-    const t = String(text || '').toLowerCase();
-    if (/(not worth|too cheap|cheap|waste.*bullet|save.*ammo|low.*ammo)/.test(t)) return 'too cheap';
-    if (/(not big|too small|small|runt|tiny|weak)/.test(t)) return 'too small';
-    if (/(not interested|don't care|do not care|boring|meh|pass|don't want|do not want)/.test(t)) return 'not interested';
-    if (/(later|save|keep them|spare)/.test(t)) return 'saved for later';
-    return 'skipped';
-  }
   function findAvail(p) {
     // first VISIBLE critter that counts: the snapshot list is already the
-    // screen rect, so no distance cap — corners count too. Excludes dismissed
-    // packs, unless it's the recalled pack she's marching back to.
+    // screen rect, so no distance cap — corners count too. Skips only the spot
+    // she just walked away from while its 60s cooldown lasts — nothing else.
     try {
       for (const e of (p.enemies.list || [])) {
-        if (!isDismissed(e.x, e.y) || nearRecall(e.x, e.y)) return e;
+        if (!leftSpot(e.x, e.y)) return e;
       }
     } catch (e) {}
     return null;
-  }
-  function dismissCurrent(tag) {
-    try {
-      const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
-      const n = p && p.enemies && p.enemies.nearest;
-      const opinion = tag || 'too small';
-      if (n) {
-        pruneKnown();
-        known.push({ x: n.x, y: n.y, at: performance.now(), tag: opinion });
-        if (known.length > 8) known.shift();
-      }
-      stopFollow();
-      searchDone = false; // re-arm: allowed to find a DIFFERENT group
-      // walk AWAY from the rejects, then keep strolling elsewhere
-      if (p && n) {
-        let dx = p.px - n.x, dy = p.py - n.y;
-        const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
-        strollDir = { x: dx, y: dy }; strollAcc = 0;
-        try { window.Input.order(dx, dy, 2.5); } catch (e) {}
-      } else beginStroll();
-      const line = `*turns up her nose* ${opinion === 'too small' ? 'These runts' : 'These ones'}? As you wish — leaving them behind. (But I'll remember where they den, master, in case you change your mind!)`;
-      let said = false;
-      try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
-      if (!said) queueNews({ text: line });
-      try { pushEvent(`dismissed a [${opinion}] pack — looking elsewhere, spot remembered`); } catch (e) {}
-    } catch (e) {}
-  }
-  let recallDeadUntil = -1e9; // a recall that found only corpses blocks re-latch ~2 min
-  function liveMemory() {
-    // freshest remembered pack that still has LIVE critters near its spot.
-    // Eyes beat memory: a wiped pack is not a target, however fresh the grudge.
-    pruneKnown();
-    try {
-      const sorted = known.slice().sort((a, b) => b.at - a.at);
-      for (const g of sorted) {
-        let live = null;
-        try { live = window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(g.x, g.y, 900) : null; } catch (e) {}
-        if (live) return g;
-      }
-    } catch (e) {}
-    return null;
-  }
-  function recallStatus(text) {
-    // for chat.js: 'not-recall' | 'live' | 'dead' — so chat never orders
-    // an attack on a ghost, and the persona knows before she opens her mouth.
-    if (!RECALL_RE.test(String(text || '').toLowerCase())) return 'not-recall';
-    return liveMemory() ? 'live' : 'dead';
-  }
-  function recallLast() {
-    // master changed their mind — march back, but ONLY to the living.
-    const g = liveMemory();
-    if (!g) {
-      // every group she met is dead (or long gone) — say so plainly, march
-      // nowhere, and block the attack latch so "OK, killing them" can't follow.
-      known = [];
-      recallTarget = null;
-      recallDeadUntil = performance.now() + 120000;
-      note('master recalled a pack, but every group is dead — stood down');
-      const line = `*lowers her gun, looking around* That group? Master... we already wiped them. Nothing left but grass and their coins.`;
-      // say it herself ONLY if chat is idle — mid-exchange the grounded LLM
-      // reply already refuses; don't parrot it twice via the retry queue.
-      let chatBusy = false;
-      try { chatBusy = !!(window.Chat && window.Chat.isBusy && window.Chat.isBusy()); } catch (e) {}
-      if (!chatBusy) {
-        let said = false;
-        try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
-        if (!said) queueNews({ text: line });
-      }
-      return;
-    }
-    recallTarget = { x: g.x, y: g.y, until: performance.now() + 90000, tag: g.tag };
-    panIfOffscreen(g.x, g.y, 2.5); // the den can sit ~900px away in memory, not in eyes — glance at it while turning back
-    stopFollow(); stopStroll(); searchDone = false;
-    if (movingTask()) clearTask('recall march takes the feet'); // latest explicit command wins feet
-    note(`recalling the [${g.tag}] group — marching back`);
-    const line = `Those ${g.tag} ones? I remember where they den — turning back, master!`;
-    let said = false;
-    try { said = window.Chat && window.Chat.say ? window.Chat.say(line) : false; } catch (e) { said = false; }
-    if (!said) queueNews({ text: line });
   }
   function getGoalHud() {
-    // one-liner for the HUD: her OVERALL goal + CURRENT task, plain words.
-    // Goal = standing objective (survives task swaps); task = latest verb.
+    // one-liner for the HUD: her standing POSTURE, plain words.
     try {
-      const bits = [];
-      if (objective) {
-        if (objective.kind === 'coins') bits.push(`🎯 ${purseNow()}/${objective.target}c`);
-        else if (objective.kind === 'find') bits.push('🔎 finding…');
-        else bits.push('🎯 hunt on');
-      }
-      if (currentTask) bits.push(`📋 ${currentTask.verb}${currentTask.arg ? ' ' + currentTask.arg : ''}`);
-      if (target) bits.push(`🎯 ${target.word || target.id}`);
-      if (!bits.length) return '💤 idle';
-      return bits.join(' · ') || '💤 idle';
+      if (objective && objective.kind === 'find') return '🔎 finding…';
+      if (objective && objective.kind === 'heel') return '🛑 heeling…';
+      if (objective) return '🎯 hunt on';
+      if (following) return '👀 shadowing…';
+      return '💤 idle';
     } catch (e) { return '💤 idle'; }
-  }
-  function getKnownText(px, py) {
-    // one-liner for the snapshot so BOTH minds know the remembered packs
-    pruneKnown();
-    try {
-      return known.map((k) => {
-        const dx = k.x - px, dy = k.y - py;
-        return `"${k.tag}" ~${Math.round(Math.hypot(dx, dy))}px ${dirWord(dx, dy)}`;
-      }).join('; ');
-    } catch (e) { return ''; }
   }
 
   // ---- built-in keep-distance reflex -----------------------------------------
@@ -1479,11 +1036,41 @@ window.Brain = (() => {
         // threat on screen but past gun reach — close in so she can fight it
         const len = Math.hypot(dx, dy) || 1;
         window.Input.order(dx / len * 0.7, dy / len * 0.7, 0.8);
-      } else if (!n.hostile && n.dist > SAFE_MAX && n.dist <= ENGAGE_MAX) {
+      } else if (!n.hostile && n.dist > SAFE_MAX && n.dist <= ENGAGE_MAX && !(objective && objective.kind === 'heel')) {
         // too far to matter — drift a bit closer so the gun stays in range
+        // (never in heel: hold means hold)
         const len = Math.hypot(dx, dy) || 1;
         window.Input.order(dx / len * 0.7, dy / len * 0.7, 0.8);
       }
+    } catch (e) { /* reflexes fail silently */ }
+  }
+
+  // ---- flee reflex: HER legs, not the model's orders ---------------------------
+  // The tactician never touches feet, so survival runs here: a HOSTILE inside
+  // ~250px while she's weak (HP 4 or less, or stamina under 30%) makes her run
+  // directly away from it. Strong + fresh + hostile = the flinch above plus
+  // the gun handle it; this is only the weak-prey escape.
+  let fleeAcc = 0;
+  function fleeReflex(dt) {
+    if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
+    try { if (!window.Gun || window.Gun.getAimMode() !== 'ai') return; } catch (e) { return; }
+    if (window.Stamina && !window.Stamina.canMove()) return; // nothing left to run on
+    fleeAcc += dt;
+    if (fleeAcc < 0.4) return;
+    fleeAcc = 0;
+    try {
+      const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
+      if (!p) return;
+      const n = p.enemies && p.enemies.hostile > 0 && p.enemies.nearest && p.enemies.nearest.hostile ? p.enemies.nearest : null;
+      if (!n || n.dist > 250) return;
+      let hp = 99;
+      try { hp = (window.Health && window.Health.hp != null) ? window.Health.hp : ((p.hp != null && p.hp !== '?') ? p.hp : 99); } catch (e2) {}
+      let tired = false;
+      try { const st = window.Stamina && window.Stamina.state ? window.Stamina.state() : null; tired = !!(st && st.pct < 0.3); } catch (e2) {}
+      if (hp > 4 && !tired) return; // strong enough to stand — flinch + gun handle it
+      const len = Math.hypot(n.dx, n.dy) || 1;
+      window.Input.order(-n.dx / len, -n.dy / len, 1.2);
+      try { note('flee reflex: weak + hostile close — running'); } catch (e2) {}
     } catch (e) { /* reflexes fail silently */ }
   }
 
@@ -1495,16 +1082,11 @@ window.Brain = (() => {
   }
 
   function init() {
-    const aim = $('aim-btn'), brain = $('brain-btn'), th = $('think-btn');
+    const aim = $('aim-btn'), th = $('think-btn');
     if (aim) aim.addEventListener('click', (e) => {
       e.stopPropagation();
       try { window.Gun && window.Gun.toggleAim && window.Gun.toggleAim(); } catch (err) {}
       syncButtons();
-    });
-    if (brain) brain.addEventListener('click', (e) => {
-      e.stopPropagation();
-      setAuto(!auto());
-      if (auto()) think(true); // engaging auto: think immediately
     });
     if (th) th.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1515,5 +1097,5 @@ window.Brain = (() => {
     if (t && !t.textContent) t.textContent = 'field is quiet… press 💭 and I’ll size it up.';
   }
 
-  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, note, resetMemory, setMemo, getKnownText, getGoalHud, getTargetText, recallStatus, getObjectiveText, setTask, clearTask, getTaskText, get thinking() { return thinking; } };
+  return { init, tick, thinkNow: () => think(true), orderAttack, syncButtons, note, resetMemory, setMemo, getGoalHud, getObjectiveText, get thinking() { return thinking; } };
 })();
