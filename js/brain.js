@@ -37,13 +37,20 @@ window.Brain = (() => {
   // HUD kill panel. HUD-only: the total NEVER enters speech or the think
   // prompt (no lifetime totals, ever — per-pack numbers with units only).
   const KILL_STORE = 'cosette.totalKills';
-  let lifetimeKills = 0;
-  try { lifetimeKills = Math.max(0, parseInt(localStorage.getItem(KILL_STORE), 10) || 0); } catch (e) {}
-  function paintKills(bump) {
+  const HUNTER_STORE = 'cosette.hunterKills';
+  let lifetimeKills = 0, lifetimeHunters = 0;
+  try {
+    lifetimeKills = Math.max(0, parseInt(localStorage.getItem(KILL_STORE), 10) || 0);
+    lifetimeHunters = Math.max(0, parseInt(localStorage.getItem(HUNTER_STORE), 10) || 0);
+  } catch (e) {}
+  function paintKills(which) {
+    // which: 'critter' | 'hunter' bumps that counter; false/undefined = quiet repaint
     try {
-      const el = $('kill-count');
-      if (el) {
-        const t = String(lifetimeKills);
+      const pairs = [['kill-count', lifetimeKills, which === 'critter'], ['hunter-count', lifetimeHunters, which === 'hunter']];
+      for (const [id, v, bump] of pairs) {
+        const el = $(id);
+        if (!el) continue;
+        const t = String(v);
         if (el.textContent !== t) el.textContent = t;
         if (bump) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
       }
@@ -56,9 +63,17 @@ window.Brain = (() => {
         memory.kills += k;
         lifetimeKills += k; // session math stays in memory.kills; this one survives reloads
         try { localStorage.setItem(KILL_STORE, String(lifetimeKills)); } catch (e) {}
-        paintKills(true);
+        paintKills('critter');
         askCount = Math.max(0, askCount - 1); // venting: each kill settles one gripe
         pushEvent(`popped ${Math.max(1, Number(n) || 1)} critter(s)`);
+      } else if (kind === 'hunterkill') {
+        // lone-hunter kills NEVER touch the critter counter — own panel, own store
+        const k = Math.max(1, Number(n) || 1);
+        memory.kills += k; // session math counts every kill; the panels split by kind
+        lifetimeHunters += k;
+        try { localStorage.setItem(HUNTER_STORE, String(lifetimeHunters)); } catch (e) {}
+        paintKills('hunter');
+        pushEvent('brought down the lone hunter');
       } else if (kind === 'hurt') {
         memory.hurt += 1;
         pushEvent(`took a bite (${memory.hurt} hearts lost today)`);

@@ -253,7 +253,15 @@ window.Gun = (() => {
             dead = true;
             for (const p of res.deaths) burst(p.x, p.y - 14, 12, true); // kill pop
             burst(b.spr.x, b.spr.y, 6, false);                          // hit sparks
-            try { window.Brain && window.Brain.note && window.Brain.note('kill', res.kills); } catch (e) {}
+            try {
+              // kills split by kind: pack critters feed the critter counter,
+              // lone hunters feed the hunter counter — never mixed.
+              const hk = res.hunterKills | 0, pk = Math.max(0, (res.kills | 0) - hk);
+              if (window.Brain && window.Brain.note) {
+                if (pk > 0) window.Brain.note('kill', pk);
+                if (hk > 0) window.Brain.note('hunterkill', hk);
+              }
+            } catch (e) {}
             // loot: each kill pays its appraised price in coins (Inventory picks up)
             try {
               for (const d of res.deaths) {

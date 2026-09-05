@@ -24,12 +24,14 @@ window.Enemies = (() => {
   const SEP_R = 64;                    // packmates push apart inside this radius
 
   // ---- lone hunter: the OTHER kind of monster --------------------------------
-  // Same sprite, different animal: spawns ALONE (never a pack), is born hostile
-  // and stays hostile — it hunts her from the moment it spawns instead of
-  // milling around waiting to be bothered. Faster, tougher, worth more.
-  // Reads at a glance: ~1.5x body, hunter-red outline. All tunables, top.
+  // Lone-hunter doctrine: spawns ALONE (never a pack) and mills around calmly
+  // like scenery — NO spawn-rush. Cross the proximity fuse (she stays close)
+  // and it turns permanently hostile: faster than packs, tougher, worth more,
+  // and it never calms down. Reads at a glance: ~1.5x body, hunter-red outline.
+  // All tunables, top.
   const LONER_EVERY = 30;              // one shows up about this often (seconds)
   const LONER_MAX = 1;                 // never more than this many hunting her
+  const LONER_AGGRO = 450;             // proximity fuse — she must stay this close to provoke it
   const LONER_SPEED = 150;             // outrunnable (she runs 300), but pressing
   const LONER_HP = 8;                  // epic-tough
   const LONER_PRICE = 15;              // pays like a small treasure
@@ -60,10 +62,16 @@ window.Enemies = (() => {
   const loners = []; // lone hunters — same member shape, no pack (pack:'lone')
   let lonerAcc = 0, lonerId = 0;
 
+  let hunterFrames = null; // assets/hunter.png (4x24px) — enemy frames stand in until it exists
   async function init(world) {
     const loaded = await PIXI.Assets.load('assets/enemy.png');
     const slice = window.Assets.makeSlicer(loaded, 24, 24);
     frames = [slice(0, 0), slice(1, 0), slice(2, 0), slice(3, 0)];
+    try {
+      const hLoaded = await PIXI.Assets.load('assets/hunter.png');
+      const hSlice = window.Assets.makeSlicer(hLoaded, 24, 24);
+      hunterFrames = [hSlice(0, 0), hSlice(1, 0), hSlice(2, 0), hSlice(3, 0)];
+    } catch (e) { hunterFrames = null; }
     init._world = world;
   }
 
@@ -115,7 +123,7 @@ window.Enemies = (() => {
     const view = new Container();
     const sh = new Graphics();
     sh.ellipse(0, -2, 13, 5).fill({ color: 0x000000, alpha: 0.3 });
-    const anim = new AnimatedSprite(frames);
+    const anim = new AnimatedSprite(hunterFrames || frames);
     anim.anchor.set(0.5, 1);
     anim.animationSpeed = 1 / 6;
     anim.play();
@@ -128,9 +136,10 @@ window.Enemies = (() => {
       view.addChild(ring);
     } catch (e) {}
     const m = { view, anim, id: 'l' + (++lonerId), x: px + Math.cos(a) * r, y: py + Math.sin(a) * r, vx: 0, vy: 0,
-      hostile: true, lastHit: 0, hp: LONER_HP, flashT: 0, // born angry, stays angry
+      hostile: false, lastHit: 0, hp: LONER_HP, flashT: 0, // born CALM — the fuse (below) turns it, permanently
       rarity: 'hunter', price: LONER_PRICE, baseScale, lone: true, dir: Math.random() * Math.PI * 2, retarget: 0 };
     view.position.set(m.x, m.y);
+    m.ax = m.x; m.ay = m.y; // anchor it mills around until provoked
     world.addChild(view);
     loners.push(m);
   }
@@ -279,17 +288,22 @@ window.Enemies = (() => {
         if (m.flashT <= 0) { m.anim.tint = 0xffffff; m.anim.alpha = 1; }
       }
       if (!playerDead) {
-        steer(m, px, py, LONER_SPEED, dt); // the hunt — always on
+        const pd = Math.hypot(m.x - px, m.y - py);
+        // proximity fuse, not a spawn rush: it only notices her when she stays
+        // close. Once provoked it NEVER calms down — that's the hunter.
+        if (!m.hostile && pd <= LONER_AGGRO) m.hostile = true;
+      }
+      if (!playerDead && m.hostile) {
+        steer(m, px, py, LONER_SPEED, dt); // the hunt — on from aggro, never off
         const pd = Math.hypot(m.x - px, m.y - py);
         if (pd < TOUCH_R && now - m.lastHit > HIT_CD) {
           m.lastHit = now;
           if (window.Health) window.Health.damage(1);
         }
       } else {
-        // she fainted: it loses interest, paces in place
-        m.retarget -= dt;
-        if (m.retarget <= 0) { m.retarget = 2 + Math.random() * 3; m.dir = Math.random() * Math.PI * 2; }
-        steer(m, m.x + Math.cos(m.dir) * 60, m.y + Math.sin(m.dir) * 60, WANDER_SPEED * 0.5, dt);
+        // unprovoked (or she's down): slow mill around its anchor, like a pack
+        const sw = now * 0.4 + m.dir;
+        steer(m, (m.ax == null ? m.x : m.ax) + Math.cos(sw) * 24, (m.ay == null ? m.y : m.ay) + Math.sin(sw) * 24, WANDER_SPEED, dt);
       }
       if (m.vx < -2) m.view.scale.x = -(m.baseScale || SCALE);
       else if (m.vx > 2) m.view.scale.x = (m.baseScale || SCALE);
@@ -340,7 +354,7 @@ window.Enemies = (() => {
   // deaths:[{x,y}] } — gun.js layers spark/hit-sound/shake juice off this.
   function damageAt(px, py, radius, dmg) {
     const world = init._world;
-    let hits = 0, kills = 0;
+    let hits = 0, kills = 0, hunterKills = 0;
     const deaths = [];
     for (let gi = groups.length - 1; gi >= 0; gi--) {
       const g = groups[gi];
@@ -376,17 +390,18 @@ window.Enemies = (() => {
         world.removeChild(m.view);
         loners.splice(i, 1);
         kills++;
+        hunterKills++; // routed to the HUNTER counter, never the critter one
       }
     }
-    return { hits, kills, deaths };
+    return { hits, kills, deaths, hunterKills };
   }
 
   // how many critters are currently engaged — drives the battle music.
-  // A live loner is ALWAYS engaged (it never calms down).
+  // A loner counts only once provoked (before that it's just scenery).
   function hostileCount() {
     let n = 0;
     for (const g of groups) for (const m of g.members) if (m.hostile) n++;
-    n += loners.length;
+    for (const m of loners) if (m.hostile) n++;
     return n;
   }
 
