@@ -325,6 +325,8 @@ window.Chat = (() => {
         'point-out': `master just POINTED OUT a direction ("on your left", "group to the north side") and you are going to CHECK it. Acknowledge in your own voice: 1 short sentence, in-character, *action* allowed. Curious — master saw something you missed.`,
         'point-heel': `master pointed out a direction but you are under HEEL (feet planted). Acknowledge in your own voice: 1 short sentence — you're watching that side without moving. Curious, obedient.`,
         chatter: `you have been working quietly for a while — report in to master NOW in your own voice: 1 short sentence, in-character, *action* allowed. Mention how the job feels (boring, tense, nice day for it). No new events happened — do not invent any.`,
+        tired: `you just RAN OUT OF BREATH mid-work and your legs locked — you must stand still and rest. Tell master NOW in your own voice: 1 short sentence, in-character, *action* allowed. Breathless, annoyed at your own legs, tsundere about needing the break. No numbers.`,
+        rested: `you just CAUGHT YOUR BREATH after being forced to rest and can move again. Tell master NOW in your own voice: 1 short sentence, in-character, *action* allowed. Relieved, a little embarrassed, ready to go. No numbers.`,
       };
       let sysText = (s.chatSystem || 'You are Cosette, a tsundere maid game companion.') +
         `\n\n[EVENT — ${EV[f.event] || EV.found} ` +

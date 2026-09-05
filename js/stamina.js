@@ -11,15 +11,17 @@ window.Stamina = (() => {
   let v = MAX;
   let exhausted = false;
   let justExhausted = false; // edge flag for one-shot UI/sfx hooks
+  let justRecovered = false; // edge flag: the tick breath was caught — speak once
 
   function update(dt, moving) {
     justExhausted = false;
+    justRecovered = false;
     if (moving && !exhausted) {
       v -= DRAIN * dt;
       if (v <= 0) { v = 0; exhausted = true; justExhausted = true; }
     } else {
       v = Math.min(MAX, v + REGEN * dt);
-      if (exhausted && v >= REST_UNTIL) exhausted = false; // breath caught
+      if (exhausted && v >= REST_UNTIL) { exhausted = false; justRecovered = true; } // breath caught
     }
     const bar = document.getElementById('stamina-fill');
     if (bar) {
@@ -37,7 +39,7 @@ window.Stamina = (() => {
   function canMove() { return !exhausted; }
   function state() { return { v: Math.round(v), max: MAX, exhausted, pct: v / MAX }; }
 
-  function reset() { v = MAX; exhausted = false; } // new life = fresh legs
+  function reset() { v = MAX; exhausted = false; justExhausted = false; justRecovered = false; } // new life = fresh legs
 
   function init() {
     const wrap = document.getElementById('stamina-wrap');
@@ -45,5 +47,5 @@ window.Stamina = (() => {
     update(0, false);
   }
 
-  return { init, update, canMove, state, reset, get exhausted() { return exhausted; }, get justExhausted() { return justExhausted; }, get value() { return v; } };
+  return { init, update, canMove, state, reset, get exhausted() { return exhausted; }, get justExhausted() { return justExhausted; }, get justRecovered() { return justRecovered; }, get value() { return v; } };
 })();

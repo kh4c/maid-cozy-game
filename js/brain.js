@@ -47,6 +47,10 @@ window.Brain = (() => {
         pushEvent('ran from a pack');
       } else if (kind === 'tired') {
         pushEvent('ran out of breath and had to rest');
+        genLine('tired', {}, `*doubled over, panting* Master... legs gave out — need a breath...`);
+      } else if (kind === 'rested') {
+        pushEvent('caught her breath and is moving again');
+        genLine('rested', {}, `*straightening up, breathing easy* Breath caught, master — back on my feet.`);
       }
     } catch (e) { /* memory is cosmetic */ }
   }

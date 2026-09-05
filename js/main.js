@@ -284,6 +284,9 @@
           try { window.Brain && window.Brain.note && window.Brain.note('tired'); } catch (e) {}
           try { window.Live2D && window.Live2D.setMood && window.Live2D.setMood('sleepy'); } catch (e) {}
         }
+        if (window.Stamina.justRecovered) {
+          try { window.Brain && window.Brain.note && window.Brain.note('rested'); } catch (e) {}
+        }
         moved = wantsMove && window.Stamina.canMove();
       } catch (err) { moved = wantsMove; }
     } else {
