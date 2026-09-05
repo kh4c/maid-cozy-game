@@ -337,7 +337,7 @@ window.Chat = (() => {
         (f.event === 'wiped'
           ? `Facts (quote EXACTLY, never invent): ENEMIES KILLED THIS PACK = ${f.kills}${f.purse != null ? `; PURSE TOTAL = ${f.purse} coins (that is MONEY, not a kill count)` : ''}. When you mention numbers, say the UNIT — "3 critters down", "12 coins in the purse" — never a bare number that could be misread as the other. `
           : f.event && (f.event.startsWith('posture') || f.event === 'chatter')
-            ? `No numbers needed — just say how it's going in character.${f.kills != null ? ` (If you count, label the unit EXACTLY: ${f.kills} critters killed this life${f.purse != null ? `, ${f.purse} coins in purse — that is MONEY, not kills` : ''}. Never mix the two up, never say a bare number.)` : ''} `
+            ? `No numbers here, ever — no kill counts, no lifetime totals, no coins. Just say how the job feels in character. `
             : `Facts (quote EXACTLY, never invent or round): CRITTER COUNT = ${f.total || 1}, to the ${f.dir || 'east'}, ${f.dist || 'nearby'}; best one ${f.bestColor || ''} ${f.bestRarity || 'common'} worth ~${f.bestPrice || 2} COINS. Keep units attached: critters are critters, money is coins — never say a bare number. `) +
         `${(f.hostile | 0) > 0 && f.event !== 'wiped' && !(f.event || '').startsWith('posture') ? 'Some look HOSTILE (angry).' : (f.ordered && f.event === 'found' ? 'Master ordered the engagement.' : f.event === 'found' ? 'You will HOLD and watch — say you await orders.' : '')} ` +
         `${f.prev ? `Context: you already reported another pack (${f.prev}). ${f.compare || 'Say which pack is closer and which you would take first, and why.'} ` : ''}` +

@@ -57,7 +57,7 @@ window.Brain = (() => {
   function memoryText() {
     const mins = Math.max(0, Math.round((performance.now() - memory.bornAt) / 60000));
     const ev = memory.events.length ? memory.events.slice(-4).map((e) => '· ' + e).join('\n') : '· nothing yet';
-    return `This life (${mins} min): ${memory.kills} kills, ${memory.hurt} bites taken, ${memory.fled} retreats.\nRecent:\n${ev}`;
+    return `This life (${mins} min): ${memory.hurt} bites taken, ${memory.fled} retreats.\nRecent:\n${ev}`;
   }
 
   // ---- order pressure: asks wear her down FAST (user tuned: easily convinced) --
@@ -1021,10 +1021,9 @@ window.Brain = (() => {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       if (!p) return;
       if (p.enemies && p.enemies.hostile > 0) return; // busy fighting — shoot, don't chat
-      const purse = (() => { try { return window.Inventory && window.Inventory.purse ? window.Inventory.purse() : null; } catch (e2) { return null; } })();
       if (objective && objective.kind === 'find') genLine('chatter', { job: 'finding critters' }, `*sniffing the air* Still searching, master — eyes open, no shot yet.`);
       else if (objective && objective.kind === 'heel') genLine('chatter', { job: 'holding position beside you' }, `*settled, watching* Holding here, master — all quiet.`);
-      else if (objective) genLine('chatter', { job: 'hunting', kills: memory.kills | 0, purse }, `*sniffing the air* Still on the hunt, master — ${memory.kills} down this life.`);
+      else if (objective) genLine('chatter', { job: 'hunting' }, `*sniffing the air* Still on the hunt, master — eyes sharp.`);
       else if (following) genLine('chatter', { job: 'watching a pack, awaiting your word' }, `*crouched, watching* Still watching them... waiting on your word.`);
       else return;
     } catch (e) {}
