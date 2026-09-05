@@ -662,8 +662,12 @@ window.Brain = (() => {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       const n = p && p.enemies && p.enemies.nearest;
       if (!n || n.dist > 700 || isDismissed(n.x, n.y)) {
-        followLostAcc += dt; // pack left her circle — grace period, then give up
-        if (followLostAcc > 6) {
+        // pack gone — don't loiter: an empty field or a standing job means
+        // move on fast (2s grace); otherwise the full 6s for stragglers.
+        const total = (p && p.enemies && p.enemies.total) || 0;
+        const grace = (total === 0 || objective || currentTask) ? 2 : 6;
+        followLostAcc += dt;
+        if (followLostAcc > grace) {
           stopFollow();
           showThought('*…lost them in the grass. Sorry, master.*', ['👋 lost'], 0);
           try { pushEvent('lost the pack she was following'); } catch (e) {}
@@ -760,13 +764,22 @@ window.Brain = (() => {
     if (!m || !/(until|earn|quota|till)/.test(String(t || '').toLowerCase())) return false;
     return purseNow() >= parseInt(m[1], 10);
   }
+  let lastQuotaDone = { target: 0, at: -1e9 }; // finished quota — its echoes are ignored ~2 min
   function parseObjective(t) {
     // "keep finding and killing until we earn 200 coins" / "hunt till 50 coins"
     const m = String(t || '').toLowerCase().match(/(\d+)\s*coins?/);
     if (m && /(until|earn|quota|till|to\s+\d+\s*coins)/.test(t) && /(until|earn|make|get|reach|quota|till|keep)/.test(t)) {
       const target = Math.max(1, parseInt(m[1], 10));
-      if (purseNow() >= target) return; // already that rich — nothing to accept
+      if (target === lastQuotaDone.target && performance.now() - lastQuotaDone.at < 120000) return; // stale echo of the finished job — ignore
       if (!objective || objective.kind !== 'coins' || objective.target !== target) setObjective({ kind: 'coins', target });
+      return;
+    }
+    // "change the goal to 200" — bare-number retarget while a quota stands
+    const g = String(t || '').toLowerCase().match(/(goal|target|quota)[^\d]{0,20}(\d+)|change[^\d]{0,20}(\d+)\s*coins?/);
+    if (g && objective && objective.kind === 'coins') {
+      const target = Math.max(1, parseInt(g[2] || g[3], 10));
+      if (target === lastQuotaDone.target && performance.now() - lastQuotaDone.at < 120000) return;
+      if (objective.target !== target) setObjective({ kind: 'coins', target });
       return;
     }
     if (/(keep|continue)\s+\w*\s*(finding|killing|hunting|searching)/.test(t)) {
@@ -788,6 +801,7 @@ window.Brain = (() => {
         }
         if (purse >= objective.target) {
           const done = objective.target; objective = null;
+          lastQuotaDone = { target: done, at: performance.now() };
           if (currentTask && currentTask.verb === 'quota') clearTask('quota filled');
           // neutralize the standing wish too — otherwise the old "keep killing"
           // memo keeps the think-model emitting [fire] after the job is done.
