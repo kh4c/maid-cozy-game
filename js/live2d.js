@@ -18,7 +18,7 @@
 //   pixi.min.js -> live2dcubismcore.min.js -> cubism5.min.js -> js/live2d.js
 window.Live2D = (() => {
   const MODEL_URL = 'assets/live2d/Maid/Maid.model3.json';
-  const EXPR_ORDER = ['happy', 'soft_smile', 'surprised', 'smug', 'pouty', 'sleepy'];
+  const EXPR_ORDER = ['happy', 'beaming', 'surprised', 'smug', 'pouty', 'sleepy'];
   let model = null;
   let appRef = null;
   let exprMgr = null;    // ExpressionManager — resetExpression() gives the neutral rest face
@@ -227,8 +227,14 @@ window.Live2D = (() => {
   // unrecognized (most lines) lands on neutral. A manual P-panel pin wins
   // over chat until released.
   let chatMode = true;
+  let moodTimer = null; // fleeting faces melt back to neutral after a beat
+  const STICKY_MOODS = ['happy']; // lingering warmth stays; everything else is a flash
+  // per-face hold times: surprised is a blink, beaming a short burst, the
+  // rest a few seconds. happy has no timer (sticks until the vibe changes).
+  const MOOD_HOLD_MS = { surprised: 2500, beaming: 4000, smug: 4500, pouty: 4500, sleepy: 5000 };
   function setMood(name) {
     if (!model || pinnedExpr > 0) return;
+    if (moodTimer) { clearTimeout(moodTimer); moodTimer = null; }
     onNeutral = (name === 'neutral');
     curName = (name === 'neutral') ? 'neutral' : name;
     try {
@@ -237,11 +243,25 @@ window.Live2D = (() => {
     } catch (e) { /* keep current face */ }
     const i = EXPR_ORDER.indexOf(name);
     if (i >= 0) namedIdx = i;
+    // fleeting reactions (surprised, beaming, smug, pouty, sleepy) ease back
+    // to neutral after their own beat; happy lingers while the vibe stays
+    // warm. A newer mood cancels this timer (cleared on entry).
+    if (name !== 'neutral' && STICKY_MOODS.indexOf(name) < 0) {
+      const hold = MOOD_HOLD_MS[name] || 4000;
+      moodTimer = setTimeout(() => {
+        moodTimer = null;
+        if (pinnedExpr > 0 || curName !== name) return; // superseded — leave it
+        try { exprMgr.resetExpression(); } catch (e) { /* keep pose */ }
+        onNeutral = true;
+        curName = 'neutral';
+      }, hold);
+    }
   }
 
   function setPinned(n) {
     const prev = pinnedExpr;
     pinnedExpr = n | 0;
+    if (moodTimer) { clearTimeout(moodTimer); moodTimer = null; }
     if (pinnedExpr > 0) {
       onNeutral = false;
       namedIdx = (pinnedExpr - 1) % EXPR_ORDER.length;
