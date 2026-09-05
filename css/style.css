@@ -74,6 +74,21 @@ canvas { display: block; }
   pointer-events: none; user-select: none;
 }
 
+/* ---- Chat input under the dialog box ---------------------------------------- */
+#chat-row {
+  position: absolute; left: 50%; bottom: 1.5%; transform: translateX(-50%);
+  width: min(60%, 560px); z-index: 8;
+}
+#chat-input {
+  width: 100%; box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.45);            /* same transparent black */
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px; padding: 9px 14px;
+  font: 14px/1.4 monospace; color: #f2efff; outline: none;
+}
+#chat-input::placeholder { color: rgba(242, 239, 255, 0.4); }
+#chat-input:focus { border-color: rgba(157, 148, 255, 0.7); }
+
 /* ---- Edit mode overlays ----------------------------------------------------- */
 /* Dashed outline boxes + name tags drawn over each editable component. */
 .edit-box {

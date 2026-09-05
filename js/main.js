@@ -94,6 +94,13 @@
   });
   character.applySettings();
 
+  // ---- Maid chat (local LLM; session-only history, non-fatal) --------------------
+  try {
+    window.Chat.init();
+  } catch (err) {
+    reportError('chat failed: ' + err.message);
+  }
+
   // ---- Sound manager (BGM + gear volume panel; starts on first gesture) --------------
   try {
     window.Sound.init();

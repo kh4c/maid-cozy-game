@@ -3,6 +3,9 @@ window.Input = (() => {
   const keys = Object.create(null);
 
   window.addEventListener('keydown', (e) => {
+    // typing in an input (chat box, dev sliders) — never game keys
+    const tag = document.activeElement && document.activeElement.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
     if (e.code === 'KeyP') window.Settings.togglePanel(); // P toggles dev panel
     if (e.code === 'KeyE' && window.EditMode.ready) window.EditMode.toggle();      // E toggles UI edit mode
     if (e.code === 'Escape' && window.EditMode.ready && window.EditMode.active) window.EditMode.toggle(); // Esc exits

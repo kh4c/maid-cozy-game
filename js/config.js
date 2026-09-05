@@ -39,4 +39,12 @@ window.CONFIG = {
     l2dy: 0.12,     // vertical: top-of-head anchor; negative trims headroom
     l2dExpr: 0,     // 0 = auto-cycle expressions; 1..6 = pin happy/soft_smile/surprised/smug/pouty/sleepy
   },
+  // Local LLM chat (LM Studio / llama.cpp OpenAI-compatible server).
+  // History is intentionally in-memory only — closing the game wipes it.
+  llm: {
+    url: 'http://127.0.0.1:1234',
+    model: 'dirk-qwen3.8-27b',
+    maxTokens: 600, // thinking model: reasoning eats tokens first, answer needs room after
+    system: 'You are a warm, cozy maid companion in a small indie game. Every reply shows in a tiny dialog box: keep it to 1-2 short sentences, plain text only, no lists, no formatting. Gentle, a little playful. Never mention being an AI.',
+  },
 };
