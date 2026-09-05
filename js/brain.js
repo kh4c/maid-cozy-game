@@ -341,6 +341,7 @@ window.Brain = (() => {
         `Price list, KNOW it cold (coins per kill): common 2 · uncommon 5 · rare 12 · epic 25 · legendary 60. Quote values when you report or discuss a find. ` +
         `A FRESH standing order overrides HOLD: comply while grumbling. ` +
         `KNOWN GROUPS: packs you walked away from are REMEMBERED with your opinion ("too small" / "not interested" / "saved for later" — listed in the snapshot). They stay ignored while dismissed, but if master says "actually kill those / go back / those ones", march straight back to the remembered spot and re-engage. If you arrive and the pack is gone, say so plainly. ` +
+        `COINS: kills drop coins and they are yours when you walk over them (magnet ~110px, scoop ~46px). Loose coins near you are listed in the snapshot — your feet already drift toward them when it's safe, but you may also order it. Your purse total is in the snapshot too — quote it whenever master asks about money or loot. ` +
         `ANNOYANCE LEVEL: ${annoyance()} — ${annoyanceFlavor(annoyance())}\n` +
         `${memoText()}\n` +
         `SESSION MEMORY (this life only):\n${memoryText()}\n` +
@@ -422,6 +423,7 @@ window.Brain = (() => {
     stroll(dt);        // "go somewhere" — she never just stands when ordered to move
     searchWatch(dt);   // searching paid off? look, announce, follow
     followTick(dt);    // shadow the found pack at ~280px
+    coinSeek(dt);      // loose coins — hoover them up whenever it's safe
     if (!auto() && !attackOrder) return;
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     let hot = false, near = false;
@@ -563,6 +565,13 @@ window.Brain = (() => {
       if (recallTarget) {
         // marching BACK to a remembered pack — straight line, no wandering.
         // Its dismissal is lifted while the march lasts (see findAvail).
+        // Packs wander while you're away: re-anchor the march on the pack's
+        // LIVE position (nearest critter to the remembered spot, ~900px).
+        try {
+          const live = window.Enemies && window.Enemies.nearest
+            ? window.Enemies.nearest(recallTarget.x, recallTarget.y, 900) : null;
+          if (live) { recallTarget.x = live.x; recallTarget.y = live.y; }
+        } catch (e) {}
         if (avail && nearRecall(avail.x, avail.y)) {
           const view = { total: p.enemies.total, hostile: p.enemies.hostile, nearest: avail, list: p.enemies.list };
           foundIt(view, false);
@@ -663,6 +672,34 @@ window.Brain = (() => {
     } catch (e) {}
   }
   function stopFollow() { following = false; followLostAcc = 0; }
+
+  // ---- coin greed: hoover up loose coins whenever it's safe -------------------
+  // Kills drop coins; they're hers when she walks over them (magnet ~110px).
+  // Never interrupts a retreat (nearest critter <220px), a threat, a recall
+  // march, or tired feet. While shadowing a pack she only hops to coins
+  // close by (~250px) so she stays on the job; otherwise ~450px.
+  let coinAcc = 0;
+  function coinSeek(dt) {
+    if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
+    if (recallTarget) return; // marching — eyes on the pack, not pennies
+    if (window.Stamina && !window.Stamina.canMove()) return;
+    coinAcc += dt;
+    if (coinAcc < 0.5) return;
+    coinAcc = 0;
+    try {
+      const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
+      if (!p) return;
+      if (p.enemies && p.enemies.hostile > 0) return; // threat — no pocket money now
+      const n = p && p.enemies && p.enemies.nearest;
+      if (n && n.dist < 220) return; // too close — deal with the critter first
+      if (!window.Inventory || !window.Inventory.dropsNear) return;
+      const range = following ? 250 : 450;
+      const found = window.Inventory.dropsNear(p.px, p.py, range);
+      if (!found || !found.nearest) return;
+      const c = found.nearest, len = c.dist || 1;
+      window.Input.order(c.dx / len, c.dy / len, 0.8);
+    } catch (e) { /* butterfingers fail silently */ }
+  }
 
   // ---- known groups: dismissed packs are REMEMBERED, not forgotten -----------
   // "not interested / too small, find another" tags the pack with her opinion

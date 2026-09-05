@@ -120,10 +120,21 @@ window.Inventory = (() => {
   }
 
   function state() { return { coins, drops: drops.length }; }
+  // coins lying on the ground near (px,py): count + nearest vector (brain/snapshot)
+  function dropsNear(px, py, r) {
+    let n = 0, best = null;
+    try {
+      for (const d of drops) {
+        const dx = d.x - px, dy = d.y - py, dist = Math.hypot(dx, dy);
+        if (dist <= r) { n++; if (!best || dist < best.dist) best = { dist, dx, dy }; }
+      }
+    } catch (e) {}
+    return { n, nearest: best };
+  }
   function reset() { // new life: pockets empty, world drops stay (they're world objects)
     coins = 0;
     render();
   }
 
-  return { init, update, drop, toggle, isOpen, state, reset, render };
+  return { init, update, drop, toggle, isOpen, state, dropsNear, reset, render };
 })();

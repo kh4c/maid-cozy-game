@@ -89,6 +89,18 @@ window.Situation = (() => {
     try {
       if (window.Enemies && typeof window.Enemies.priceListText === 'function') lines.push(window.Enemies.priceListText());
     } catch (e) { /* she appraises from memory then */ }
+    // purse + loose coins — she collects by walking over them, and knows her total
+    try {
+      const st = window.Inventory && window.Inventory.state ? window.Inventory.state() : null;
+      if (st) {
+        let near = null;
+        try { near = window.Inventory.dropsNear ? window.Inventory.dropsNear(p.x, p.y, 450) : null; } catch (e) {}
+        lines.push(`Coins: ${st.coins} in her purse. ` +
+          (near && near.n > 0 && near.nearest
+            ? `${near.n} loose coin(s) nearby — nearest ~${Math.round(near.nearest.dist)}px ${dirName(near.nearest.dx, near.nearest.dy)}, walk over to scoop.`
+            : (st.drops > 0 ? `${st.drops} loose coin(s) still on the ground further out.` : 'No loose coins lying around.')));
+      }
+    } catch (e) { /* pockets uncounted */ }
     // remembered packs (dismissed earlier, with her opinion of them)
     try {
       const kt = window.Brain && typeof window.Brain.getKnownText === 'function' ? window.Brain.getKnownText(p.x, p.y) : '';

@@ -16,7 +16,7 @@ window.Enemies = (() => {
   const HOSTILE_SPEED = 95;            // chase (player runs 300 — outrunnable)
   const AGGRO_R = 260;                 // someone gets close -> pack hunts
   const CALM_R = 420;                  // escape this far -> back to wandering
-  const DESPAWN_R = 1500;              // pack anchor beyond this -> gone
+  const DESPAWN_R = 3000;              // pack anchor beyond this -> gone (far: dismissed packs must survive a stroll-away + march-back)
   const TOUCH_R = 42;                  // bite distance
   const HIT_CD = 1.0;                  // seconds between bites per critter
   const PACK_R = 60;                   // pack milling radius
