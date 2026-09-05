@@ -47,7 +47,7 @@ window.CONFIG = {
     chatModel: 'l3-8b-stheno-v3.2-iq-imatrix',
     chatTokens: 600,  // thinking model: reasoning eats tokens first, answer needs room after
     chatTemp: 0.8,
-    chatActions: 1, // 0 = hide *action* text, 1 = show highlighted
+    chatActions: 0, // 0 = hide *action* text (pure dialogue), 1 = show highlighted (Chat-tab toggle)
     chatStatus: 'Location: open grassland, standing beside you in the field',
     // Survival brain (separate from chat): aim authority + auto-think cadence.
     aimMode: 'ai',   // she owns the gun — cursor aim removed, always 'ai'
