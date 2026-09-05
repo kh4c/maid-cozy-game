@@ -46,7 +46,7 @@ window.Settings = (() => {
 
   // ---- Dev panel -----------------------------------------------------------
   // Two tabs: MAIN (gameplay/Live2D sliders) and CHAT (LLM character + params).
-  let tabMain = null, tabChat = null;
+  let tabMain = null, tabChat = null, tabWorld = null;
   const textControls = []; // { key, el } — text inputs/textareas (autosave debounced)
 
   // Single-line text input or multi-line textarea bound to a settings key.
@@ -71,10 +71,10 @@ window.Settings = (() => {
   }
 
   function selectTab(which) {
-    if (!tabMain || !tabChat) return;
-    const main = which === 'main';
-    tabMain.style.display = main ? 'block' : 'none';
-    tabChat.style.display = main ? 'none' : 'block';
+    if (!tabMain || !tabChat || !tabWorld) return;
+    tabMain.style.display = which === 'main' ? 'block' : 'none';
+    tabChat.style.display = which === 'chat' ? 'block' : 'none';
+    tabWorld.style.display = which === 'world' ? 'block' : 'none';
     const btns = document.querySelectorAll('#devpanel .tabs button');
     btns.forEach((b) => b.classList.toggle('active', b.dataset.tab === which));
   }
@@ -119,7 +119,7 @@ window.Settings = (() => {
     // tab bar: MAIN | CHAT
     const tabRow = document.createElement('div');
     tabRow.className = 'tabs';
-    for (const [id, label] of [['main', 'MAIN'], ['chat', 'CHAT']]) {
+    for (const [id, label] of [['main', 'MAIN'], ['chat', 'CHAT'], ['world', 'WORLD']]) {
       const b = document.createElement('button');
       b.textContent = label;
       b.dataset.tab = id;
@@ -133,7 +133,13 @@ window.Settings = (() => {
     tabChat = document.createElement('div');
     tabChat.id = 'devtab-chat';
     tabChat.style.display = 'none';
-    panel.append(tabMain, tabChat);
+    tabWorld = document.createElement('div');
+    tabWorld.id = 'devtab-world';
+    tabWorld.style.display = 'none';
+    panel.append(tabMain, tabChat, tabWorld);
+
+    // WORLD tab: day/night + future world toggles
+    addSlider('worldTime', 0, 1, 1, tabWorld, 'time of day', (v) => (Number(v) === 1 ? 'night 🌙' : 'day ☀️'));
 
     addSlider('speed', 20, 500, 10);
     addSlider('idleFps', 1, 30, 1);

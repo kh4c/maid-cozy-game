@@ -75,6 +75,8 @@ window.Situation = (() => {
 
     // ---- human-readable block for the LLM ----
     const lines = [];
+    const night = !!(window.Settings && Number(window.Settings.settings.worldTime) === 1);
+    lines.push(`Time: ${night ? 'NIGHT — dark out, visibility is poorer, the field feels different' : 'daytime — clear light over the field'}.`);
     lines.push(`Position: world (${p.x}, ${p.y}) — infinite grassland, no walls or cover.`);
     lines.push(`Health: ${hp}/${max}${dead ? ' — FAINTED (no actions possible until respawn)' : ''}.`);
     lines.push(staminaTxt);

@@ -49,6 +49,7 @@ window.CONFIG = {
     chatTemp: 0.8,
     chatActions: 0, // 0 = hide *action* text (pure dialogue), 1 = show highlighted (Chat-tab toggle)
     chatStatus: 'Location: open grassland, standing beside you in the field',
+    worldTime: 1,       // 0 = day · 1 = night (WORLD tab in dev panel)
     // Survival brain (separate from chat): aim authority + think cadence.
     aimMode: 'ai',   // she owns the gun — cursor aim removed, always 'ai'
     brainInterval: 6,   // seconds between auto thinks while danger is near

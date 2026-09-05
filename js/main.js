@@ -27,6 +27,21 @@
   const world = new Container();
   app.stage.addChild(world);
 
+  // ---- Day/Night overlay ----------------------------------------------------------------
+  // Sits ABOVE the world (tiles + critters + maid) but BELOW UI. Night = deep blue
+  // wash with soft alpha; day = invisible. Toggled live from the dev panel (WORLD tab).
+  const { Graphics } = PIXI;
+  const nightOverlay = new Graphics();
+  app.stage.addChild(nightOverlay);
+  function nightOn() { return (window.Settings && Number(window.Settings.settings.worldTime) === 1); }
+  function drawNightOverlay() {
+    nightOverlay.clear();
+    if (!nightOn()) return;
+    nightOverlay.rect(0, 0, app.screen.width, app.screen.height).fill({ color: 0x0a1030, alpha: 0.5 });
+  }
+  drawNightOverlay();
+  window.addEventListener('resize', () => setTimeout(drawNightOverlay, 0));
+
   // ---- Background (infinite chunk stream) -----------------------------------------
   let background;
   try {
@@ -108,6 +123,7 @@
     if (key === 'scale' || key.endsWith('Fps')) character.applySettings();
     if (key === 'l2dExpr' && live2d && live2d.ready) live2d.setExpr(window.Settings.settings.l2dExpr);
     if (key === 'chatActions' && window.Chat) window.Chat.rerender(); // re-render dialog with/without *actions*
+    if (key === 'worldTime') drawNightOverlay(); // day/night flip, live
   });
   character.applySettings();
 

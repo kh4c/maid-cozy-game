@@ -334,10 +334,10 @@ window.Chat = (() => {
         `START from this approved line: "${fb}" — keep its facts and meaning (you may reword). ` +
         ctx +
         (f.event === 'wiped'
-          ? `Facts (quote EXACTLY, never invent): ${f.kills} killed this pack${f.purse != null ? `, purse now ${f.purse} coins` : ''}. `
+          ? `Facts (quote EXACTLY, never invent): ENEMIES KILLED THIS PACK = ${f.kills}${f.purse != null ? `; PURSE TOTAL = ${f.purse} coins (that is MONEY, not a kill count)` : ''}. When you mention numbers, say the UNIT — "3 critters down", "12 coins in the purse" — never a bare number that could be misread as the other. `
           : f.event && (f.event.startsWith('posture') || f.event === 'chatter')
-            ? `No numbers needed — just say how it's going in character.${f.kills != null ? ` (This life so far: ${f.kills} kills${f.purse != null ? `, ${f.purse} coins in purse` : ''} — you may mention these EXACTLY.)` : ''} `
-            : `Facts (quote EXACTLY, never invent or round): ${f.total || 1} critter(s) ${f.dist || 'nearby'}, to the ${f.dir || 'east'}. Best one: ${f.bestColor || ''} ${f.bestRarity || 'common'} worth ~${f.bestPrice || 2} coins. `) +
+            ? `No numbers needed — just say how it's going in character.${f.kills != null ? ` (If you count, label the unit EXACTLY: ${f.kills} critters killed this life${f.purse != null ? `, ${f.purse} coins in purse — that is MONEY, not kills` : ''}. Never mix the two up, never say a bare number.)` : ''} `
+            : `Facts (quote EXACTLY, never invent or round): CRITTER COUNT = ${f.total || 1}, to the ${f.dir || 'east'}, ${f.dist || 'nearby'}; best one ${f.bestColor || ''} ${f.bestRarity || 'common'} worth ~${f.bestPrice || 2} COINS. Keep units attached: critters are critters, money is coins — never say a bare number. `) +
         `${(f.hostile | 0) > 0 && f.event !== 'wiped' && !(f.event || '').startsWith('posture') ? 'Some look HOSTILE (angry).' : (f.ordered && f.event === 'found' ? 'Master ordered the engagement.' : f.event === 'found' ? 'You will HOLD and watch — say you await orders.' : '')} ` +
         `${f.prev ? `Context: you already reported another pack (${f.prev}). ${f.compare || 'Say which pack is closer and which you would take first, and why.'} ` : ''}` +
         `${f.switched ? `You left the old pack for this one because it is ${f.switched} — say why, briefly. ` : ''}` +
@@ -381,11 +381,27 @@ window.Chat = (() => {
       // amounts that match no fact) gets replaced by the template. Better a
       // plain correct line than a vivid wrong one.
       const factsNums = String(fb).match(/\d+/g) || [];
+      const factPool = factsNums.concat(Object.values(f || {}).filter((v) => typeof v === 'number' || typeof v === 'string').map((v) => String(v).match(/\d+/g) || []).flat());
       const drift = /(once upon|back in|my village|the manor|the estate|I remember when|years ago)\b/i.test(line)
-        || /\b\d{3,}\b/.test(line) && !factsNums.some((n) => n.length >= 3); // big numbers never in facts
-      const coinNums = (line.match(/(\d+)\s*(coins?|c\b)/i) || []).slice(1);
-      const badCoins = coinNums.length > 0 && factsNums.length > 0 && !coinNums.some((c) => factsNums.includes(c));
-      if (drift || badCoins) throw new Error('drift');
+        || /\b\d{3,}\b/.test(line) && !factPool.some((n) => n.length >= 3); // big numbers never in facts
+      // COUNT GUARD (unit-aware): each known number may only appear with ITS
+      // unit. kills=N may only be used with kill-units (down/killed/kills/
+      // critters/enemies); purse=M only with coin-units. So "kills 3, said 12
+      // down" — the exact bug — gets rejected: 12 is the PURSE number, "down"
+      // is a kill-unit, no kill fact says 12.
+      const KILL_UNITS = /(?:down|killed|kills|dead|critters|enemies)/i;
+      const COIN_UNITS = /(?:coins?)/i;
+      const badCounts = [];
+      for (const m of line.matchAll(/(\d+)\s*([a-z]+)/gi)) {
+        const num = m[1].replace(/^0+(?=\d)/, ''), unit = m[2];
+        if (KILL_UNITS.test(unit)) {
+          const okKill = f && f.kills != null && String(f.kills) === num;
+          if (!okKill && !(f && f.event === 'wiped' && String(f.kills) === num)) badCounts.push(m[0]);
+        } else if (COIN_UNITS.test(unit)) {
+          if (!(f && f.purse != null && String(f.purse) === num) && !(f && f.bestPrice != null && String(f.bestPrice) === num)) badCounts.push(m[0]);
+        }
+      }
+      if (drift || badCounts.length) throw new Error('drift');
       return say(line.slice(0, 220));
     } catch (e) { try { return say(fb); } catch (e2) { return false; } }
   }
