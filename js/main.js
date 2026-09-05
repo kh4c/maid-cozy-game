@@ -145,6 +145,9 @@
     fpsAccum += dtSec; fpsCount++; fpsTimer += dtSec;
     if (fpsTimer >= 0.5) {
       fpsEl.textContent = `${Math.round(fpsCount / fpsAccum)} fps`;
+      if (live2d && live2d.ready) {
+        document.getElementById('l2d-status').textContent = `l2d ✓ (${live2d.exprName})`;
+      }
       fpsAccum = 0; fpsCount = 0; fpsTimer = 0;
     }
   });
