@@ -289,6 +289,16 @@ window.Chat = (() => {
       const url = (s.chatUrl || '').replace(/\/$/, '');
       if (!url) throw new Error('no chat url');
       const f = facts || {};
+      // conversation continuity: if master recently MENTIONED critters / this
+      // situation, the announcement must acknowledge it ("yes, there they are")
+      // instead of robotically re-reporting news master already gave.
+      let ctx = '';
+      try {
+        const recent = recentHistory().filter((m) => m.role === 'user').slice(-3).map((m) => m.content).join(' | ');
+        if (/(group|critter|enemy|monster|pack|them|over there|see|edge|corner|behind|ahead)/i.test(recent)) {
+          ctx = `IMPORTANT CONTEXT: master recently SAID something about critters/groups (recent chat: "${recent.slice(0, 220)}"). If this event is the thing they meant, ACKNOWLEDGE that ("ah, there they are — you were right, master") instead of reporting it as surprise news. If unrelated, report normally. `;
+        }
+      } catch (e) {}
       // event-specific instruction: the facts block is shared, the ask changes
       const EV = {
         found: `you just SPOTTED critters in the field. Announce it to master NOW in your own voice: 1-2 short sentences, in-character, *action* allowed.`,
@@ -302,6 +312,7 @@ window.Chat = (() => {
       };
       let sysText = (s.chatSystem || 'You are Cosette, a tsundere maid game companion.') +
         `\n\n[EVENT — ${EV[f.event] || EV.found} ` +
+        ctx +
         (f.event === 'wiped'
           ? `Facts (quote EXACTLY, never invent): ${f.kills} killed this pack${f.purse != null ? `, purse now ${f.purse} coins` : ''}. `
           : f.event && (f.event.startsWith('posture') || f.event === 'chatter')
@@ -323,7 +334,7 @@ window.Chat = (() => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: s.chatModel,
-          messages: [{ role: 'system', content: sysText }],
+          messages: [{ role: 'system', content: sysText }, ...recentHistory(), { role: 'user', content: '[This is an automatic event report, not a message from master. Reply with the announcement only.]' }],
           max_tokens: 120,
           temperature: (s.chatTemp === undefined || s.chatTemp === '' ? 0.8 : Number(s.chatTemp)),
         }),
@@ -338,5 +349,5 @@ window.Chat = (() => {
     } catch (e) { try { return say(fb); } catch (e2) { return false; } }
   }
 
-  return { init, send, say, announce, rerender, newLife, isBusy: () => busy, isSpeaking };
+  return { init, send, say, announce, rerender, newLife, isBusy: () => busy, isSpeaking, recentHistory, get history() { return history; } };
 })();
