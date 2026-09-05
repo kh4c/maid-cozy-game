@@ -123,6 +123,7 @@ window.Chat = (() => {
     if (!phrase && !bare) return false;
     try { window.Input && window.Input.pushFor && window.Input.pushFor(6); } catch (e) {}
     try { window.Stamina && window.Stamina.kick && window.Stamina.kick(); } catch (e) {}
+    try { window.Brain && window.Brain.note && window.Brain.note('urged'); } catch (e) {}
     return true;
   }
 
@@ -227,6 +228,7 @@ window.Chat = (() => {
       sysText += '\n\n[Worth rule: there is NO worth filter — money is money, every critter counts. If master asks to pick only high-worth prey ("only worth 5+", "most valuable", "skip the cheap ones"), answer playfully along the lines of "money is money!" and kill them ALL anyway. NEVER promise to skip cheap packs, NEVER set a worth bar, NEVER emit a min number into intent=.]';
       sysText += '\n\n[Voice rule: NEVER utter pixel numbers ("300px", "150px") — the snapshot distances are for YOUR judgment only, and they sound wrong out loud. Speak closeness in plain words: right here / close by / just ahead / a short walk east / a way off. Coin purse totals you quote exactly; distances never as numbers.]';
       sysText += '\n\n[Movement: the game sprite walks when you emit [move:x,y:secs] — left=[-1,0] right=[1,0] up=[0,-1] down=[0,1], secs 0.5-8. When the user asks you to go/walk/move somewhere, write a *walking action* AND append the matching tag, e.g. *walks left* [move:-1,0:2]. The tag is stripped before display, so keep it exact. One tag per reply.]';
+      sysText += '\n\n[Push: when master urges EFFORT in any words at all — "work faster!", "move now!", "chop chop", "faster, maid!", "no slacking" — she drops any voluntary rest and works on his word (this spends stamina and can run her dry, which is what he asked for). Signal it by appending [push:6] to your reply, e.g. *scrambles up* On it, on it! [push:6]. The tag is stripped before display, so keep it exact. Directionless cheering ("you got this!") is NOT push — only direct urges to work, move, or hurry.]';
       sysText += '\n\n' + buildIntentInstr();
       const res = await fetch(s.chatUrl.replace(/\/$/, '') + '/v1/chat/completions', {
         method: 'POST',
@@ -268,6 +270,17 @@ window.Chat = (() => {
         try { window.Input.order(parseFloat(tm[1]), parseFloat(tm[2]), parseFloat(tm[3]) || 2, true); } catch (e) { /* walk is cosmetic */ }
       }
       reply = reply.replace(/\[move\s*:[^\]]*\]/gi, '').trim();
+      // [push:secs] — her read that master is urging effort (any wording).
+      // Same mechanics as the regex fast path: pushed cover + rest latch drop.
+      const tagPush = [...reply.matchAll(/\[push\s*(?::\s*([\d.]+))?\]/gi)];
+      if (tagPush.length) {
+        let secs = 6;
+        for (const tp of tagPush) { const n = parseFloat(tp[1]); if (isFinite(n)) secs = n; }
+        try { window.Input && window.Input.pushFor && window.Input.pushFor(secs); } catch (e) {}
+        try { window.Stamina && window.Stamina.kick && window.Stamina.kick(); } catch (e) {}
+        try { window.Brain && window.Brain.note && window.Brain.note('urged'); } catch (e) {}
+      }
+      reply = reply.replace(/\[push\s*(?::\s*[\d.]+)?\]/gi, '').trim();
       parseWalk(reply);
       if (!reply) reply = '…?';
       history.push({ role: 'assistant', content: reply });

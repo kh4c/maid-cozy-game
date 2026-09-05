@@ -54,10 +54,16 @@ window.Brain = (() => {
       } else if (kind === 'resting') {
         pushEvent('parked at a quarter tank to rest her legs');
         genLine('resting', {}, `*easing off, hands on knees* Legs are getting heavy, master — resting a moment before I run them empty.`);
+      } else if (kind === 'urged') {
+        // master told her to work through the rest (any words — regex or [push]
+        // tag): memory only, no chatter — her chat reply already answers him.
+        // The think prompt carries this, so the tactic KNOWS the rest was overridden.
+        pushEvent(`master urged her on — working through the rest on his word`);
       }
     } catch (e) { /* memory is cosmetic */ }
   }
   function pushEvent(t) {
+    if (memory.events.length && memory.events[memory.events.length - 1] === t) return; // no repeat-stamping
     memory.events.push(t);
     if (memory.events.length > 6) memory.events = memory.events.slice(-6);
   }
