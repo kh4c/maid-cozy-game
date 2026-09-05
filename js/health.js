@@ -21,7 +21,7 @@ window.Health = (() => {
   function shakeAmount() { const s = pendingShake; pendingShake = 0; return s; }
 
   function heartImg(on) {
-    return '<img src="assets/' + (on ? 'heart_full.png' : 'heart_empty.png') + '" draggable="false">';
+    return '<img src="assets/' + (on ? 'heart_full.png?v=2' : 'heart_empty.png?v=2') + '" draggable="false">';
   }
 
   function render() {
