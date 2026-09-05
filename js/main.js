@@ -266,6 +266,10 @@
   app.ticker.add((ticker) => {
     // clamp dt: this pane throttles hard when unfocused — spikes teleport the character
     const dtSec = Math.min(ticker.deltaMS / 1000, 0.05);
+    // focus beats: while the camera holds a lookAt, the WORLD runs at ~30%
+    // ( slow-mo ) but the CAMERA keeps full dt — the pan stays smooth. wdt is
+    // the world's dt below; dtSec stays real for camera / music / fps clocks.
+    const wdt = dtSec * (camera.timeScale ? camera.timeScale(dtSec) : 1);
     const s = window.Settings.settings;
 
     const view = character.view;
@@ -282,7 +286,7 @@
         // pushed = player-owned feet (click pin / player chat order): may drain
         // past quarter to empty. Auto legs park at 1/4 and resume at ~half.
         const pushed = !!(window.Input && window.Input.pushedActive && window.Input.pushedActive());
-        window.Stamina.update(dtSec, wantsMove, pushed);
+        window.Stamina.update(wdt, wantsMove, pushed);
         if (wantsMove && !window.Stamina.canMove(pushed)) { a.x = 0; a.y = 0; } // parked or out
         if (window.Stamina.justExhausted) {
           try { window.Brain && window.Brain.note && window.Brain.note('tired'); } catch (e) {}
@@ -299,28 +303,28 @@
     } else {
       moved = wantsMove;
     }
-    view.x += a.x * s.speed * dtSec;
-    view.y += a.y * s.speed * dtSec;
+    view.x += a.x * s.speed * wdt;
+    view.y += a.y * s.speed * wdt;
 
     // INFINITE world: no bounds clamping — background chunks stream in around the camera
     character.update(a, !!(window.Health && window.Health.dead));
     if (window.Enemies) {
-      try { window.Enemies.update(dtSec, view.x, view.y); }
+      try { window.Enemies.update(wdt, view.x, view.y); }
       catch (err) { /* one bad tick must not kill the loop */ }
     }
     // hover gun: the maid always aims/fires herself now (cursor aim removed)
     if (window.Gun) {
-      try { window.Gun.update(dtSec, view.x, view.y); }
+      try { window.Gun.update(wdt, view.x, view.y); }
       catch (err) { /* a gun hiccup must not kill the loop */ }
     }
     // survival brain: auto-thinks when danger nears (own LLM loop + thought box)
     if (window.Brain) {
-      try { window.Brain.tick(dtSec); }
+      try { window.Brain.tick(wdt); }
       catch (err) { /* a scared brain must not kill the loop */ }
     }
     // coin drops: magnet toward her feet + pickup
     if (window.Inventory) {
-      try { window.Inventory.update(dtSec, view.x, view.y); }
+      try { window.Inventory.update(wdt, view.x, view.y); }
       catch (err) { /* loot is cosmetic */ }
     }
     // player swing (Space/J): whoosh always, thump + pack retaliation on hits
@@ -336,7 +340,7 @@
         }
       }
     }
-    if (dust) dust.update(dtSec, view.x, view.y, moved, a.x, a.y);
+    if (dust) dust.update(wdt, view.x, view.y, moved, a.x, a.y);
     if (window.Health) { // damage kicks the camera before it settles
       const sh = window.Health.shakeAmount();
       if (sh) camera.shake(sh);
@@ -360,7 +364,7 @@
       chunkEl.textContent = `chunks ${n}`;
     }
 
-    if (effects) effects.update(dtSec);
+    if (effects) effects.update(wdt);
     if (live2d) live2d.apply(s);
 
     // fps readout
