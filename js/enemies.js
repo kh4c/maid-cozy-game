@@ -501,16 +501,8 @@ window.Enemies = (() => {
   // from the tuning constants — retune there, journal + her answers update.
   const CRITTER_LORE = 'Harmless grazers, milling in packs. Folk leave them be.';
   const HUNTER_LORE = 'The red-ringed invader. Harmful, aggressive, and unwelcome — folk hunt it on sight, and so does she.';
-  const TIER_LORE = {
-    common: 'The everyday tier. Small, frail, worth little.',
-    uncommon: 'A sturdier tier. Noticeably tougher, noticeably richer.',
-    rare: 'The shiny tier. Scarce, coveted, priced like it.',
-    epic: 'The terror tier. Big trouble, big payout.',
-    legendary: 'The eclipse tier. Almost never seen; never forgotten.',
-  };
   const PACK_HABIT = 'Harmless millers in groups of 3-5. They want nothing from anyone — but cornered or shot, the pack panics: the brave lash out, the cowardly bolt.';
   const HUNTER_HABIT = `Harmful and invasive — this one is quarry, not wildlife. Solitary. Mills calmly until provoked (~${LONER_AGGRO}px), then hunts forever; it never calms down. Outrun it (you are faster) or put it down fast. Every hunter rolls a tier, like any monster — shinier ones are tougher and worth more.`;
-  const TIER_HABIT = `Every monster rolls a tier — hunters add +${LONER_GRIT} HP and +${LONER_BOUNTY} coins of bounty on top of these numbers.`;
   const TIER_HP = RARITY.map((t) => t.hp), TIER_PRICE = RARITY.map((t) => t.price);
   const RANGE = (a, b) => `${a}–${b}`;
   const CRITTER_HP = RANGE(Math.min(...TIER_HP), Math.max(...TIER_HP));
