@@ -39,10 +39,12 @@
     const c = document.createElement('canvas');
     c.width = 640; c.height = 360;
     const g = c.getContext('2d');
-    const grad = g.createRadialGradient(320, 180, 120, 320, 180, 420);
-    grad.addColorStop(0, 'rgba(4,8,24,0)');
-    grad.addColorStop(0.6, 'rgba(4,8,24,0.25)');
-    grad.addColorStop(1, 'rgba(2,4,14,0.8)');
+    // strong torch-circle: clear-ish only in the middle third, edges near-black
+    const grad = g.createRadialGradient(320, 180, 70, 320, 180, 430);
+    grad.addColorStop(0, 'rgba(2,4,14,0)');
+    grad.addColorStop(0.35, 'rgba(2,4,14,0.45)');
+    grad.addColorStop(0.65, 'rgba(2,4,14,0.78)');
+    grad.addColorStop(1, 'rgba(1,2,8,0.97)');
     g.fillStyle = grad;
     g.fillRect(0, 0, 640, 360);
     return Texture.from(c);
@@ -52,7 +54,7 @@
   function drawNightOverlay() {
     const on = nightOn();
     nightOverlay.clear();
-    if (on) nightOverlay.rect(0, 0, app.screen.width, app.screen.height).fill({ color: 0x0a1030, alpha: 0.5 });
+    if (on) nightOverlay.rect(0, 0, app.screen.width, app.screen.height).fill({ color: 0x050814, alpha: 0.62 });
     if (on && !vignette) {
       vignette = new Sprite(makeVignetteTexture());
       app.stage.addChild(vignette); // above the flat wash

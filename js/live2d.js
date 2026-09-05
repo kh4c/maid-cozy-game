@@ -337,7 +337,7 @@ window.Live2D = (() => {
   // would stay bright at night — tint it instead. Soft blue wash, keeps the face readable.
   function setNight(on) {
     if (!model) return;
-    try { model.tint = on ? 0x7c88c8 : 0xffffff; } catch (e) { /* cosmetic */ }
+    try { model.tint = on ? 0x454e85 : 0xffffff; } catch (e) { /* cosmetic */ }
   }
 
   return {
