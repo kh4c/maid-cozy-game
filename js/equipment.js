@@ -30,7 +30,9 @@ window.Equipment = (() => {
           `<div class="equip-blurb">${esc(w.desc)}</div>` +
           `<div class="equip-stats">${esc(statLine(w))}</div>` +
         '</div>' +
-        (w.equipped ? '' : `<button class="store-buy" data-equip="${esc(w.id)}">EQUIP</button>`) +
+        (w.equipped ? '' : (w.locked
+          ? `<button class="store-buy" data-shop="1" title="sold in the 🏪 shop">🔒 SHOP</button>`
+          : `<button class="store-buy" data-equip="${esc(w.id)}">EQUIP</button>`)) +
       '</div>'
     )).join('');
   }
@@ -49,7 +51,9 @@ window.Equipment = (() => {
     const p = $('equip-panel');
     if (p) p.addEventListener('click', (e) => {
       try {
-        const id = e.target && e.target.dataset && e.target.dataset.equip;
+        const t = e.target && e.target.dataset ? e.target.dataset : {};
+        if (t.shop && window.Shop && window.Shop.setOpen) { window.Shop.setOpen(true); return; } // 🔒 SHOP jumps to the till
+        const id = t.equip;
         if (id && window.Weapons && window.Weapons.equip(id)) render(); // swap + repaint tags
       } catch (_) { /* a bad click equips nothing */ }
     });

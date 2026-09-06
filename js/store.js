@@ -52,6 +52,10 @@ window.Store = (() => {
       effect: () => { levels.speed++; } },
   ];
 
+  function items() { // shop-grid descriptors: live blurbs + owned pips, no backend coupling
+    return STOCK.map((s) => { const c = s.can(); return { id: s.id, icon: s.icon, name: s.name, price: s.price, cap: s.cap, desc: s.blurb(), owned: s.id === 'heal' ? 0 : (levels[s.id] || 0), soldOut: !c.ok, why: c.why || '' }; });
+  }
+
   function purse() { try { return window.Inventory && window.Inventory.purse ? window.Inventory.purse() : 0; } catch (e) { return 0; } }
 
   function buy(id) {
@@ -129,17 +133,9 @@ window.Store = (() => {
   function init() {
     loadLevels();
     applyAll(); // bought muscles survive reloads
-    const btn = $('store-btn');
-    if (btn) btn.addEventListener('click', (e) => { try { e.stopPropagation(); } catch (_) {} setOpen(!open); });
-    const box = $('store-list');
-    if (box) box.addEventListener('click', (e) => {
-      const r = e.target && e.target.closest ? e.target.closest('[data-reset]') : null;
-      if (r) { resetUpgrades(); return; }
-      const b = e.target && e.target.closest ? e.target.closest('[data-buy]') : null;
-      if (!b || b.disabled) return;
-      buy(b.getAttribute('data-buy'));
-    });
+    // NOTE: the 🛒 button belongs to the fullscreen Shop now (js/shop.js) —
+    // upgrades are bought there; this backend keeps levels + purse logic only.
   }
 
-  return { init, setOpen, isOpen, render, buy, resetUpgrades, describe, speedMult, levels: () => Object.assign({}, levels) };
+  return { init, setOpen, isOpen, render, buy, items, resetUpgrades, describe, speedMult, levels: () => Object.assign({}, levels) };
 })();

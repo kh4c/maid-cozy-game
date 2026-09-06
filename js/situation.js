@@ -136,6 +136,7 @@ window.Situation = (() => {
             : (st.drops > 0 ? `${st.drops} loose coin(s) still on the ground further out.` : 'No loose coins lying around.')));
       }
       try { if (window.Store && typeof window.Store.describe === 'function') lines.push(window.Store.describe()); } catch (e2) {}
+      try { if (window.Shop && typeof window.Shop.describe === 'function') lines.push(window.Shop.describe()); } catch (e3) {}
     } catch (e) { /* pockets uncounted */ }
     // standing posture (both minds track it — the brain enforces, chat reports)
     try {

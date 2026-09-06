@@ -249,6 +249,7 @@
     window.Inventory && window.Inventory.init();
     window.Weapons && window.Weapons.init();
     window.Store && window.Store.init();
+    window.Shop && window.Shop.init();
     window.Bestiary && window.Bestiary.init();
     window.Equipment && window.Equipment.init();
   } catch (err) {

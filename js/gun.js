@@ -19,7 +19,7 @@ window.Gun = (() => {
   let world = null, app = null, camera = null;
   let rig = null, gunSpr = null, flash = null;
   let bullets = [], sparks = [];
-  let texGun, texShotgun, texBullet, texFlash, texSpark;
+  let texGun, texShotgun, texBullet, texFlash, texSpark, texCube;
   let curTex = 'm1'; // rig sprite tracks the equipped row — swaps live, mid-fight
   let cd = 0, recoil = 0, bobT = 0, flashT = 0;
   let shotsFired = 0; // M1 clip: every 8th round the en-bloc pings out
@@ -118,20 +118,47 @@ window.Gun = (() => {
   }
 
   // ---- effects --------------------------------------------------------------
+  // Hit strike: one white-hot core + a few tiny embers, fast + short.
+  // A small crisp pop on the hide — no lingering glow cloud.
   function burst(x, y, n, big) {
-    for (let i = 0; i < n; i++) {
+    if (big) { tntBurst(x, y); return; } // kills pop cubes, not glow
+    const mk = (tint, sc, sp) => {
       const a = Math.random() * Math.PI * 2;
-      const sp = (60 + Math.random() * 240) * (big ? 1.6 : 1);
       const s = new Sprite(texSpark);
+      s.anchor.set(0.5, 0.5); s.blendMode = 'add'; s.tint = tint;
+      s.scale.set(sc); s.position.set(x, y); world.addChild(s);
+      sparks.push({ spr: s, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60,
+        life: 0, max: 0.16 + Math.random() * 0.1 });
+    };
+    mk(0xffffff, 0.035, 120); // white-hot core
+    for (let i = 0; i < 4; i++) mk(0xffc46b, 0.018 + Math.random() * 0.014, 200 + Math.random() * 220); // embers
+  }
+
+  // TNT kill pop (minecraft-style): solid white + grey SQUARES with gravity +
+  // spin, normal blend — chunky tumbling cubes, not glow. Plus a white blink.
+  const TNT_TINTS = [0xffffff, 0xffffff, 0xe8e8e8, 0xbdbdbd, 0x8a8a8a];
+  function tntBurst(x, y) {
+    const base = (typeof texCube !== 'undefined' && texCube && texCube.valid !== false) ? texCube : texSpark;
+    for (let i = 0; i < 22; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 120 + Math.random() * 340;
+      const s = new Sprite(base);
       s.anchor.set(0.5, 0.5);
-      s.blendMode = 'add'; // black-bg particle: add blend = glow on the scene
-      s.tint = big ? 0xffd24a : 0xfff2b0;
-      s.scale.set(0.05 + Math.random() * 0.06);
-      s.position.set(x, y);
+      s.tint = TNT_TINTS[(Math.random() * TNT_TINTS.length) | 0];
+      s.scale.set(0.5 + Math.random() * 0.7); // 14px cube -> 7-17px chunks
+      s.rotation = Math.random() * Math.PI * 2;
+      s.position.set(x + (Math.random() - 0.5) * 10, y + (Math.random() - 0.5) * 10);
       world.addChild(s);
-      sparks.push({ spr: s, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40,
-        life: 0, max: (big ? 0.5 : 0.3) + Math.random() * 0.15 });
+      sparks.push({ spr: s, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 160,
+        life: 0, max: 0.5 + Math.random() * 0.45, g: 900, spin: (Math.random() - 0.5) * 20 });
     }
+    if (texSpark && texSpark.valid !== false) { // white blink, gone in a breath
+      const f = new Sprite(texSpark);
+      f.anchor.set(0.5, 0.5); f.blendMode = 'add'; f.tint = 0xffffff;
+      f.scale.set(0.3); f.position.set(x, y); world.addChild(f);
+      sparks.push({ spr: f, vx: 0, vy: 0, life: 0, max: 0.12 });
+    }
+    if (camera) camera.shake(0.22); // TNT thud
   }
 
   function fire(ax, ay) {
@@ -153,7 +180,7 @@ window.Gun = (() => {
 
     // muzzle flash sits ON the muzzle tip (64px sprite x1.8, grip at 0.35 -> ~75px), gone in a blink
     flash.position.set(ax * 74, ay * 74);
-    flash.rotation = Math.atan2(ay, ax);
+    flash.rotation = Math.atan2(ay, ax) + Math.PI / 2; // muzzle art is VERTICAL (222x412) — +90° lays its long axis along the aim
     flash.scale.set(0.13 + Math.random() * 0.08);
     flash.scale.y *= Math.random() < 0.5 ? 1 : -1;
     flash.visible = true;
@@ -181,7 +208,7 @@ window.Gun = (() => {
     const reach = W('meleeReach', 90), arc = W('meleeArc', 70);
     const ix = px + HOVER_X + ca * reach, iy = py + HOVER_Y + sa * reach;
     flash.position.set(ca * 30 + 6, sa * 30);
-    flash.rotation = Math.atan2(sa, ca);
+    flash.rotation = Math.atan2(sa, ca) + Math.PI / 2; // vertical art — lay it along the swing
     flash.scale.set(0.2); flash.visible = true; flashT = 0.08;
     recoil = W('recoilMul', 1);
     try { window.Sound.playSfx('combat', W('shotSfx', 'swing.ogg'), { rate: W('shotRate', 1.2) }); } catch (e) {}
@@ -230,6 +257,12 @@ window.Gun = (() => {
       PIXI.Assets.load('assets/muzzle.png'),
       PIXI.Assets.load('assets/spark.png'),
     ]);
+    try { // TNT cube: one 14px white square, tinted per-cube at burst time
+      const c = document.createElement('canvas'); c.width = c.height = 14;
+      c.getContext('2d').fillStyle = '#ffffff';
+      c.getContext('2d').fillRect(0, 0, 14, 14);
+      texCube = PIXI.Texture.from(c);
+    } catch (e) { texCube = texSpark; }
 
     rig = new Container();
     gunSpr = new Sprite(texGun);
@@ -358,8 +391,10 @@ window.Gun = (() => {
       if (t >= 1) { world.removeChild(p.spr); p.spr.destroy(); sparks.splice(i, 1); continue; }
       p.spr.x += p.vx * dt;
       p.spr.y += p.vy * dt;
+      p.vy += (p.g || 0) * dt; // TNT cubes fall; sparks fly straight
+      if (p.spin) p.spr.rotation += p.spin * dt; // cubes tumble
       p.vx *= Math.exp(-4 * dt);
-      p.vy *= Math.exp(-4 * dt);
+      p.vy *= Math.exp(-(p.g ? 0.6 : 4) * dt); // cubes keep falling, sparks drag fast
       p.spr.alpha = 1 - t;
       p.spr.scale.set(Math.max(0.02, p.spr.scale.x * Math.exp(-2.5 * dt)));
     }

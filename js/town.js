@@ -174,7 +174,7 @@ window.Town = (() => {
     npc.met = true;
     showBubble(npc, line);
     try {
-      if (npc.def.role === 'shop' && window.Store && window.Store.setOpen) window.Store.setOpen(true); // Marta: the till opens itself
+      if (npc.def.role === 'shop' && window.Shop && window.Shop.setOpen) window.Shop.setOpen(true); // Marta: the till opens itself
       if (npc.def.role === 'heal' && window.Health && window.Health.hp < window.Health.max) {
         window.Health.heal(99); // Wren: chapel rates (free)
         showBubble(npc, line + ' *her hands are warm; the aches close up*');

@@ -25,9 +25,14 @@ window.Weapons = (() => {
   };
   let active = 'rifle';
 
+  function locked(id) { // shotgun is shop stock — no deed, no equip
+    try { if (id === 'shotgun' && window.Shop && typeof window.Shop.ownsShotgun === 'function') return !window.Shop.ownsShotgun(); } catch (e) {}
+    return false;
+  }
+
   function load() { try { const id = localStorage.getItem(KEY); if (id && TABLE[id]) active = id; } catch (e) {} }
   function save() { try { localStorage.setItem(KEY, active); } catch (e) {} }
-  function row() { return TABLE[active] || TABLE.rifle; }
+  function row() { const r = TABLE[active] || TABLE.rifle; return locked(active) ? TABLE.rifle : r; } // stale shotgun saves fall back to the M1
 
   function register(def) { // runtime/add-on weapons (harness + future packs)
     if (!def || !def.id || TABLE[def.id]) return false;
@@ -39,11 +44,11 @@ window.Weapons = (() => {
       const r = TABLE[id] || {};
       const pellets = Math.max(1, Math.round(Number(r.pellets) || 1));
       return { id, name: r.name || id, kind: r.kind || 'gun', desc: r.desc || '', icon: r.icon || 'assets/m1.png',
-        equipped: id === active, dmg: Math.max(1, Math.round(Number(r.dmg) || 1)), cd: Number(r.cd) || 0.8,
+        equipped: id === active, locked: locked(id), dmg: Math.max(1, Math.round(Number(r.dmg) || 1)), cd: Number(r.cd) || 0.8,
         pellets, spread: Number(r.spread) || 0, range: Math.round((Number(r.speed) || 1400) * (Number(r.life) || 0.6)) };
     });
   }
-  function equip(id) { if (!TABLE[id]) return false; active = id; save(); return true; }
+  function equip(id) { if (!TABLE[id] || locked(id)) return false; active = id; save(); return true; }
   function activeId() { return active; }
   function list() { return Object.keys(TABLE).map((id) => ({ id, name: TABLE[id].name, kind: TABLE[id].kind, desc: TABLE[id].desc, equipped: id === active })); }
 

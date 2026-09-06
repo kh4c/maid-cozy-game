@@ -2,6 +2,23 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Flash laid flat, TNT deaths, fullscreen Shop (shotgun 150c)
+- **Flash rotated.** Measured the art: muzzle.png's bright mass is 222×412 —
+  vertical. The code aimed its X-axis, so it stood crosswise. Now +90° lays the
+  long axis along the aim (gun + melee). Slugs already leave the true tip.
+- **Hits are a crisp pop now:** one white-hot core + 4 tiny embers, gone in
+  ~0.2s — no more lingering glow cloud.
+- **Deaths are Minecraft TNT:** 22 solid white/grey tumbling squares (normal
+  blend, real gravity, spin) + a white blink + thud shake. Cubes are generated
+  at runtime (14px canvas → texture), no new asset.
+- **🏪 Shop (replaces the 🛒 list):** Shop.png covers the screen behind a large
+  panel — grid cells left (icon, name, buy button below each), detail pane
+  right (hover OR click inspects: big icon, desc, price, BUY). Stock: pump
+  shotgun 150c deed (persistent `cosette.shop`) + all 5 upgrades via the same
+  Store backend. Shotgun is 🔒 in Equipment until bought (stale saves fall back
+  to the M1); Marta + 🛒 open the till. Maid knows: Shop.describe rides the
+  snapshot. 30/30 green (new hshop 10/10, W23 lock, M6/M7, T4).
+
 ## 2026-09-06 — No tracer, true muzzle flash, default finding, never found twice
 - **Trail deleted, not shrunk.** The wisp still looked bad because the problem
   was structural: a glow shed per bullet per frame (shotgun = 6 pellets × 60fps
