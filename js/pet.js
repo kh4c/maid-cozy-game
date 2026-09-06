@@ -13,6 +13,7 @@ window.Pet = (() => {
   const ATK_HOLD = 230;   // standoff from the target's teeth
   const PET_CD = 0.9, PET_DMG = 2;                    // polite pew, not a second rifle
   const PET_SPD = 1250, PET_LIFE = 0.4, PET_HIT_R = 30;
+  const DROP = 70; // shadow hangs 70px under its feet — same altitude cue as the lodestone
   const EASE = 5;         // flight smoothing — eased, never teleported
   const OWN_KEY = 'cosette.pet';
 
@@ -70,7 +71,7 @@ window.Pet = (() => {
     } catch (e) { spr = null; }
     try {
       sh = new PIXI.Graphics();
-      sh.ellipse(0, 0, 13, 5).fill({ color: 0x000000, alpha: 0.3 });
+      sh.ellipse(0, 0, 16, 6).fill({ color: 0x000000, alpha: 0.3 });
       sh.visible = false;
       world.addChild(sh);
     } catch (e) { sh = null; }
@@ -144,7 +145,7 @@ window.Pet = (() => {
     if (!dx && !dy) { dx = tx; dy = ty; } // first frame: start home, never fly in from origin
     dx += (tx - dx) * k; dy += (ty - dy) * k;
     spr.position.set(dx, dy);
-    if (sh) { sh.position.set(dx, dy + 22); sh.zIndex = dy; } // glued to the grass under it, sorted below the iron
+    if (sh) { sh.position.set(dx, dy + DROP); sh.zIndex = dy + DROP; } // same hang as the lodestone — the mouth-center rule, no iron above it
     try { // face travel — but in range the nose locks onto the victim, not the flight path
       if (lx === null) { lx = dx; ly = dy; }
       const vx = dx - lx, vy = dy - ly;
@@ -172,5 +173,5 @@ window.Pet = (() => {
 
   function grant() { owned = true; save(); return true; } // dev-panel free deed — testing skips the till
   return { init, update, buy, grant, equip, unequip, toggle, known, owns, equipped, price, describe,
-    debug: () => ({ x: dx, y: dy, sh }) };
+    debug: () => ({ x: dx, y: dy, gx: dx, gy: dy + DROP, sh }) };
 })();
