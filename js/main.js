@@ -125,8 +125,9 @@
       try { const s = camera && camera.spot ? camera.spot() : null; if (s) { wx = s.x; wy = s.y; panHolds = true; } } catch (e) {} // a pan holds: light what the camera shows, not her
       vigScale += ((panHolds ? 3 : 2) - vigScale) * 0.1; // breathe bigger on pans so the dark ring never enters the frame
       try { vignette.width = app.screen.width * vigScale; vignette.height = app.screen.height * vigScale; } catch (e) {}
-      const sx = world.x + wx;
-      const sy = world.y + wy;
+      const zm = camera.getZoom ? camera.getZoom() : 1; // world->screen runs through the combat zoom
+      const sx = world.x + wx * zm;
+      const sy = world.y + wy * zm;
       vignette.x = sx - vignette.width / 2;
       vignette.y = sy - vignette.height / 2;
     } catch (e) { /* cosmetic */ }
@@ -567,6 +568,7 @@
         if (battleCalmFor > 3) { try { window.Sound.setBgmMood(nightOn() ? 'night' : 'cozy'); } catch (e) { window.Sound.setBgmMood('cozy'); } }
       }
     }
+    try { camera.setCombat(!!(window.Combat && window.Combat.active && window.Combat.active())); } catch (e) {} // the fight breathes the lens out, calm leans it back in
     camera.update(view.x, view.y, dtSec);
     try { window.Clock && window.Clock.update && window.Clock.update(dtSec); } catch (e) {} // her week: Mon-Sat 9-9, night from 5PM (freezes with the shop pause)
     try { const dl = window.Clock && window.Clock.popDay ? window.Clock.popDay() : null; if (dl) showDayBanner(dl); } catch (e) {} // one banner per dawn, boot included
@@ -583,7 +585,8 @@
       const fr = window.Gun && window.Gun.flashRead ? window.Gun.flashRead() : null;
       if (flashGlow && fr && fr.level > 0.01) {
         const night = nightOn();
-        flashGlow.position.set(world.x + fr.x, world.y + fr.y);
+        const zm = camera.getZoom ? camera.getZoom() : 1; // world->screen runs through the combat zoom
+        flashGlow.position.set(world.x + fr.x * zm, world.y + fr.y * zm);
         const r = Math.min(520, 260 * fr.level * (night ? 1.35 : 0.8)); // thunder throws further than needles; night carries further than day
         flashGlow.width = r * 2; flashGlow.height = r * 2;
         flashGlow.alpha = Math.min(1, fr.level) * (night ? 0.85 : 0.35);
@@ -591,7 +594,8 @@
     } catch (e) { /* dark frame */ }
 
     if (background) {
-      const n = background.update(view.x, view.y, app.screen.width, app.screen.height);
+      const zm = camera.getZoom ? camera.getZoom() : 1; // zoomed-out eyes need further chunks
+      const n = background.update(view.x, view.y, app.screen.width / zm, app.screen.height / zm);
       chunkEl.textContent = `chunks ${n}`;
     }
 

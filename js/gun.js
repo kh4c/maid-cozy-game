@@ -120,7 +120,8 @@ window.Gun = (() => {
     const r = app.canvas.getBoundingClientRect();
     const sx = mouseSX / r.width * app.screen.width;
     const sy = mouseSY / r.height * app.screen.height;
-    return { x: sx - world.x, y: sy - world.y };
+    const z = camera && camera.getZoom ? camera.getZoom() : 1; // combat zoom scales the mapping
+    return { x: (sx - world.x) / z, y: (sy - world.y) / z };
   }
 
   // ---- effects --------------------------------------------------------------

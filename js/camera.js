@@ -1,5 +1,7 @@
 // Smooth camera: exponential-lerp toward the character, frame-rate independent.
 // Infinite world = no clamping — the background streams in around the camera.
+// Combat zoom: while a fight holds the whole world eases out to 80% (pivot on
+// the screen center, so the focus never drifts), then leans back in on calm.
 window.Camera = (() => {
   // focus-beat tunables: every lookAt ("look at that!") drops the WORLD into
   // slow-mo for a breath while the camera leans harder toward the monster.
@@ -8,6 +10,13 @@ window.Camera = (() => {
   const SLOW_SECS = 1.2;    // how long the beat lasts per lookAt
   const BLEND_CALM = 0.55;  // normal focus: meet the target partway
   const BLEND_SLOW = 0.8;   // slow-mo focus: lean almost all the way in
+  const ZOOM_CALM = 1;      // leaning in close on quiet grass
+  const ZOOM_COMBAT = 0.8;  // the fight breathes out — ~25% more field on screen
+  const ZOOM_EASE = 2.2;    // eased both ways, never a snap-cut
+  let zoom = 1, zoomT = 1;  // eased scale + where it's headed
+  let baseX = 0, baseY = 0; // follow position at scale 1 — zoom maps on top, never inside the math
+  function setCombat(on) { zoomT = on ? ZOOM_COMBAT : ZOOM_CALM; }
+  function getZoom() { return zoom; }
   function create(worldContainer, app) {
     const cfg = window.CONFIG;
     let trauma = 0; // screen shake energy 0..1 — kicked by Health, decays fast
@@ -61,45 +70,61 @@ window.Camera = (() => {
       } catch (e) { focus = null; }
       const aimY = fY - cfg.camAimHeightPx * window.Settings.settings.scale;
       // strip last frame's sway so it never feeds back into the clamp math
-      worldContainer.x -= swayX;
-      worldContainer.y -= swayY;
+      baseX -= swayX;
+      baseY -= swayY;
       // pivot is at the FEET — aim at the sprite's visual middle instead
       const cx = app.screen.width / 2, cy = app.screen.height / 2;
       const dw = app.screen.width * DEAD.w / 2, dh = app.screen.height * DEAD.h / 2;
-      // her on-screen position right now (camera offset + world pos)
-      const sx = worldContainer.x + fX, sy = worldContainer.y + aimY;
+      // her on-screen position right now (follow offset + world pos, scale-1 space)
+      const sx = baseX + fX, sy = baseY + aimY;
       // clamp her into the box — camera moves only by the overshoot
       const qx = Math.max(cx - dw, Math.min(cx + dw, sx));
       const qy = Math.max(cy - dh, Math.min(cy + dh, sy));
-      const tX = worldContainer.x - (sx - qx);
-      const tY = worldContainer.y - (sy - qy);
+      const tX = baseX - (sx - qx);
+      const tY = baseY - (sy - qy);
       // inside the box (no overshoot) the camera breathes: slow layered drift
       const inside = sx === qx && sy === qy;
       swayW += ((inside ? 1 : 0) - swayW) * Math.min(1, 1.5 * dtSec);
       swayX = (Math.sin(t * 0.5) * 3.5 + Math.sin(t * 0.83 + 1.7) * 1.5) * swayW;
       swayY = (Math.sin(t * 0.62 + 0.9) * 2.6 + Math.sin(t * 1.03 + 3.1) * 1.2) * swayW;
       const tt = 1 - Math.exp(-cfg.camera.lerp * dtSec);
-      worldContainer.x += (tX - worldContainer.x) * tt + swayX;
-      worldContainer.y += (tY - worldContainer.y) * tt + swayY;
+      baseX += (tX - baseX) * tt + swayX;
+      baseY += (tY - baseY) * tt + swayY;
       if (trauma > 0) {
         trauma = Math.max(0, trauma - dtSec * 1.6); // full kick ≈ 0.6s of rattle
         const mag = trauma * trauma * 14; // quadratic: punchy start, soft tail
-        worldContainer.x += (Math.random() * 2 - 1) * mag;
-        worldContainer.y += (Math.random() * 2 - 1) * mag;
+        baseX += (Math.random() * 2 - 1) * mag;
+        baseY += (Math.random() * 2 - 1) * mag;
       }
+      // combat zoom maps on top: ease the scale, then pin the container so the
+      // screen center shows the same world point at every zoom (no drift)
+      zoom += (zoomT - zoom) * Math.min(1, ZOOM_EASE * dtSec);
+      if (Math.abs(zoom - zoomT) < 0.002) zoom = zoomT;
+      try {
+        worldContainer.scale.set(zoom);
+        worldContainer.x = cx + (baseX - cx) * zoom;
+        worldContainer.y = cy + (baseY - cy) * zoom;
+      } catch (e) { try { worldContainer.x = baseX; worldContainer.y = baseY; } catch (e2) {} }
     }
 
     // snap instantly (used on init so the camera doesn't glide from 0,0)
     function snap(targetX, targetY) {
       const aimY = targetY - cfg.camAimHeightPx * window.Settings.settings.scale;
-      worldContainer.x = app.screen.width / 2 - targetX;
-      worldContainer.y = app.screen.height / 2 - aimY;
+      baseX = app.screen.width / 2 - targetX;
+      baseY = app.screen.height / 2 - aimY;
+      try {
+        const cx = app.screen.width / 2, cy = app.screen.height / 2;
+        worldContainer.scale.set(zoom);
+        worldContainer.x = cx + (baseX - cx) * zoom;
+        worldContainer.y = cy + (baseY - cy) * zoom;
+      } catch (e) { try { worldContainer.x = baseX; worldContainer.y = baseY; } catch (e2) {} }
     }
 
-    // view center in WORLD coords — "what's on screen" for rect-based detection
+    // view center in WORLD coords — zoom pivots exactly on the screen center,
+    // so the center world point never moves with the scale
     function viewCenter() {
       try {
-        return { x: app.screen.width / 2 - worldContainer.x, y: app.screen.height / 2 - worldContainer.y };
+        return { x: app.screen.width / 2 - baseX, y: app.screen.height / 2 - baseY };
       } catch (e) { return { x: 0, y: 0 }; }
     }
 
@@ -107,16 +132,19 @@ window.Camera = (() => {
     function toWorld(clientX, clientY) {
       try {
         const r = app.canvas.getBoundingClientRect();
+        const c = viewCenter();
         const sx = (clientX - r.left) / r.width * app.screen.width;
         const sy = (clientY - r.top) / r.height * app.screen.height;
-        return { x: sx - worldContainer.x, y: sy - worldContainer.y };
+        return { x: c.x + (sx - app.screen.width / 2) / zoom, y: c.y + (sy - app.screen.height / 2) / zoom };
       } catch (e) { return null; }
     }
 
-    // view rect in WORLD coords — pan decisions ("is that find on screen?")
+    // view rect in WORLD coords — the half-extents breathe with the zoom, so
+    // pan decisions ("is that find on screen?") stay honest mid-fight
     function viewRect() {
       try {
-        return { x: app.screen.width / 2 - worldContainer.x, y: app.screen.height / 2 - worldContainer.y, hw: app.screen.width / 2, hh: app.screen.height / 2 };
+        const c = viewCenter();
+        return { x: c.x, y: c.y, hw: app.screen.width / 2 / zoom, hh: app.screen.height / 2 / zoom };
       } catch (e) { return { x: 0, y: 0, hw: 640, hh: 360 }; }
     }
 
@@ -127,7 +155,7 @@ window.Camera = (() => {
       return null;
     }
 
-    return { update, snap, shake, lookAt, viewCenter, viewRect, toWorld, timeScale, spot };
+    return { update, snap, shake, lookAt, viewCenter, viewRect, toWorld, timeScale, spot, setCombat, getZoom };
   }
   return { create };
 })();

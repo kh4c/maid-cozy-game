@@ -23,6 +23,22 @@ window.Inventory = (() => {
   const SHADOW_W = 10, SHADOW_H = 4, SHADOW_A = 0.28;
   let drops = [];        // { spr, sh, x, y, vx, vy, t, settled, phase }
   let tex = null;
+  // coin-suck juice: rapid pickups climb a pitch ladder (resets after a gap),
+  // and every credit pops a gold ring + rising spark where it died
+  let fx = [];             // { x, y, t, big }
+  let fxG = null;
+  let suckClock = 0, streak = 0, lastSuck = -10;
+  const STREAK_WINDOW = 1.2; // seconds between credits to keep climbing
+
+  function suck(x, y, big) {
+    const gap = suckClock - lastSuck;
+    streak = gap < STREAK_WINDOW ? streak + 1 : 1;
+    lastSuck = suckClock;
+    const rate = (big ? 1 : 1.5) + Math.min(streak, 10) * 0.07; // the ladder: each quick coin sings higher
+    try { window.Sound && window.Sound.playSfx('combat', 'coin.ogg', { rate, volume: big ? 0.5 : 0.28 }); } catch (e) {}
+    fx.push({ x, y, t: 0, big });
+  }
+  function combo() { return streak; }
 
   function init() { renderCount(); } // no panel anymore — the purse lives on the 🛒 button
 
@@ -78,17 +94,18 @@ window.Inventory = (() => {
         d.vy *= Math.exp(-4 * dt);
         if (d.t > 0.45) d.settled = true;
       }
-      // magnet + pickup
+      // magnet + pickup — far drift, near slurp: the pull hardens as it closes in
       const dx = px - d.x, dy = (py - 14) - d.y;
       const dist = Math.hypot(dx, dy);
       if (dist < magnetR() && d.t > 0.25) {
-        const k = 1 - Math.exp(-8 * dt);
+        const closeness = 1 - Math.min(1, dist / magnetR());
+        const k = 1 - Math.exp(-(6 + 10 * closeness) * dt);
         d.x += dx * k; d.y += dy * k;
       }
       if (dist < PICKUP_R) {
         addCoins(1);
         flash();
-        try { window.Sound && window.Sound.playSfx('combat', 'coin.ogg', { rate: 1 + Math.random() * 0.2, volume: 0.5 }); } catch (e) {}
+        suck(d.x, d.y, true); // walk-over credit: full voice, big ring
         if (d.spr.parent) d.spr.parent.removeChild(d.spr);
         d.spr.destroy();
         if (d.sh) { try { if (d.sh.parent) d.sh.parent.removeChild(d.sh); d.sh.destroy(); } catch (e2) {} }
@@ -105,6 +122,26 @@ window.Inventory = (() => {
         try { d.sh.scale.set(k, k); } catch (e2) {}
       }
     }
+    // suck fx: one shared Graphics, redrawn — gold rings pop + a spark rises, then gone
+    suckClock += dt;
+    try {
+      if (!fxG && window.InventoryLayer) {
+        fxG = new PIXI.Graphics();
+        fxG.blendMode = 'add';
+        window.InventoryLayer.addChild(fxG);
+      }
+      if (fxG) {
+        fxG.clear();
+        for (let i = fx.length - 1; i >= 0; i--) {
+          const f = fx[i];
+          f.t += dt;
+          if (f.t > 0.5) { fx.splice(i, 1); continue; }
+          const rr = (f.big ? 8 : 5) + f.t * 70, al = 0.55 * (1 - f.t * 2);
+          fxG.circle(f.x, f.y, rr).stroke({ color: 0xffd24a, width: 2, alpha: al });
+          fxG.circle(f.x, f.y - f.t * 60, f.big ? 3 : 2).fill({ color: 0xfff2b0, alpha: al });
+        }
+      }
+    } catch (e) { /* a missed glint sucks nothing */ }
   }
 
   // the lodestone fetches through here: swallows every loose coin near (x, y)
@@ -115,7 +152,7 @@ window.Inventory = (() => {
       const d = drops[i];
       if (Math.hypot(d.x - x, d.y - y) > r) continue;
       addCoins(1);
-      try { window.Sound && window.Sound.playSfx('combat', 'coin.ogg', { rate: 1.6, volume: 0.25 }); } catch (e) {}
+      suck(d.x, d.y, false); // drone credit: pitched up, quieter, small ring
       if (d.spr.parent) d.spr.parent.removeChild(d.spr);
       d.spr.destroy();
       if (d.sh) { try { if (d.sh.parent) d.sh.parent.removeChild(d.sh); d.sh.destroy(); } catch (e2) {} }
@@ -156,5 +193,5 @@ window.Inventory = (() => {
     renderCount();
   }
 
-  return { init, update, drop, scoopAt, state, dropsNear, reset, render, purse, spend, refund: addCoins, magnetR, setMagnetBonus };
+  return { init, update, drop, scoopAt, combo, state, dropsNear, reset, render, purse, spend, refund: addCoins, magnetR, setMagnetBonus };
 })();
