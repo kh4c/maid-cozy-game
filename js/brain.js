@@ -28,6 +28,7 @@ window.Brain = (() => {
     memo = { text: 'No tactical intent yet — treat as casual watch.', from: '', at: -1e9 }; // new life: old wishes expire
     attackOrder = false; // new life: gun down
     try { stopFollow(); } catch (e) {}
+    try { stopStroll(); } catch (e) {} // new life: legs stop too — no march carries over
     try { objective = null; memoMode = null; leaveSpot = null; followTarget = null; lastSwitchAt = -1e9; searchDone = false; lastRareNote = -1e9; memo = { text: 'No tactical intent yet — treat as casual watch.', from: '', at: -1e9 }; } catch (e) {} // new life: no posture, no grudges, no memory, fresh eyes
     askCount = 0; lastAskAt = -1e9; lastKillWordAt = -1e9; // new life: annoyance clock resets too
      try { memory.events.push(`(new life — ${reason})`); } catch (e) {}
@@ -511,14 +512,14 @@ window.Brain = (() => {
         `NIGHT: warier — shadows mimic critters (NEVER shoot at nothing), announce the dark once per night, keep a touch closer to master. ` +
         `WORLD: topdown 2D, master ALWAYS nearby watching your HUD. You are hands+gun, master is overseer. "Split up" = split WORK, never leave. Promise only possible things: no leaving the map, no sending master anywhere. ` +
         combatCard() +
-        `FIRE AUTHORITY: HOSTILE in reach → [fire:secs] (gun aims itself — latch nearest, hold). Calm → HOLD + [cease] UNLESS the wish is FRESH (under ~45s) or HUNT posture stands — then the whole pack. Golden GILTBOAR in reach → [fire] freely, no orders needed (main quarry). STALE wish + calm → HOLD, wait for fresh words. A FRESH order overrides HOLD: comply while grumbling. FIND/HEEL never authorize. ` +
-        `KILL DOCTRINE (from your bestiary — YOUR knowledge, think it, don't just obey it): CRITTERS are HARMLESS grazers and killing them is not normal — you DOUBT: calm critters → HOLD + [cease], and your thought says the doubt out loud. Fire on critters only for fresh orders, hunt posture, or self-defense once bitten. HUNTERS are HARMFUL red-ringed invaders — NO doubt, ever: a hostile or provoked hunter → [fire] at once with a cold, certain thought; a calm hunter → weapons ready, [cease] until it turns, NEVER ask. GILTBOARS are golden pack prey — your MAIN QUARRY: NO doubt, ever, no orders needed — a calm giltboar in reach → [fire] freely with a hungry thought; killing them is the job, not an exception. Species decides the thought; master's orders override doubt. ` +
+        `FIRE AUTHORITY: HOSTILE in reach → [fire:secs] (gun aims itself — latch nearest, hold). Calm → HOLD + [cease] UNLESS the wish is FRESH (under ~45s) or HUNT posture stands — then the whole pack. Golden GILTBOAR in reach → [fire] freely, no orders needed (main quarry). STALE wish + calm → HOLD, wait for fresh words (search finds walk past grazers on their own — feet's call, never the trigger's). A FRESH order overrides HOLD: comply while grumbling. FIND/HEEL never authorize. ` +
+        `KILL DOCTRINE (from your bestiary — YOUR knowledge, think it, don't just obey it): CRITTERS are HARMLESS grazers and killing them is not normal — you DOUBT: calm critters → HOLD + [cease], and your thought says the doubt out loud. On a search find the feet skip grazers by themselves — never authorize them. Fire on critters only for fresh orders, hunt posture, or self-defense once bitten. HUNTERS are HARMFUL red-ringed invaders — NO doubt, ever: a hostile or provoked hunter → [fire] at once with a cold, certain thought; a calm hunter → weapons ready, [cease] until it turns, NEVER ask. GILTBOARS are golden pack prey — your MAIN QUARRY: NO doubt, ever, no orders needed — a calm giltboar in reach → [fire] freely with a hungry thought; killing them is the job, not an exception. Species decides the thought; master's orders override doubt. ` +
         `CLOSED WORLD: the bestiary lists EVERYTHING alive here — critters, hunters and giltboars, nothing else. Never think about, mention, or expect rabbits, deer, wolves, or any other creature; anything spotted is a critter, a giltboar or a hunter, possibly misseen. ` +
         `Obey the CURRENT WISH below (master's intent via chat): attack → [fire], stop/come → [cease]. NO feet, NO aim — [move:]/[run:]/[stop]/[aim:*] are dead; code walks, aims, flees. ` +
         `BODY RUNS ITSELF: keep-distance reflex holds 170-500px (no yo-yo); weak (HP 4 or less, or low stamina) + hostile inside ~250px = legs flee on their own — keep [fire] up or [cease] to go quiet. Never order feet; long chases need stamina, check it. ` +
         `SIGHT vs REACH: you SEE every on-screen monster but REACH is shorter — hostiles 650px, calm 500px on fresh orders only, giltboars 500px ANYTIME (main quarry). Never fire past reach. ` +
         `NO CHOOSING, EVER: "kill the blue one" kills the PACK — colors are talk, never aim. No [target:]/[aim:], no latch. Lone hunters are alone — [fire] takes the one. ` +
-        `Recently FOUND a pack (see Recent events) → stay near it, shadowing not shooting. ` +
+        `Recently FOUND a pack (see Recent events) → stay near it, shadowing not shooting (grazers excepted — code walks past them, you stay quiet). ` +
         priceCard() +
         `OUTLINES: gray/green/blue/purple/gold = common→legendary, red = hunter (any tier). A golden BODY (not just ring) is a giltboar — main quarry. Colors are talk, never aim — "the blue one" = the RARE, killing it means its pack. ` +
         `NO MEMORY OF PACKS: "leave them" walks away with no pin and no recall; "actually kill those" means the pack in EYES, else she asks which. Never promise to go back. ` +
@@ -871,7 +872,17 @@ window.Brain = (() => {
     // stance/feeling/template assembly used to live here; now fb('found') builds
     // the fallback from facts (same words the harnesses pin, none of the prose).
     try { pushEvent(`found ${en.total} ${isGilt ? 'giltboar(s)' : 'critter(s)'} ${bDir} — best ${best.rarity}`); } catch (e) {}
-    // Nothing gets asked, ever — calm critters are held and shadowed, not questioned.
+    // Grazers are not the job: a SEARCH find says so once and keeps walking —
+    // no shadow, no wait. (Idle rare+ finds still report + observe; heel holds.)
+    const grazers = !isHunter && !isGilt && !(en.hostile > 0) && !(attackOrder && freshOrder);
+    if (grazers && !opportunistic && !(objective && objective.kind === 'heel')) {
+      const stamp = performance.now();
+      const facts = { total: en.total, dir: bDir, dist: distWord(n.dist), distPx: n.dist | 0, species: 'critter', bestRarity: best.rarity || 'common', bestColor: ringWord(best), bestPrice: best.price || 0, hostile: 0, ordered: false, skipped: true, staleKey: 'pack', staleAt: stamp };
+      queueNews({ facts, fallback: fb('found', facts) });
+      showThought(`*grazers — not our prey*`, ['🔎 moving on'], 0);
+      leavePack('grazers, not prey — moving on', true); // silent: the line above is the voice; tag + cooldown + walk-away, search re-armed
+      return;
+    }
 
     // The focus beat above IS the camera move: lean in + slow-mo for a breath,
     // then ease back to her. Direction words ("to the north-east") carry the
@@ -904,7 +915,8 @@ window.Brain = (() => {
   // ---- fallback voice: ONE builder, no hand-written prose ------------------------
   // Healthy runs never speak these (the LLM rewords via announce); they save
   // the news when the model is down. Pinned phrases live here — "Found" +
-  // "Say the word" (hfound/hfilter/hposture pin them; she never asks).
+  // "moving on" (search skip) + "Say the word" (idle shiny watch) —
+  // pins in hfound/hfilter/hposture; she never asks.
   function fb(event, f) {
     f = f || {};
     if (event === 'found') {
@@ -914,6 +926,7 @@ window.Brain = (() => {
       if (f.species === 'giltboar') return `Found giltboars${where} — golden! Taking them!`;
       if ((f.hostile | 0) > 0) return `Found critters${where} — some look angry!${shiny}`;
       if (f.ordered) return `Found critters${where} — engaging as ordered!${shiny}`;
+      if (f.skipped) return `Found critters${where} — not our prey, moving on.${shiny}`;
       return `Found critters${where} — holding fire, watching, master. Say the word.${shiny}`;
     }
     if (event === 'which-ones') return `Which ones, master? I don't see them — walk me closer or point me at them.`;

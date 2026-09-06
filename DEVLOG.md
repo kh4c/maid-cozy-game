@@ -2,6 +2,18 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Skip grazers: search finds move on, never shadow critters
+- **Camera pans, she sees grazers, she keeps walking.** A search find of calm
+  critters (no fresh order) now says "Found critters — not our prey, moving on."
+  once, tags the pack so it wanders off, and the search continues. No shadow,
+  no wait, no second farewell if you also say "leave them".
+- **Shadows are for quarry now.** Hunters, giltboars, ordered packs, hostiles,
+  and idle rare+ encounters still report + shadow (hfound J7 proves the last
+  live shadow + its "Leaving them be"). Heel still announces and holds.
+- Think prompt taught the same: feet skip grazers on their own, never authorize
+  them; all doctrine pins kept verbatim. hshadow/hswitch now run on gilt
+  fixtures. 28/28 green.
+
 ## 2026-09-06 — No-ask critters: she holds and waits, never questions
 - **Fuse deleted.** Calm critters → "Found critters — holding fire, watching,
   master. Say the word." No question, no meter, no foot-tap, no expiry-decision.
