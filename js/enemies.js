@@ -24,7 +24,6 @@ window.Enemies = (() => {
   const SCALE = 2.75;                  // chunky critters (was 2 — they stacked into a blob)
   const SEP_R = 64;                    // packmates push apart inside this radius
   const ATK_RING = TOUCH_R + 14;       // attackers hold this ring round her — nobody parks on her center
-  const BOSS_RING = BOSS_TOUCH_R + 20; // even HE keeps a dreadboar-width off her between charges
 
   // ---- lone hunter: the OTHER kind of monster --------------------------------
   // Lone-hunter doctrine: spawns ALONE (never a pack) and mills around calmly
@@ -53,6 +52,7 @@ window.Enemies = (() => {
   const BOSS_BULK = 2.4;              // body multiplier over SCALE — reads BOSS at a glance
   const BOSS_SPEED = 115;             // she runs 300 — the chase never catches, the charge might
   const BOSS_TOUCH_R = 70;            // bite distance (big body, big mouth)
+  const BOSS_RING = BOSS_TOUCH_R + 20; // even HE keeps a dreadboar-width off her between charges
   const BOSS_CHARGE_EVERY = 5;        // seconds between charges (×0.8–1.2 jitter)
   const BOSS_AIM_T = 1.2;             // telegraph linger: red lane, dodge window
   const BOSS_CHARGE_T = 0.55;         // dash duration
