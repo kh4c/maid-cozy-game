@@ -9,6 +9,7 @@ window.Health = (() => {
   const RESPAWN_MS = 5000;
   let hp = BASE_MAX;
   let dead = false;
+  let lastHurtAt = 0; // performance.now() of the last damage — the sprite blinks off it
 
   // Combat feel, all cosmetic: random hurt thump at a random pitch, a camera
   // kick the main loop picks up, and a heavy body-thud on the final blow.
@@ -91,6 +92,7 @@ window.Health = (() => {
   function damage(n) {
     if (dead) return hp;
     hp = Math.max(0, hp - (Math.abs(Math.round(Number(n))) || 1));
+    lastHurtAt = performance.now(); // her sprite flickers off this timestamp
     try { window.Brain && window.Brain.note && window.Brain.note('hurt'); } catch (e) {}
     flash();
     pendingShake = Math.max(pendingShake, 0.45); // a proper jolt, not a quake
@@ -116,5 +118,7 @@ window.Health = (() => {
 
   function init() { render(); }
 
-  return { init, damage, heal, setBonusMax, shakeAmount, get hp() { return hp; }, get dead() { return dead; }, get max() { return max(); } };
+  function hurtAge() { try { return performance.now() - lastHurtAt; } catch (e) { return 1e9; } } // ms since the last hit — main blinks her sprite while young
+
+  return { init, damage, heal, setBonusMax, shakeAmount, hurtAge, get hp() { return hp; }, get dead() { return dead; }, get max() { return max(); } };
 })();

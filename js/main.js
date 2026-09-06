@@ -459,6 +459,10 @@
     let down = false;
     try { down = !!(window.Stamina && window.Stamina.tripped); } catch (e) {} // face-down: fall anim holds
     character.update(a, !!(window.Health && window.Health.dead), face, down);
+    try { // hurt flicker: ~0.6s of alpha blinking after every hit — she reads the pain
+      const ha = (window.Health && window.Health.hurtAge) ? window.Health.hurtAge() : 1e9;
+      view.alpha = ha < 600 ? ((Math.floor(ha / 70) % 2 === 0) ? 1 : 0.25) : 1;
+    } catch (e) { try { view.alpha = 1; } catch (e2) {} }
     if (window.Enemies) {
       try { window.Enemies.update(wdt, view.x, view.y); }
       catch (err) { /* one bad tick must not kill the loop */ }

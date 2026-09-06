@@ -163,7 +163,7 @@ canvas { display: block; }
 
 /* ---- Boss bar: his health, top-center, only while he walks ---------------- */
 #boss-bar {
-  position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 6;
+  position: absolute; top: 72px; left: 50%; transform: translateX(-50%); z-index: 6;
   width: min(520px, 60vw); text-align: center;
   pointer-events: none; user-select: none;
 }
