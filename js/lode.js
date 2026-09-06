@@ -59,7 +59,7 @@ window.Lode = (() => {
   function known(id) { return id === 'lode'; }
 
   function describe() {
-    return `Lodestone Drone ${PRICE}c (🏪 shop, 🎒 PETS tab): roams the screen on its own, fetches loose coins into her purse, and hangs a storm cone over the field — everything in its 140px mouth moves at half speed and takes 1 electric dmg every second. Kills pay full coins. Owned: ${owned ? 'yes' : 'no'}. Flying: ${equipped() ? 'yes' : 'benched'}.`;
+    return `Lodestone Drone ${PRICE}c (🏪 shop, 🎒 PETS tab): bodyguards her in combat — parks its storm mouth over the closest monster near her and holds it slowed + zapped; out of combat it fetches loose coins into her purse. Kills pay full coins. Owned: ${owned ? 'yes' : 'no'}. Flying: ${equipped() ? 'yes' : 'benched'}.`;
   }
 
   async function init(w) {
@@ -148,15 +148,24 @@ window.Lode = (() => {
     const gx = dx, gy = dy + DROP;
     const behind = Math.hypot(px - dx, (py - 100) - dy); // how far off her screen it fell
     if (behind > FOLLOW_FAR) far = true; else if (behind < FOLLOW_NEAR) far = false; // hysteresis — no flapping at the line
-    // a loose coin is a commute; otherwise dream a new drift every few seconds
-    let tx = null, ty = 0, fetching = false;
-    if (!dead) {
+    // bodyguard first: in combat it sits its storm mouth over the closest
+    // monster near her and holds it there. Coins are a peacetime job.
+    let tx = null, ty = 0, fetching = false, guarding = false;
+    let inCombat = false;
+    try { inCombat = !!(window.Combat && window.Combat.active && window.Combat.active()); } catch (e) {}
+    if (!dead && inCombat) {
+      try {
+        const foe = window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(px, py, 650) : null;
+        if (foe && foe.x !== undefined) { tx = foe.x; ty = foe.y - DROP; guarding = true; }
+      } catch (e) {}
+    }
+    if (!guarding && !dead) {
       try {
         const near = window.Inventory && window.Inventory.dropsNear ? window.Inventory.dropsNear(gx, gy, FETCH_R) : null;
         if (near && near.nearest) { tx = gx + near.nearest.dx; ty = (gy + near.nearest.dy) - DROP; fetching = true; }
       } catch (e) {}
     }
-    if (!fetching && !dead) {
+    if (!guarding && !fetching && !dead) {
       if (roamTx === null || Math.hypot(roamTx - dx, roamTy - dy) < 12) {
         roamTx = Math.max(px - ROAM_X, Math.min(px + ROAM_X, dx + (Math.random() * 2 - 1) * 240)); // nearby dreams only — wander, never cross
         roamTy = Math.max(py - 100 - ROAM_Y, Math.min(py - 100 + ROAM_Y, dy + (Math.random() * 2 - 1) * 180));
@@ -166,7 +175,7 @@ window.Lode = (() => {
     if (tx === null) { tx = px; ty = py - 100; } // dead or dreamless: hold above her
     if (far) { tx = px; ty = py - 100; fetching = false; } // lost her screen — fly home first, coins later
     else if (!dead && Math.hypot(dx - px, dy - py) > LEASH) { tx = px; ty = py - 100; } // backstop: she outran everything — come home
-    const spd = fetching ? FETCH_SPD : (far ? CATCH_SPD : SPD);
+    const spd = (fetching || guarding) ? FETCH_SPD : (far ? CATCH_SPD : SPD); // guard urgency rides the commute gear
     const mdx = tx - dx, mdy = ty - dy, mdist = Math.hypot(mdx, mdy);
     if (mdist > 1) { const step = Math.min(mdist, spd * wdt); dx += mdx / mdist * step; dy += mdy / mdist * step; }
     const nx = dx, ny = dy + DROP;
@@ -177,8 +186,8 @@ window.Lode = (() => {
       const vx = dx - lx, vy = dy - ly;
       lx = dx; ly = dy;
       let want = null;
-      if (fetching && Math.hypot(tx - dx, ty - dy) < FETCH_R) {
-        want = Math.atan2(ty - dy, tx - dx) + Math.PI / 2; // fetching: stare it down
+      if ((fetching || guarding) && Math.hypot(tx - dx, ty - dy) < FETCH_R) {
+        want = Math.atan2(ty - dy, tx - dx) + Math.PI / 2; // working: stare the coin / the threat down
       } else if (vx * vx + vy * vy > 0.04) { // ~0.2px/frame dead zone — no spin on the drift
         want = Math.atan2(vy, vx) + Math.PI / 2;
       }
@@ -192,7 +201,7 @@ window.Lode = (() => {
     } catch (e) {}
     spr.zIndex = Math.max(dy, py + 4); // it flies higher than the scout (+3) — over her head always, honest y-sort everywhere else
     if (!dead) {
-      try { if (window.Inventory && window.Inventory.scoopAt) window.Inventory.scoopAt(nx, ny, SCOOP_R); } catch (e) {}
+      if (!guarding) { try { if (window.Inventory && window.Inventory.scoopAt) window.Inventory.scoopAt(nx, ny, SCOOP_R); } catch (e) {} } // peacetime hands — the guard never pockets mid-fight
       try { if (window.Enemies && window.Enemies.snare) window.Enemies.snare(nx, ny, SNARE_R, SNARE_F); } catch (e) {} // the storm holds every frame she's up
       if (zd <= 0) { zd = ZAP_CD; zap(nx, ny); }
       if (cone) { cone.zIndex = ny + 1; drawCone(nx, ny); }
