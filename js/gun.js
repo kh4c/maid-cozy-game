@@ -170,6 +170,7 @@ window.Gun = (() => {
   function fire(ax, ay) {
     const mx = px + HOVER_X + ax * 70, my = py + HOVER_Y + ay * 70; // muzzle tip: 64px sprite x1.8, grip at 0.35
     const n = Math.max(1, Math.round(W('pellets', 1) || 1)); // trigger pulls a fan on multi-pellet rows
+    blip(mx, my, n > 1 ? 1.6 : 1); // the flash files its light — thunder carries further than needles
     const fan = Number(W('spread', 0)) || 0;
     const baseA = Math.atan2(ay, ax);
     for (let i = 0; i < n; i++) {
@@ -221,11 +222,18 @@ window.Gun = (() => {
     recoil = W('recoilMul', 1);
     try { window.Sound.playSfx('combat', W('shotSfx', 'swing.ogg'), { rate: W('shotRate', 1.2) }); } catch (e) {}
     if (camera) camera.shake(0.12);
+    blip(ix, iy, 0.8); // steel sings too — a smaller lamp than powder
     try {
       const res = window.Enemies && window.Enemies.damageAt(ix, iy, arc, W('damage', 8));
       if (res && res.hits > 0) accountHits(res, ix, iy);
     } catch (e) {}
   }
+  // muzzle light registry: every strike files its world pos + power here —
+  // main.js renders ONE screen-space lamp off it, so the flash lights the
+  // field (a wink by day, a lamp by night). Decay lives in update().
+  let flashLX = 0, flashLY = 0, flashL = 0;
+  function blip(wx, wy, power) { flashLX = wx; flashLY = wy; flashL = Math.max(flashL, power || 1); }
+  function flashRead() { return { x: flashLX, y: flashLY, level: flashL }; }
   // slug trails: repose one comet per slug per tick (shared with the drone —
   // pet.js calls trailStep/trailDone on its own needles; same world, same look).
   function trailStep(b) {
@@ -352,6 +360,8 @@ window.Gun = (() => {
     bobT += dt;
     cd -= dt;
     recoil *= Math.exp(-5.5 * dt); // the slide lingers ~0.45s — long enough to read, quick enough to reset
+    flashL *= Math.exp(-9 * dt); // the lamp dies faster than the slide — ~0.2s of light per strike
+    if (flashL < 0.01) flashL = 0;
     if (flashT > 0) { flashT -= dt; if (flashT <= 0) flash.visible = false; }
 
     const blocked = (window.EditMode && window.EditMode.active) ||
@@ -489,6 +499,6 @@ window.Gun = (() => {
 
   return { init, update, debug, status, aimSide,
     setAimMode, toggleAim, getAimMode,
-    aiAimAt, aiAimDir, aiAimNearest, aiFire, aiCease, accountHits, trailStep, trailDone,
+    aiAimAt, aiAimDir, aiAimNearest, aiFire, aiCease, accountHits, trailStep, trailDone, blip, flashRead,
     bulletDamage: () => W('damage', 4), setDamage, rangePx: () => W('rangePx', 840) };
 })();

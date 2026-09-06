@@ -89,6 +89,7 @@ window.Pet = (() => {
       s.zIndex = 1e9; // needles fly over heads, like hers
       world.addChild(s);
       bullets.push({ spr: s, vx: Math.cos(a) * PET_SPD, vy: Math.sin(a) * PET_SPD, life: PET_LIFE, trail: null });
+      try { if (window.Gun && window.Gun.blip) window.Gun.blip(dx, dy, 0.45); } catch (e) {} // needles wink too — a small lamp, quiet like its sound
       try { window.Sound && window.Sound.playSfx('combat', 'rifle_real.wav', { rate: 1.8, volume: 0.18 }); } catch (e) {} // pew, pitched up and quiet
     } catch (e) { /* a silent drone still flies */ }
   }

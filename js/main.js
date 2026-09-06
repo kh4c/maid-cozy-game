@@ -73,6 +73,7 @@
       // and the sprite still covers every corner (no gaps when she moves).
       if (on) { vignette.width = app.screen.width * 2; vignette.height = app.screen.height * 2; }
     }
+    try { if (flashGlow) app.stage.addChild(flashGlow); } catch (e) {} // lazily-added vignette would bury the lamp — keep the light on top
     try { window.Live2D && window.Live2D.setNight && window.Live2D.setNight(on); } catch (e) { /* cosmetic */ }
   }
   drawNightOverlay();
@@ -223,6 +224,33 @@
   } catch (err) {
     reportError('effects failed: ' + err.message);
   }
+
+  // ---- Muzzle lamp (screen-space, top-most light) ---------------------------------
+  // The flash IS a light source: every strike files its world pos + power with
+  // Gun.blip, and this radial lamp burns it off over ~0.2s. It sits above the
+  // night wash + vignette, so at night each shot visibly lights the field; by
+  // day it's a warm wink. Drawn over sunrays, under nothing that matters.
+  let flashGlow = null;
+  function makeFlashTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const g = c.getContext('2d');
+    const rad = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+    rad.addColorStop(0, 'rgba(255,240,200,0.9)');
+    rad.addColorStop(0.25, 'rgba(255,220,150,0.45)');
+    rad.addColorStop(0.6, 'rgba(255,200,120,0.15)');
+    rad.addColorStop(1, 'rgba(255,200,120,0)');
+    g.fillStyle = rad;
+    g.fillRect(0, 0, 256, 256);
+    return Texture.from(c);
+  }
+  try {
+    flashGlow = new Sprite(makeFlashTexture());
+    flashGlow.anchor.set(0.5);
+    flashGlow.blendMode = 'add';
+    flashGlow.alpha = 0;
+    app.stage.addChild(flashGlow);
+  } catch (e) { flashGlow = null; }
 
   // ---- Live2D companion (upper body at the right edge) ------------------------------
   let live2d = window.Live2D;
@@ -540,6 +568,16 @@
       } catch (e) { tripBubbleT = 0; }
     }
     updateVignettePos(view); // spotlight tracks the maid, not screen center
+    try { // the muzzle flash is a light source: burn off whatever the gun filed, right at its world spot
+      const fr = window.Gun && window.Gun.flashRead ? window.Gun.flashRead() : null;
+      if (flashGlow && fr && fr.level > 0.01) {
+        const night = nightOn();
+        flashGlow.position.set(world.x + fr.x, world.y + fr.y);
+        const r = Math.min(520, 260 * fr.level * (night ? 1.35 : 0.8)); // thunder throws further than needles; night carries further than day
+        flashGlow.width = r * 2; flashGlow.height = r * 2;
+        flashGlow.alpha = Math.min(1, fr.level) * (night ? 0.85 : 0.35);
+      } else if (flashGlow) flashGlow.alpha = 0;
+    } catch (e) { /* dark frame */ }
 
     if (background) {
       const n = background.update(view.x, view.y, app.screen.width, app.screen.height);
