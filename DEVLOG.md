@@ -2,6 +2,109 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-07 — Grief lunger (4th species) + ENEMY dev tab + faster missiles
+- New aggressive enemy wearing the unused red Monster sheet: born hostile,
+  never calm, one at a time on a 45s clock. It circles her at ~330px, plants
+  its feet and shudders (the MOVE cue — the dash line locks when the shudder
+  ends), then lunges straight through where she stood. Sidestep, don't outrun.
+- One heart per dash, +5hp/+14c over its rolled tier, pale ring so the maid
+  never miscalls it hunter: book row + doctrine + closed world + found-voice
+  all name the grief and say the sidestep out loud.
+- Dev panel grows an ENEMY tab: boss/swarm/send-one move out of MAIN, plus
+  Critters, Gilt pack, and Send grief — every type spawns on demand.
+- Hunter missiles run up to cruise ~60% harder after the dash (SEEK_ACCEL
+  700→1100). hloner 22/22 (8 grief checks: orbit→wind→lunge→bite→payout).
+
+## 2026-09-07 — Hunter Drone: cold-launch missiles, tongue flame, ringed blast
+- Third pet (500c deed, PETS tab): a high tight oval guard that cold-launches
+  homing missiles — straight up off the rail, fast 90° tip-over, straight
+  dash on a frozen bearing, then seek runs up to cruise. Russian-style.
+- Launch pops like a bottle cork (shortest transient in the sfx drawer);
+  boom is a ringed 75px blast with a gold edge + core flash so the radius
+  reads. Missile wears a 28px tongue flame, no light orb. hhunt 24/24.
+- Combat zoom deepens 0.8→0.7 (~40% more field) with the same center pin.
+
+## 2026-09-07 — Lode bodyguard + catch-up gear + birth pops
+- The lodestone protects first, earns later: in combat it parks its storm
+  mouth over the closest foe to HER (FETCH pace); coins wait for peacetime.
+- A 340 catch-up gear + far/near hysteresis means it never loses her screen:
+  falls behind past 450px, flies home till 250, ignores coins while far.
+- Every birth pops TNT cubes like deaths (birthPop shared with the gun).
+
+## 2026-09-07 — Swarm: ringed waves + Send-one
+- Dev Swarm button lands 3 waves, 7s apart, where she stands: 3 gilt packs +
+  2 hunters per wave on a 450px ring, born already hostile under a
+  ⚠ SWARM ⚠ banner. Send-one 🔪 for the single-hunter small case.
+- Shock mouth tightens 200→140px. Lode paces up (180 roam / 260 fetch).
+
+## 2026-09-07 — Combat zoom-out + coin-suck juice
+- Camera breathes out to 0.8 in combat (center-pinned, no drift) and lingers
+  4s after — fights read wider, peace returns slowly.
+- Coins pay out with a pitch ladder (rapid credits climb in tone), a slurp
+  magnet, and blink particles — gold dots that flutter up and blink out.
+  Rings were tried and cut; blinks read cleaner.
+
+## 2026-09-07 — Lodestone storm cone + PETS tab + blob shadows
+- Second drone (350c): a free-roam drifter that slows the field (half speed,
+  frost tint) and zaps 1dmg/s through a side-view storm cone — narrow rotor
+  to a 200px mouth, 3 crackling arcs, flare on each tick.
+- Equipment grows a PETS tab: owned drones only, click to fly/bench
+  (benched = no drone in the world). Both drones hang a 16x6 blob shadow
+  70px underfoot so altitude reads.
+- Shop drone cells crop the 128px strips to frame 1 (the .strip-crop rule).
+
+## 2026-09-07 — Drone buyable + damage numbers + muzzle lamp
+- The Hover Drone reaches the till properly (a desc/describe crash had hidden
+  it — the shop showed 4 items): 250c deed, auto-wears on buy.
+- Floating damage numbers: white chips, gold killing blows, Silkscreen,
+  rise-and-fade. Comet trails shrink to one 36px streak per slug.
+- Every muzzle flash files a lamp: warm pool at night, a wink by day.
+
+## 2026-09-07 — Quota regex back
+- "earn N coins" is a standing objective again: hunts till the purse fills,
+  then stands down. Purse-only, no deltas — the brain stays small.
+
+## 2026-09-06 — Hover Drone pet: oval guard that pews
+- First pet (250c): a nose-first rotor riding a wide oval over her, engaging
+  at 520px, holding 230px standoff, pewing 2dmg. Faces travel, stares down
+  its victim in range, flies over (never under) her sprite.
+- Dev-panel free grant for testing; the bought deed auto-slots.
+
+## 2026-09-06 — Night BGM + stacked battle + hurt flicker + sun
+- Cozy1_night loops after dark; battle stacks on top of the ducked base
+  (0.25) and the base never restarts. Hurts flicker her at 7Hz + red flash.
+- Sunrays sway instead of strobing, fade out at night, fall diagonally
+  (clear top-left → deep-blue shade); boss bar drops below the clock.
+
+## 2026-09-06 — Hunt button + day clock + pixel dawn banner
+- The find button becomes a HUNT button: standing kill-authorization on an
+  8s cooldown. HER week runs Mon–Sat 9–9 (night from 5PM) on a panel-less
+  top-center clock with a breathing colon; dawns get a big dimmed
+  Silkscreen banner + world veil.
+- Whole-iron recoil: the gun launches backward 44px with tilt + lift,
+  decaying over ~0.45s. Far-north burial fixed (dirt sinks to -1e9).
+
+## 2026-09-06 — Urge/hunt orders + ring manners + spotlight
+- Urge is an order now: 6s push + kick, 8s cooldown, legs-aware YES
+  (fresh/winded/spent voices, always obeys). Attackers ring her instead of
+  dogpiling, with crowd separation across packs.
+- The night spotlight follows the camera pan (not her) and breathes 2x–3x
+  so pans never show the ring edge.
+
+## 2026-09-06 — DREADBOAR + combat mode + y-sort + silent trips
+- Boss walks: 60hp bulk on his own sheet, top-center bar, ⚠ CAUTION ⚠
+  banner, chase → 1.2s aim → 540 dash for 2 hearts. Dev-spawned, one only.
+- Combat mode owns her feet per-tick (kite/strafe/lane-dodge) until the
+  battle ends; shooting while tripped stays silent and face-down.
+- Y-sort by feet ends the pile-on; sticky aim sides + smoothed combat
+  feet end the flicker. Trips throw her 104px along her facing, eased.
+
+## 2026-09-06 — Panel fonts land on Silkscreen + goal-hide
+- The font chain (VT323 → Pixelify → DotGothic → 8bitoperator) settles back
+  on Silkscreen for shop + equipment. Bigger IN HAND sprite, stages up
+  (equip 700 / shop 1080), equipment never pauses (shop pause stays).
+- Dev toggle hides the tactic goal-line + thought-box, saved reload-proof.
+
 ## 2026-09-06 — Big doll, vertical tag slots, bigger VT323, no emoji
 - Doll row is slots | maid | hand now: sprite up to 144px (3x canvas, still
   crisp), 3 trinket slots stacked vertically at her left.
