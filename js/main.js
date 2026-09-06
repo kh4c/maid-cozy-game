@@ -110,7 +110,7 @@
     try {
       tripTx.text = line;
       const tw = tripTx.width || 90, th = tripTx.height || 40;
-      const w = Math.min(240, tw + 56), h = 64; // white oval, text centered
+      const w = Math.min(170, tw + 30), h = 44; // small white oval, text centered
       tripBg.clear(); tripBg.beginFill(0xffffff, 0.95); tripBg.drawEllipse(w / 2, h / 2, w / 2, h / 2); tripBg.endFill();
       tripTx.position.set((w - tw) / 2, (h - th) / 2);
       tripBubbleT = 1.8; // linger, then fade with the loop
@@ -140,7 +140,7 @@
     world.addChild(character.view);
     tripBubble = new Container();
     tripBg = new Graphics();
-    tripTx = new Text('ahh!', { fontSize: 34, fill: '#3a2a1a' });
+    tripTx = new Text('ahh!', { fontSize: 20, fill: '#3a2a1a', fontFamily: '"Press Start 2P", monospace' });
     tripBubble.addChild(tripBg); tripBubble.addChild(tripTx);
     tripBubble.visible = false;
     world.addChild(tripBubble);
@@ -420,7 +420,7 @@
     camera.update(view.x, view.y, dtSec);
     if (tripBubbleT > 0) { // the "ahh!" floats over her head, then goes away
       try {
-        tripBubble.position.set(view.x - 60, view.y - 200);
+        tripBubble.position.set(view.x - 45, view.y - 180);
         tripBubbleT -= wdt;
         if (tripBubbleT <= 0) tripBubble.visible = false;
       } catch (e) { tripBubbleT = 0; }

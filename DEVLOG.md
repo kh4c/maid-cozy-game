@@ -2,6 +2,19 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Shiny-bool voice + pixel bubble (no more "golden/blue/coins-each")
+- **The voice can't name what it can't see.** Found/switch facts no longer carry
+  tier, color, or price — code computes a `shiny` boolean and that is ALL the
+  model gets (rare+ → "shiny!", else plain). "Golden one", "blue one", "~18
+  coins each", "red ring", "better prize" all cut from prompts AND fallbacks:
+  giltboars are just NAMED ("Found giltboars — taking them!"), hunters plainly
+  hunters. The no-counts guard lost its price exemption, so any stray "12
+  coins" in a found line now fails back to the clean template. Species +
+  direction + shiny is the whole vocabulary.
+- **Bubble: small white oval, Press Start 2P** (bundled in
+  `assets/fonts/`, @font-face in index.html), 20px dark text centered, 1.8s.
+  M4 pins oval + font + size. 28/28 green.
+
 ## 2026-09-06 — Follow lives in kill + trip bubble (no trip talk)
 - **Find = know, not stick.** `foundIt` no longer shadows on every find. FOLLOW
   now lives in the KILL action only (`killTrack` = hostile self-defense, fresh

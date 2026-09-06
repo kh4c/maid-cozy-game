@@ -839,11 +839,11 @@ window.Brain = (() => {
       const why = gap > 300 ? 'much closer' : 'closer';
       const swHunter = avail.pack === 'lone';
       const line = swHunter
-        ? `*turns, pointing ${bDir}* Heads up, master — a hunter ${distWord(bDist)}, to the ${bDir}, ${why}. Leaving these for the red ring!`
-        : `*turns, pointing ${bDir}* Heads up, master — another pack ${distWord(bDist)}, to the ${bDir}, ${why}. Leaving these for the better prize!`;
+        ? `*turns, pointing ${bDir}* Heads up, master — a hunter ${distWord(bDist)}, to the ${bDir}, ${why}. Leaving these — hunter first!`
+        : `*turns, pointing ${bDir}* Heads up, master — another pack ${distWord(bDist)}, to the ${bDir}, ${why}. Leaving these for the closer pack!`;
       try { pushEvent(`switched shadow to a ${why} pack ${bDir}`); } catch (e2) {}
       queueNews({
-        facts: { total: p.enemies.total, dir: bDir, dist: distWord(bDist), distPx: bDist, species: swHunter ? 'hunter' : (avail.species || 'critter'), bestRarity: avail.rarity || 'common', bestColor: ringWord(avail), bestPrice: bVal, hostile: p.enemies.hostile, ordered: false, switched: why, prev: `the old pack (${distWord(aDist)})` },
+        facts: { total: p.enemies.total, dir: bDir, dist: distWord(bDist), distPx: bDist, species: swHunter ? 'hunter' : (avail.species || 'critter'), shiny: ['rare', 'epic', 'legendary'].includes(avail.rarity || 'common'), hostile: p.enemies.hostile, ordered: false, switched: why, prev: `the old pack (${distWord(aDist)})` },
         fallback: line,
       });
       showThought(`*switching shadow — ${why}*`, ['🔎 better pack'], 0);
@@ -888,7 +888,7 @@ window.Brain = (() => {
         }
       } catch (e) {}
       const newsStamp = performance.now();
-      const facts = { total: en.total, dir: bDir, dist: distWord(n.dist), distPx: n.dist | 0, species: isHunter ? 'hunter' : (isGilt ? 'giltboar' : 'critter'), bestRarity: best.rarity || 'common', bestColor: ringWord(best), bestPrice: best.price || 2, hostile: en.hostile, ordered: !!(attackOrder && freshOrder), staleKey: 'pack', staleAt: newsStamp };
+      const facts = { total: en.total, dir: bDir, dist: distWord(n.dist), distPx: n.dist | 0, species: isHunter ? 'hunter' : (isGilt ? 'giltboar' : 'critter'), shiny: ['rare', 'epic', 'legendary'].includes(best.rarity || 'common'), hostile: en.hostile, ordered: !!(attackOrder && freshOrder), staleKey: 'pack', staleAt: newsStamp };
       if (prev) {
         facts.prev = `to the ${prev.dir || '?'} (${prev.dist || 'nearby'})`;
         facts.compare = `the new one is ${distWord(n.dist)} vs ${prev.dist || 'nearby'} before — say which is closer and which you'd take first`;
@@ -928,9 +928,9 @@ window.Brain = (() => {
     f = f || {};
     if (event === 'found') {
       const where = `, ${f.dist || 'nearby'}, to the ${f.dir || '?'}`;
-      const shiny = ['rare', 'epic', 'legendary'].includes(f.bestRarity) ? ' One of them looks shiny!' : '';
-      if (f.species === 'hunter') return `Found a hunter — red ring${where}!${shiny}`;
-      if (f.species === 'giltboar') return `Found giltboars${where} — golden! Taking them!`;
+      const shiny = f.shiny ? ' One of them looks shiny!' : '';
+      if (f.species === 'hunter') return `Found a hunter${where}!${shiny}`;
+      if (f.species === 'giltboar') return `Found giltboars${where} — taking them!`;
       if ((f.hostile | 0) > 0) return `Found critters${where} — some look angry!${shiny}`;
       if (f.ordered) return `Found critters${where} — engaging as ordered!${shiny}`;
       return `Found critters${where} — holding fire, watching, master. Say the word.${shiny}`;
