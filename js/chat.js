@@ -359,7 +359,7 @@ window.Chat = (() => {
       } catch (e) {}
       // event-specific instruction: the facts block is shared, the ask changes
       const EV = {
-        found: `you just SPOTTED a monster in the field (the approved line below names it — a lone hunter or a critter pack — use ITS words, never swap the species). Announce it to master NOW in your own voice: 1-2 short sentences, in-character, *action* allowed. Keep it PLAIN — no counts, no rarity talk, unless the facts below flag something RARE.`,
+        found: `you just SPOTTED a monster in the field (the approved line below names it — a lone hunter or a critter pack — use ITS words, never swap the species). Announce it to master NOW in your own voice: 1-2 short sentences, in-character, *action* allowed. Keep it PLAIN — no counts, no rarity talk, unless the facts below flag something RARE. CLOSED WORLD: critters and lone hunters are ALL that exists here — never name rabbits, deer, wolves, or any other animal.`,
         wiped: `the pack you were watching is now ALL DEAD (you killed them). Report it to master NOW in your own voice: 1 short sentence, in-character, *action* allowed — bones tired or proud, your pick. Never promise to remember this pack.`,
         leave: `you just WALKED AWAY from the pack in view, on master's order. Say so briefly in your own voice: 1 short sentence, in-character, *action* allowed. No pin, no promise to come back.`,
         switch: `you LEFT the pack you were shadowing for a BETTER/CLOSER one. Say so briefly in your own voice: 1 short sentence, in-character, *action* allowed.`,

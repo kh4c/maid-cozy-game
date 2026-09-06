@@ -527,7 +527,8 @@ window.Enemies = (() => {
     return 'Bestiary — the field guide, TRUE of this world (answer questions about monsters from this, in your own voice). ' +
       `Two species: CRITTER — harmless pack grazer (bounty ${CRITTER_BOUNTY}c, ${CRITTER_HP}hp): ${CRITTER_LORE} ${PACK_HABIT} ` +
       `HUNTER — harmful invasive loner (bounty ${HUNTER_BOUNTY}c, ${HUNTER_HP}hp): ${HUNTER_LORE} ${HUNTER_HABIT} ` +
-      `Tiers, rolled by every monster: ${ladder} — hunters add +${LONER_GRIT}hp and +${LONER_BOUNTY}c on top.`;
+      `Tiers, rolled by every monster: ${ladder} — hunters add +${LONER_GRIT}hp and +${LONER_BOUNTY}c on top. ` +
+      `CLOSED WORLD: these two species are EVERYTHING alive here — nothing else exists. No rabbits, deer, wolves, slimes, birds, or anything remembered from elsewhere; anything spotted is a critter or a hunter, possibly misseen.`;
   }
 
   // ---- combat card: data-driven, species-extensible ---------------------------
