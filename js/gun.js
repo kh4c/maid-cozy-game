@@ -68,6 +68,14 @@ window.Gun = (() => {
     } catch (e) {}
     return false;
   }
+  // which way the gun is pointing, world-x: -1 enemy-left, +1 enemy-right.
+  // main.js feeds it to the sprite while the trigger is latched (attack-face
+  // override); 0 inside the dead zone = hold last side, no jitter.
+  function aimSide() {
+    if (lastAimX === null) return 0;
+    const dx = lastAimX - px;
+    return dx < -8 ? -1 : dx > 8 ? 1 : 0;
+  }
   function aiFire(secs) {
     const s = Math.max(0.3, Math.min(10, Number(secs) || 2));
     aiFireUntil = Math.max(aiFireUntil, performance.now() + s * 1000);
@@ -346,7 +354,7 @@ window.Gun = (() => {
     try { window.Brain && window.Brain.syncButtons && window.Brain.syncButtons(); } catch (e) {}
   }
 
-  return { init, update, debug, status,
+  return { init, update, debug, status, aimSide,
     setAimMode, toggleAim, getAimMode,
     aiAimAt, aiAimDir, aiAimNearest, aiFire, aiCease,
     bulletDamage: () => W('damage', 4), setDamage, rangePx: () => W('rangePx', 840) };

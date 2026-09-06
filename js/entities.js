@@ -47,14 +47,19 @@ window.Entities = (() => {
       if (dieAnim) dieAnim.animationSpeed = 1 / Math.max(0.5, settings.dieFps ?? 8);
     }
 
-    // a: current input axis; dead: fainted — play the die sheet, hold the fall
-    function update(a, dead) {
+    // a: current input axis; dead: fainted — play the die sheet, hold the fall;
+    // face: attack override from the gun (-1 enemy-left, +1 enemy-right) — while
+    // the trigger is latched she faces the enemy, not her feet. 0/undefined =
+    // no override, flip by movement as before. Art faces right at +scale.
+    function update(a, dead, face) {
       if (dead && dieAnim) {
         body.rotation = 0;
         setAnimation(dieAnim);
         return;
       }
-      if (a.x < 0) body.scale.x = -Math.abs(body.scale.x);
+      if (face === -1) body.scale.x = -Math.abs(body.scale.x);
+      else if (face === 1) body.scale.x = Math.abs(body.scale.x);
+      else if (a.x < 0) body.scale.x = -Math.abs(body.scale.x);
       else if (a.x > 0) body.scale.x = Math.abs(body.scale.x);
 
       // 8-way facing: lean toward vertical movement, flip-compensated (local-space tilt)

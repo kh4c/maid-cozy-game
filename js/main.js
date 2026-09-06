@@ -310,7 +310,14 @@
     view.y += a.y * s.speed * spdMul * wdt;
 
     // INFINITE world: no bounds clamping — background chunks stream in around the camera
-    character.update(a, !!(window.Health && window.Health.dead));
+    // FACE THE ENEMY: trigger latched -> sprite faces the gun's side, not her
+    // feet (art faces right at +scale). No fire -> 0, movement flips as before.
+    let face = 0;
+    try {
+      const g = window.Gun;
+      if (g && g.status && g.status().firing && g.aimSide) face = g.aimSide() | 0;
+    } catch (e) { /* keep movement facing */ }
+    character.update(a, !!(window.Health && window.Health.dead), face);
     if (window.Enemies) {
       try { window.Enemies.update(wdt, view.x, view.y); }
       catch (err) { /* one bad tick must not kill the loop */ }
