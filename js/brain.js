@@ -610,7 +610,6 @@ window.Brain = (() => {
     followTick(dt);    // shadow the found pack at ~280px
     coinSeek(dt);      // loose coins — hoover them up whenever it's safe
     objectiveTick(dt); // standing posture — never idle, re-arm the search
-    chatterTick(dt);   // long jobs report in — she thinks out loud
     patienceTick(dt);  // her fuse while awaiting your word — silence ends in HER decision
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     let hot = false, near = false;
@@ -752,17 +751,6 @@ window.Brain = (() => {
     } catch (e) {}
     return best || (en && en.nearest) || null;
   }
-  // her feeling about hunting THIS pack — appetite scales with shininess.
-  // Hunters wear red rings whatever the tier, so the color words go lone-aware.
-  function huntingFeeling(best) {
-    const r = (best && best.rarity) || 'common';
-    const lone = !!(best && best.pack === 'lone');
-    if (r === 'legendary') return lone ? `A LEGENDARY HUNTER, red ring blazing — ${best.price} coins of bounty!! I'm trying VERY hard to behave, master.` : `A LEGENDARY, shining gold — ${best.price} coins!! I'm trying VERY hard to behave, master.`;
-    if (r === 'epic') return lone ? `An EPIC hunter, red-ringed and huge — ${best.price} coins of bounty… please say I can keep the change.` : `An EPIC, shining purple — ${best.price} coins easy… please say I can keep the change.`;
-    if (r === 'rare') return lone ? `Ooh — a red-ringed RARE hunter, worth about ${best.price} coins! My tail's twitching…` : `Ooh — a blue-banded RARE, worth about ${best.price} coins! My tail's twitching…`;
-    if (r === 'uncommon') return lone ? `A red-ringed hunter with a green-tier purse — pocket money, about ${best.price} coins.` : `Some nice green-banded ones in there — pocket money, about ${best.price} coins for the best.`;
-    return lone ? `A common hunter — red ring, small bounty, still money.` : `Just commons, a coin or two each — pocket change, but money is money.`;
-  }
   function dirWord(dx, dy) {
     const ax = Math.abs(dx), ay = Math.abs(dy);
     if (ax < 1e-6 && ay < 1e-6) return 'right here';
@@ -873,22 +861,10 @@ window.Brain = (() => {
     try { followKills0 = memory.kills | 0; } catch (e) { followKills0 = 0; }
     const bDir = best && best.dx !== undefined ? dirWord(best.dx, best.dy) : dir;
     const freshOrder = performance.now() - lastAskAt < 45000 || (objective && objective.kind === 'hunt'); // hunt posture never goes stale
-    const feeling = huntingFeeling(best);
-    const stance = en.hostile > 0
-      ? (isHunter ? `Careful, master — it's angry! Engaging!` : `Careful, master — ${en.hostile === en.total ? 'they all look' : 'some look'} angry!`)
-      : (attackOrder && freshOrder)
-        ? `Engaging as ordered!`
-        : isHunter
-          ? `That's a hunter, master — red ring. It won't stay calm long; weapons ready.`
-          : `Holding fire, master — want them dead?`;
-    // quiet-found doctrine: no counts, no rarity — UNLESS the best is rare+,
-    // then the template itself names it so her reword keeps the shiny news.
-    const rarePlus = ['rare', 'epic', 'legendary'].includes((best && best.rarity) || 'common');
-    const rareNote = rarePlus ? ` A ${best.rarity} one — shiny!` : '';
-    const line = isHunter
-      ? `*gasps, pointing ${bDir}* Found a hunter — red ring, ${distWord(n.dist)}, to the ${bDir}!${rareNote} ${feeling} ${stance}`
-      : `*gasps, pointing ${bDir}* Found ${en.total === 1 ? 'a critter' : 'critters'} ${distWord(n.dist)}, to the ${bDir}!${rareNote} ` +
-        `${feeling} ${stance}`;
+    // quiet-found doctrine: no counts, no rarity in VOICE — UNLESS rare+, named
+    // by the builder below so her reword keeps the shiny news. The whole
+    // stance/feeling/template assembly used to live here; now fb('found') builds
+    // the fallback from facts (same words the harnesses pin, none of the prose).
     try { pushEvent(`found ${en.total} critter(s) ${bDir} — best ${best.rarity}`); } catch (e) {}
     // PATIENCE: the "want them dead?" ask opens her fuse — silence will decide.
     try { if (window.Patience && !isHunter && !(en.hostile > 0) && !(attackOrder && freshOrder)) window.Patience.ask('kill-critters'); } catch (e) {}
@@ -912,7 +888,7 @@ window.Brain = (() => {
       facts.prev = `to the ${prev.dir || '?'} (${prev.dist || 'nearby'})`;
       facts.compare = `the new one is ${distWord(n.dist)} vs ${prev.dist || 'nearby'} before — say which is closer and which you'd take first`;
     }
-    queueNews({ facts, fallback: line });
+    queueNews({ facts, fallback: fb('found', facts) });
     showThought(`*found ${en.total === 1 ? 'it' : `all ${en.total} of them`} — best is ${best.rarity}*`, ['🔎 found', '👀 waiting orders'], 0);
     if (objective && objective.kind === 'heel') stopFollow(); // heel: announced, never shadowed
   }
@@ -920,6 +896,22 @@ window.Brain = (() => {
   // Every proactive report goes through Chat.announce like the found-line does;
   // the LLM says it in persona. These replace the old hardcoded strings —
   // "all clear, scooping up coins" verbatim, forever, was the worst offender.
+  // ---- fallback voice: ONE builder, no hand-written prose ------------------------
+  // Healthy runs never speak these (the LLM rewords via announce); they save
+  // the news when the model is down. Pinned phrases live here — "Found" +
+  // "want them dead?" (hfound/hfilter/hposture pin them, hunters never ask).
+  function fb(event, f) {
+    f = f || {};
+    if (event === 'found') {
+      const where = `, ${f.dist || 'nearby'}, to the ${f.dir || '?'}`;
+      const shiny = ['rare', 'epic', 'legendary'].includes(f.bestRarity) ? ` A ${f.bestRarity} one — shiny!` : '';
+      if (f.species === 'hunter') return `Found a hunter — red ring${where}!${shiny}`;
+      if ((f.hostile | 0) > 0) return `Found critters${where} — some look angry!${shiny}`;
+      if (f.ordered) return `Found critters${where} — engaging as ordered!${shiny}`;
+      return `Found critters${where} — holding fire, master — want them dead?${shiny}`;
+    }
+    return '';
+  }
   function genLine(event, facts, fallback) {
     // fire-and-forget generation; if the LLM is down the fallback template says
     // the same facts plainly, so the report is never LOST — only less pretty.
@@ -1103,11 +1095,6 @@ window.Brain = (() => {
     return 'hunting — kill every pack in reach until told to stop.';
   }
 
-  // ---- chatter: she thinks out loud while working --------------------------------
-  // Long jobs go quiet otherwise — every ~55s of active work she reports in:
-  // quota tally, task status, the watch. Never interrupts a fight, never cuts
-  // in line ahead of something important (queued news), never backlogs.
-  let chatterAcc = 0;
   // ---- patience: her fuse while a question stands -------------------------------
   // "Holding fire — want them dead?" opens the meter (see found-pack). Talk to
   // her or click the field and it refills; a foot-tap at half, and at zero SHE
@@ -1128,24 +1115,6 @@ window.Brain = (() => {
       }
     } catch (e) {}
   }
-  function chatterTick(dt) {
-    chatterAcc += dt;
-    if (chatterAcc < 55) return;
-    chatterAcc = 0;
-    if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
-    if (newsQueue.length || newsBusy) return; // something important waiting — don't cut in
-    try {
-      const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
-      if (!p) return;
-      if (p.enemies && p.enemies.hostile > 0) return; // busy fighting — shoot, don't chat
-      if (objective && objective.kind === 'find') genLine('chatter', { job: 'finding critters' }, `*sniffing the air* Still searching, master — eyes open, no shot yet.`);
-      else if (objective && objective.kind === 'heel') genLine('chatter', { job: 'holding position beside you' }, `*settled, watching* Holding here, master — all quiet.`);
-      else if (objective) genLine('chatter', { job: 'hunting' }, `*sniffing the air* Still on the hunt, master — eyes sharp.`);
-      else if (following) genLine('chatter', { job: 'watching a pack, awaiting your word' }, `*crouched, watching* Still watching them... waiting on your word.`);
-      else return;
-    } catch (e) {}
-  }
-
   // ---- going back: cut. There is no memory of packs, no pins, no marches. --
   // "Leave them" walks away with one invisible 60s spot cooldown (leaveSpot
   // above — no UI, no recall). "Actually kill those" means the pack in EYES;
