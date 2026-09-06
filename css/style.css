@@ -272,7 +272,7 @@ canvas { display: block; }
   box-shadow: 0 0 18px rgba(255, 210, 74, 0.45);
 }
 .shop-cell-icon { width: 84px; height: 84px; object-fit: contain; image-rendering: pixelated; font-size: 56px; }
-.shop-cell-name { color: #ffd9a0; font-size: 9px; text-align: center; }
+.shop-cell-name { color: #ffd9a0; font-size: 9px; width: 100%; text-align: left; }
 .shop-cell-buy {
   cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 9px; color: #1a1206;
   background: #ffd24a; border: none; border-radius: 5px; padding: 7px 8px; width: 100%;
@@ -363,8 +363,8 @@ canvas { display: block; }
 .equip-cell:hover { transform: translateY(-3px); border-color: #4de3ff; box-shadow: 0 0 14px rgba(77, 227, 255, 0.4); }
 .equip-cell.sel { border-color: #ffd24a; box-shadow: 0 0 14px rgba(255, 210, 74, 0.45); }
 .equip-cell-icon { width: 72px; height: 72px; object-fit: contain; image-rendering: pixelated; }
-.equip-cell-name { font-size: 8px; color: #dfe6ff; text-align: center; }
-.equip-cell-stats { font-size: 7px; color: #8d96c8; text-align: center; }
+.equip-cell-name { font-size: 8px; color: #dfe6ff; width: 100%; text-align: left; }
+.equip-cell-stats { font-size: 7px; color: #8d96c8; width: 100%; text-align: left; }
 .equip-cell-btn {
   cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 8px; color: #0a0e24;
   background: #4de3ff; border: none; border-radius: 5px; padding: 7px 8px; width: 100%;
