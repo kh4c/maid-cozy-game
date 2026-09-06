@@ -159,7 +159,9 @@
       if (small) small.textContent = parts.slice(1).join(' ') + ' — a new day';
       b.style.display = 'flex';
       b.style.animation = 'none'; void b.offsetWidth; b.style.animation = ''; // restart the fade
-      setTimeout(() => { try { b.style.display = 'none'; } catch (e) {} }, 3300);
+      try { const dim = document.getElementById('day-dim'); if (dim) dim.style.display = 'block'; } catch (e) {}
+      setTimeout(() => { try { b.style.display = 'none'; } catch (e) {}
+        try { const dim = document.getElementById('day-dim'); if (dim) dim.style.display = 'none'; } catch (e) {} }, 3300);
     } catch (e) {}
   }
   function maidBubble(line) {

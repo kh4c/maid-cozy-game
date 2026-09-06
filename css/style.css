@@ -116,9 +116,9 @@ canvas { display: block; }
 #thought-box.flash { animation: thought-pop 0.35s ease-out; }
 @keyframes thought-pop { from { border-color: rgba(103,232,249,0.9); } to { border-color: rgba(103,232,249,0.35); } }
 
-/* ---- Clock line: day + time, top-left below the goal line (combat-bar owns the 88px row) */
+/* ---- Clock line: day + time, top-right beside the gear (left stack is full) */
 #clock-line {
-  position: absolute; top: 140px; left: 12px; z-index: 5;
+  position: absolute; top: 12px; left: auto; right: 58px; z-index: 5;
   background: rgba(0, 0, 0, 0.45);
   border: 1px solid rgba(157, 148, 255, 0.35);
   border-radius: 8px; padding: 4px 10px;
@@ -136,12 +136,16 @@ canvas { display: block; }
   animation: day-banner-in 3.2s ease-out forwards;
 }
 #day-banner .big {
-  font-family: 'Silkscreen', monospace; font-size: 44px; color: #ffe9b0;
-  text-shadow: 0 0 18px rgba(255, 210, 74, 0.6), 0 2px 4px rgba(0, 0, 0, 0.9);
+  font-family: 'Silkscreen', monospace; font-size: 68px; color: #ffe9b0;
+  text-shadow: 0 0 26px rgba(255, 210, 74, 0.7), 0 3px 6px rgba(0, 0, 0, 0.9);
 }
 #day-banner .small {
-  font-family: 'Silkscreen', monospace; font-size: 16px; color: #d9d4ff;
+  font-family: 'Silkscreen', monospace; font-size: 20px; color: #d9d4ff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+#day-dim { /* the world holds its breath while the dawn is announced */
+  position: absolute; inset: 0; z-index: 29;
+  background: rgba(0, 0, 8, 0.6); pointer-events: none;
 }
 @keyframes day-banner-in { 0% { opacity: 0; transform: translate(-50%, -46%); } 12% { opacity: 1; transform: translate(-50%, -50%); } 78% { opacity: 1; } 100% { opacity: 0; } }
 
