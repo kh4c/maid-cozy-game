@@ -42,6 +42,7 @@ window.Equipment = (() => {
     const out = [];
     try { if (window.Pet && window.Pet.owns()) out.push({ id: 'drone', img: 'assets/drone1.png', name: 'Hover Drone', desc: window.Pet.describe(), equipped: window.Pet.equipped() }); } catch (e) {}
     try { if (window.Lode && window.Lode.owns()) out.push({ id: 'lode', img: 'assets/drone2.png', name: 'Lodestone Drone', desc: window.Lode.describe(), equipped: window.Lode.equipped() }); } catch (e) {}
+    try { if (window.Hunter && window.Hunter.owns()) out.push({ id: 'hunter', img: 'assets/drone3.png', name: 'Hunter Drone', desc: window.Hunter.describe(), equipped: window.Hunter.equipped() }); } catch (e) {}
     return out;
   }
 
@@ -169,7 +170,7 @@ window.Equipment = (() => {
         if (d.acc && window.Accessories && window.Accessories.equip(d.acc) >= 0) { pendingAcc = null; tick(); render(); return; } // WEAR fills first empty
         if (d.accIcon && ownsAcc(d.accIcon)) { pendingAcc = d.accIcon; tick(); render(); return; } // icon arms the jiggle
         if (d.petEquip) { // PETS grid: fly / bench it — benched means no drone
-          const P = d.petEquip === 'lode' ? window.Lode : window.Pet;
+          const P = { lode: window.Lode, hunter: window.Hunter, drone: window.Pet }[d.petEquip] || window.Pet;
           if (P && P.toggle && P.toggle()) { tick(); render(); return; }
         }
         if (d.unslot !== undefined && d.unslot !== null && d.unslot !== '') {

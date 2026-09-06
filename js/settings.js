@@ -182,6 +182,10 @@ window.Settings = (() => {
       lode.textContent = 'Give lodestone 🧲';
       lode.title = 'Free Lodestone Drone deed + slotted — testing skips the till';
       lode.addEventListener('click', () => { try { if (window.Lode && window.Lode.grant) { window.Lode.grant(); window.Lode.equip(); } } catch (e) {} });
+      const hunter = document.createElement('button');
+      hunter.textContent = 'Give hunter 🚀';
+      hunter.title = 'Free Hunter Drone deed + slotted — testing skips the till';
+      hunter.addEventListener('click', () => { try { if (window.Hunter && window.Hunter.grant) { window.Hunter.grant(); window.Hunter.equip(); } } catch (e) {} });
       const swarm = document.createElement('button');
       swarm.textContent = 'Swarm ⚠';
       swarm.title = 'Three rings of gilt packs + hunters, 7s apart, closing where she stands — the CAUTION banner, on demand';
@@ -190,7 +194,7 @@ window.Settings = (() => {
       one.textContent = 'Send one 🔪';
       one.title = 'One hunter at the ring, already after her — the small case';
       one.addEventListener('click', () => { try { window.Enemies && window.Enemies.sendOne && window.Enemies.sendOne(); } catch (e) {} });
-      row.append(hurt, heal, boss, swarm, one, drone, lode);
+      row.append(hurt, heal, boss, swarm, one, drone, lode, hunter);
       tabMain.appendChild(row);
     }
 

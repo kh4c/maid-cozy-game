@@ -300,6 +300,12 @@
   } catch (err) {
     reportError('lode failed: ' + err.message);
   }
+  // ---- Hunter Drone (cold-launch homing missiles when worn) -----------------
+  try {
+    window.Hunter && await window.Hunter.init(world);
+  } catch (err) {
+    reportError('hunter failed: ' + err.message);
+  }
 
   // ---- Dev panel --------------------------------------------------------------------
   window.Settings.buildPanel((key) => {
@@ -527,6 +533,11 @@
     // lodestone: wide high oval, fetches coins, frosts the field
     if (window.Lode) {
       try { window.Lode.update(wdt, view.x, view.y); }
+      catch (err) { /* a pet hiccup must not kill the loop */ }
+    }
+    // hunter: high tight oval, cold-launches seekers at her circle
+    if (window.Hunter) {
+      try { window.Hunter.update(wdt, view.x, view.y); }
       catch (err) { /* a pet hiccup must not kill the loop */ }
     }
     // survival brain: auto-thinks when danger nears (own LLM loop + thought box)

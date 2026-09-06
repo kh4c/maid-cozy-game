@@ -132,6 +132,7 @@ window.Hunter = (() => {
       try { window.Sound && window.Sound.playSfx('combat', 'shotgun_real.wav', { rate: 0.6, volume: 0.5 }); } catch (e) {} // the deep boom
     } catch (e) {}
     try { world.removeChild(m.spr); m.spr.destroy(); } catch (e) {}
+    try { if (window.Gun && window.Gun.trailDone) window.Gun.trailDone(m); } catch (e) {} // the comet winks out with it, never orphaned
     try { if (m.flame) { world.removeChild(m.flame); m.flame.destroy(); } } catch (e) {}
   }
 
@@ -160,7 +161,7 @@ window.Hunter = (() => {
       m.x += m.vx * dt; m.y += m.vy * dt;
       try { m.spr.position.set(m.x, m.y); } catch (e) {}
       try { if (m.flame) { m.flame.position.set(m.x - m.vx * 0.015, m.y - m.vy * 0.015); m.flame.scale.set(0.1 + Math.random() * 0.06); } } catch (e) {} // the flame dances
-      try { if (window.Gun && window.Gun.trailStep) window.Gun.trailStep({ spr: m.spr, vx: m.vx, vy: m.vy, trail: m.trail || null }); m.trail = m.spr.trailRef || m.trail; } catch (e) {} // her comet style, on loan — reposed per tick, never shed
+      try { if (window.Gun && window.Gun.trailStep) window.Gun.trailStep(m); } catch (e) {} // her comet style, on loan — reposed per tick, never shed
       let dead = m.age > LIFE;
       if (!dead) {
         const d = Math.hypot(m.tx - m.x, m.ty - m.y);
@@ -215,5 +216,5 @@ window.Hunter = (() => {
 
   function grant() { owned = true; save(); return true; } // dev-panel free deed — testing skips the till
   return { init, update, buy, grant, equip, unequip, toggle, known, owns, equipped, price, describe,
-    debug: () => ({ x: dx, y: dy, gx: dx, gy: dy + DROP, sh, aloft: missiles.length }) };
+    debug: () => ({ x: dx, y: dy, gx: dx, gy: dy + DROP, sh, aloft: missiles.length, shots: missiles.map((m) => ({ x: m.x, y: m.y, vx: m.vx, vy: m.vy, age: m.age })) }) };
 })();

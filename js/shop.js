@@ -76,6 +76,13 @@ window.Shop = (() => {
           price: window.Lode.price(), desc: window.Lode.describe(), owned, soldOut: owned, why: owned ? 'owned' : '' });
       }
     } catch (e) {}
+    try { // the hunter: third deed, third 🎒 square — cold-launch homing missiles
+      if (window.Hunter && typeof window.Hunter.owns === 'function') {
+        const owned = window.Hunter.owns();
+        cells.push({ id: 'hunter', img: 'assets/drone3.png', emoji: '🚀', name: 'Hunter Drone',
+          price: window.Hunter.price(), desc: window.Hunter.describe(), owned, soldOut: owned, why: owned ? 'owned' : '' });
+      }
+    } catch (e) {}
     return cells;
   }
 
@@ -110,6 +117,12 @@ window.Shop = (() => {
         else toast(r && r.why === 'owned' ? 'Already yours — see the 🎒 PETS tab.' : 'Not enough coins!');
         render(); return r;
       }
+      if (window.Hunter && typeof window.Hunter.known === 'function' && window.Hunter.known(id)) {
+        const r = window.Hunter.buy();
+        if (r && r.ok) { toast(`🚀 ${r.name} — YOURS! Fly it from the 🎒 PETS tab.`); flashPanel(); }
+        else toast(r && r.why === 'owned' ? 'Already yours — see the 🎒 PETS tab.' : 'Not enough coins!');
+        render(); return r;
+      }
     } catch (e) {}
     return { ok: false, why: 'no stock' };
   }
@@ -117,7 +130,7 @@ window.Shop = (() => {
   function iconFor(cls, c) { // drone strips are 4 frames wide — crop the icon to frame 1
     if (!c.img) return `<span class="${cls}">${esc(c.emoji || '?')}</span>`;
     const img = `<img src="${esc(c.img)}" alt="" onerror="this.style.display='none'" />`;
-    return (c.id === 'drone' || c.id === 'lode') ? `<span class="${cls} strip-crop">${img}</span>` : img.replace('<img', `<img class="${cls}"`);
+    return (c.id === 'drone' || c.id === 'lode' || c.id === 'hunter') ? `<span class="${cls} strip-crop">${img}</span>` : img.replace('<img', `<img class="${cls}"`);
   }
 
   function cellHtml(c, coins) {
@@ -140,7 +153,7 @@ window.Shop = (() => {
     grid.innerHTML = cells.map((c) => cellHtml(c, coins)).join('');
     const c = cells.find((x) => x.id === sel) || cells[0];
     const bigIcon = iconFor('shop-big-icon', c);
-    const state = c.soldOut ? (c.owned || c.why === 'owned' ? `OWNED — see ${c.id === 'drone' ? '🎒 pet slot' : '🔫 Equipment'}` : `MAXED (${esc(c.why || 'maxed')})`) : `${c.price}c`;
+    const state = c.soldOut ? (c.owned || c.why === 'owned' ? `OWNED — see ${(c.id === 'drone' || c.id === 'lode' || c.id === 'hunter') ? '🎒 PETS tab' : '🔫 Equipment'}` : `MAXED (${esc(c.why || 'maxed')})`) : `${c.price}c`;
     const poor = !c.soldOut && coins < c.price;
     detail.innerHTML =
       `${bigIcon}<div class="shop-detail-name">${esc(c.name)}</div>` +
