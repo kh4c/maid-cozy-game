@@ -245,6 +245,7 @@ window.Brain = (() => {
         try { window.Input.order(strollDir.x, strollDir.y, 2.5); } catch (e) {}
       } else beginStroll();
       if (n && n.x != null) leaveSpot = { x: n.x, y: n.y, until: performance.now() + 60000 };
+      try { if (n && n.x != null && window.Enemies && window.Enemies.dismissNear) window.Enemies.dismissNear(n.x, n.y); } catch (e) {} // tagged — wanders off instead of trailing her
     } catch (e) {}
     searchDone = false; // re-arm: a DIFFERENT pack may found; the left one just cools down, unfiled
     note(`left the pack (${why || 'master said so'}) — walking away, no pin, no memory`);

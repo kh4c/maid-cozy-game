@@ -16,7 +16,8 @@ window.Enemies = (() => {
   const HOSTILE_SPEED = 95;            // chase (player runs 300 — outrunnable)
   const AGGRO_R = 260;                 // someone gets close -> pack hunts
   const CALM_R = 420;                  // escape this far -> back to wandering
-  const DESPAWN_R = 3000;              // pack anchor beyond this -> gone (far: dismissed packs must survive a stroll-away + march-back)
+  const DESPAWN_R = 3000;              // pack anchor beyond this -> gone (far cleanup)
+  const DISMISS_AFTER = 8;               // "not interested" tag -> wanders off (despawns) this soon after
   const TOUCH_R = 42;                  // bite distance
   const HIT_CD = 1.0;                  // seconds between bites per critter
   const PACK_R = 60;                   // pack milling radius
@@ -156,6 +157,21 @@ window.Enemies = (() => {
     groups.splice(groups.indexOf(g), 1);
   }
 
+  // "not interested" tag — the brain dismisses whole groups ("find another").
+  // Tagged packs wander off (despawn) DISMISS_AFTER seconds later and never
+  // spook-trail her. Loners are never tagged (same entry shape, no group).
+  function dismissNear(x, y) {
+    let best = null, bd = 500; // must be a real pack nearby, not a guess
+    try {
+      for (const g of groups) {
+        const d = Math.hypot(g.anchor.x - x, g.anchor.y - y);
+        if (d < bd) { bd = d; best = g; }
+      }
+      if (best) { best.dismissedAt = performance.now() / 1000; return true; }
+    } catch (e) {}
+    return false;
+  }
+
   function steer(m, tx, ty, speed, dt) {
     const dx = tx - m.x, dy = ty - m.y;
     const d = Math.hypot(dx, dy) || 1;
@@ -195,6 +211,9 @@ window.Enemies = (() => {
       // left far behind -> despawn the whole pack
       if (ad > DESPAWN_R) { destroyPack(g); continue; }
 
+      // dismissed ("not interested") -> wanders off soon after, never trails her
+      if (g.dismissedAt && now - g.dismissedAt > DISMISS_AFTER) { destroyPack(g); continue; }
+
       // retaliation cools when you leave them alone (or while she's down)
       if (g.alerted && (playerDead || ad > CALM_R)) {
         g.alerted = false;
@@ -212,8 +231,8 @@ window.Enemies = (() => {
         const k = Math.min(1, 1.2 * dt);
         g.anchor.x += ((px + nx * FOLLOW_R) - g.anchor.x) * k;
         g.anchor.y += ((py + ny * FOLLOW_R) - g.anchor.y) * k;
-      } else if (!playerDead && ad < SHADOW_R && ad > 1) {
-        // spooked: start trailing (but not attacking)
+      } else if (!playerDead && !g.dismissedAt && ad < SHADOW_R && ad > 1) {
+        // spooked: start trailing (but not attacking) — dismissed packs never trail
         g.spooked = true;
         const nx = (g.anchor.x - px) / (ad || 1), ny = (g.anchor.y - py) / (ad || 1);
         const k = Math.min(1, 0.8 * dt);
@@ -550,5 +569,5 @@ window.Enemies = (() => {
       `She runs 300 — she outruns both. Bite = 1 heart at 42px. Open grassland, no cover.\n`;
   }
 
-  return { init, update, hostileCount, playerAttack, damageAt, nearest, sense, senseView, nearestView, priceListText, bestiary, bestiaryText, combatFacts, debugGroups: () => groups };
+  return { init, update, hostileCount, playerAttack, damageAt, nearest, sense, senseView, nearestView, priceListText, bestiary, bestiaryText, combatFacts, dismissNear, debugGroups: () => groups };
 })();
