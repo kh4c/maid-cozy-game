@@ -129,6 +129,46 @@ canvas { display: block; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
+/* ---- Boss bar: his health, top-center, only while he walks ---------------- */
+#boss-bar {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 6;
+  width: min(520px, 60vw); text-align: center;
+  pointer-events: none; user-select: none;
+}
+#boss-name {
+  font-family: 'Press Start 2P', monospace; font-size: 13px; color: #ff6b6b;
+  text-shadow: 2px 2px 0 #000; letter-spacing: 2px;
+}
+#boss-track {
+  margin-top: 6px; height: 16px;
+  background: rgba(0, 0, 0, 0.6); border: 2px solid #ff2222; border-radius: 8px;
+  overflow: hidden;
+}
+#boss-fill {
+  height: 100%; width: 100%;
+  background: linear-gradient(180deg, #ff6b6b, #b30000);
+  transition: width 0.2s ease-out;
+}
+/* ---- Boss banner: fullscreen caution splash on spawn and kill --------------- */
+#boss-banner {
+  position: absolute; inset: 0; z-index: 30;
+  flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  background: rgba(20, 0, 0, 0.45);
+  pointer-events: none; user-select: none;
+  animation: boss-banner-in 0.3s ease-out;
+}
+#boss-banner .big {
+  font-family: 'Press Start 2P', monospace; font-size: 44px; color: #ff2222;
+  text-shadow: 3px 3px 0 #000, 0 0 30px rgba(255, 34, 34, 0.8);
+  animation: boss-banner-pulse 0.6s ease-in-out infinite;
+}
+#boss-banner .small {
+  font-family: 'Press Start 2P', monospace; font-size: 16px; color: #ffe9b0;
+  text-shadow: 2px 2px 0 #000; letter-spacing: 3px;
+}
+@keyframes boss-banner-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes boss-banner-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+
 /* ---- Kill counter: lifetime total, persists in localStorage ------------------ */
 #kill-panel {
   position: absolute; top: 146px; left: 12px; z-index: 5;

@@ -39,6 +39,29 @@ window.Enemies = (() => {
   const LONER_BULK = 1.3;              // extra body over its rolled tier — reads dangerous at a glance
   const LONER_COLOR = 0xff5040;        // hunter-red outline = SPECIES mark (tier shows in size, not ring)
 
+  // ---- boss: the DREADBOAR ---------------------------------------------------
+  // Dev-spawned (dev panel button), one at a time, never despawns, never
+  // calms. A giant gilt-bodied boar, always hostile: it chases, bites, and
+  // every few seconds plants its feet, paints its charge lane RED, then
+  // dashes down it — sidestep the lane, not the boar. All tunables, top.
+  const BOSS_NAME = 'DREADBOAR';
+  const BOSS_HP = 60;                 // rifle 4dmg = 15 hits; shotgun 12 = 5 shells
+  const BOSS_PRICE = 100;             // fat purse for a fat pig
+  const BOSS_BULK = 2.4;              // body multiplier over SCALE — reads BOSS at a glance
+  const BOSS_SPEED = 115;             // she runs 300 — the chase never catches, the charge might
+  const BOSS_TOUCH_R = 70;            // bite distance (big body, big mouth)
+  const BOSS_CHARGE_EVERY = 5;        // seconds between charges (×0.8–1.2 jitter)
+  const BOSS_AIM_T = 1.2;             // telegraph linger: red lane, dodge window
+  const BOSS_CHARGE_T = 0.55;         // dash duration
+  const BOSS_CHARGE_SPEED = 540;      // dash speed — outruns her sprint, not her sidestep
+  const BOSS_LANE_LEN = 520;          // telegraph + dash reach
+  const BOSS_LANE_HALF = 70;          // lane half-width — clear this laterally and it misses
+  const BOSS_CHARGE_DMG = 2;          // hearts if the dash connects (once per charge)
+  const BOSS_BANNER_T = 2.6;          // caution banner linger on spawn
+  let bossTele = null;                // world-space red lane graphics (one boss, one lane)
+  let bossBannerT = 0;                // banner countdown, ticked in update
+  let lastPx = 0, lastPy = 0;         // her pos, cached per tick — spawnBoss drops it nearby
+
   // ---- rarity randomizer -------------------------------------------------------
   // Every MONSTER rolls size + rarity at spawn — pack critters AND lone
   // hunters. Rarity is a tier, not a species: it sets toughness, body size
@@ -161,6 +184,88 @@ window.Enemies = (() => {
     loners.push(m);
   }
 
+  function bossAlive() {
+    for (const m of loners) if (m.boss) return m;
+    return null;
+  }
+
+  // ---- boss HUD (DOM): health bar + caution banner ----------------------------
+  // Bar lives top-center while he's up; banner splashes on spawn and kill.
+  function bossBar(show, frac) {
+    try {
+      const bar = document.getElementById('boss-bar');
+      if (!bar) return;
+      bar.style.display = show ? 'block' : 'none';
+      if (show) {
+        const fill = document.getElementById('boss-fill');
+        if (fill) fill.style.width = `${Math.max(0, Math.min(1, frac)) * 100}%`;
+        const nm = document.getElementById('boss-name');
+        if (nm) nm.textContent = BOSS_NAME;
+      }
+    } catch (e) { /* chrome is cosmetic */ }
+  }
+  function bossBanner(big, small, secs) {
+    try {
+      const b = document.getElementById('boss-banner');
+      if (!b) return;
+      b.querySelector('.big').textContent = big;
+      b.querySelector('.small').textContent = small;
+      b.style.display = 'flex';
+      bossBannerT = secs;
+    } catch (e) {}
+  }
+
+  // dev-panel spawn: one dreadboar on a ring around her, banner + bar on.
+  // Refuses while one already walks — one boss, one fight.
+  function spawnBoss() {
+    try {
+      if (bossAlive()) return false;
+      const world = init._world;
+      if (!world || !(giltFrames || frames)) return false;
+      const a = Math.random() * Math.PI * 2;
+      const r = 620; // just off-view — walks in with the banner
+      const view = new Container();
+      const sh = new Graphics();
+      sh.ellipse(0, -2, 26, 10).fill({ color: 0x000000, alpha: 0.35 });
+      const anim = new AnimatedSprite(giltFrames || frames); // dread gilt body — the quarry, grown monstrous
+      anim.anchor.set(0.5, 1);
+      anim.animationSpeed = 1 / 4; // heavy gallop
+      anim.play();
+      view.addChild(sh, anim);
+      const baseScale = SCALE * BOSS_BULK;
+      view.scale.set(baseScale);
+      try {
+        const ring = new Graphics();
+        ring.ellipse(0, -12, 15, 15).stroke({ color: 0xff2222, width: 3, alpha: 0.95 }); // boss-red, thick — no mistaking him
+        view.addChild(ring);
+      } catch (e) {}
+      const m = { view, anim, id: 'boss1', x: lastPx + Math.cos(a) * r, y: lastPy + Math.sin(a) * r, vx: 0, vy: 0,
+        hostile: true, lastHit: 0, hp: BOSS_HP, maxHp: BOSS_HP, flashT: 0,
+        rarity: 'epic', price: BOSS_PRICE, baseScale, lone: true, boss: true,
+        dir: Math.random() * Math.PI * 2, retarget: 0,
+        mode: 'chase', atkT: 3, aimT: 0, chargeT: 0, chargeHit: false, cdx: 1, cdy: 0 }; // first charge comes fast — hello
+      view.position.set(m.x, m.y);
+      world.addChild(view);
+      loners.push(m);
+      bossTele = new Graphics(); // the red lane, drawn during aim, cleared after
+      world.addChild(bossTele);
+      bossBar(true, 1);
+      bossBanner('⚠ CAUTION ⚠', BOSS_NAME + ' APPROACHES', BOSS_BANNER_T);
+      try { window.Sound && window.Sound.setBgmMood && window.Sound.setBgmMood('battle'); } catch (e) {}
+      return true;
+    } catch (e) { return false; }
+  }
+
+  function bossDown(m) {
+    try {
+      const world = init._world;
+      if (bossTele && world) { try { world.removeChild(bossTele); } catch (e) {} bossTele = null; }
+      bossBar(false, 0);
+      bossBanner('SLAIN', BOSS_NAME + ` — ${BOSS_PRICE}c BOUNTY`, 2.0);
+      try { window.Brain && window.Brain.note && window.Brain.note('bossdown'); } catch (e) {} // she may brag — chat decides how
+    } catch (e) {}
+  }
+
   function destroyPack(g) {
     const world = init._world;
     for (const m of g.members) world.removeChild(m.view);
@@ -195,8 +300,78 @@ window.Enemies = (() => {
     m.view.position.set(m.x, m.y);
   }
 
+  // ---- boss fight: chase / aim (red lane) / charge ---------------------------
+  function bossLaneHit(m, px, py) {
+    const dx = px - m.x, dy = py - m.y;
+    const t = dx * m.cdx + dy * m.cdy; // along-lane distance from his nose
+    if (t < -40 || t > BOSS_LANE_LEN) return false;
+    const lat = Math.abs(-dy * m.cdx + dx * m.cdy); // sideways offset
+    return lat < BOSS_LANE_HALF + 24;
+  }
+  function drawTele(m) {
+    try {
+      if (!bossTele) return;
+      bossTele.clear();
+      bossTele.position.set(m.x, m.y);
+      bossTele.rotation = Math.atan2(m.cdy, m.cdx);
+      bossTele.rect(-40, -BOSS_LANE_HALF, BOSS_LANE_LEN + 40, BOSS_LANE_HALF * 2).fill({ color: 0xff2222, alpha: 0.30 });
+      bossTele.rect(-40, -BOSS_LANE_HALF, BOSS_LANE_LEN + 40, BOSS_LANE_HALF * 2).stroke({ color: 0xff2222, width: 3, alpha: 0.85 });
+    } catch (e) {}
+  }
+  function clearTele() { try { if (bossTele) bossTele.clear(); } catch (e) {} }
+  function updateBoss(m, dt, px, py, now, playerDead) {
+    if (m.flashT > 0) { // same white-out blink as every monster
+      m.flashT -= dt;
+      m.anim.tint = 0xff6b6b;
+      m.anim.alpha = ((m.flashT * 25) | 0) % 2 ? 0.35 : 1;
+      if (m.flashT <= 0) { m.anim.tint = 0xffffff; m.anim.alpha = 1; }
+    }
+    bossBar(true, m.hp / m.maxHp); // the bar tracks the fight, live
+    if (playerDead) { clearTele(); m.mode = 'chase'; m.atkT = Math.max(m.atkT, 1.5); return; } // no stomping a fainted maid
+    if (m.mode === 'aim') { // planted, glowing, lane painted — MOVE
+      m.vx = 0; m.vy = 0;
+      m.aimT -= dt;
+      if (m.flashT <= 0) m.anim.tint = 0xff4444;
+      drawTele(m);
+      if (m.aimT <= 0) {
+        m.mode = 'charge'; m.chargeT = BOSS_CHARGE_T; m.chargeHit = false;
+        clearTele(); m.anim.tint = 0xffffff;
+        try { window.Sound && window.Sound.playSfx && window.Sound.playSfx('combat', 'swing.ogg', { rate: 0.45, volume: 0.9 }); } catch (e) {} // the whoosh
+      }
+    } else if (m.mode === 'charge') { // down the lane, no steering
+      m.chargeT -= dt;
+      m.x += m.cdx * BOSS_CHARGE_SPEED * dt;
+      m.y += m.cdy * BOSS_CHARGE_SPEED * dt;
+      if (m.cdx < 0) m.view.scale.x = -m.baseScale; else m.view.scale.x = m.baseScale;
+      m.view.position.set(m.x, m.y);
+      if (!m.chargeHit && bossLaneHit(m, px, py)) {
+        m.chargeHit = true; // once per dash — no double-tap
+        if (window.Health) window.Health.damage(BOSS_CHARGE_DMG); // damage() itself kicks the camera
+      }
+      if (m.chargeT <= 0) { m.mode = 'chase'; m.atkT = BOSS_CHARGE_EVERY * (0.8 + Math.random() * 0.4); }
+    } else { // chase — relentless, outrunnable, never calms
+      steer(m, px, py, BOSS_SPEED, dt);
+      const pd = Math.hypot(m.x - px, m.y - py);
+      if (pd < BOSS_TOUCH_R && now - m.lastHit > HIT_CD) {
+        m.lastHit = now;
+        if (window.Health) window.Health.damage(1);
+      }
+      m.atkT -= dt;
+      if (m.atkT <= 0 && pd < 900) { // lane locks HERE at aim start — sidestep now, not later
+        m.mode = 'aim'; m.aimT = BOSS_AIM_T;
+        const dx = px - m.x, dy = py - m.y, d = Math.hypot(dx, dy) || 1;
+        m.cdx = dx / d; m.cdy = dy / d;
+      }
+    }
+  }
+
   function update(dt, px, py) {
     if (!frames) return;
+    lastPx = px; lastPy = py; // spawnBoss drops the horror next to her
+    if (bossBannerT > 0) { // caution banner countdown
+      bossBannerT -= dt;
+      if (bossBannerT <= 0) { try { document.getElementById('boss-banner').style.display = 'none'; } catch (e) {} }
+    }
     const playerDead = !!(window.Health && window.Health.dead);
     const now = performance.now() / 1000;
     // town streets are safe: the spawner rests while she's in town
@@ -323,6 +498,7 @@ window.Enemies = (() => {
     const world = init._world;
     for (let i = loners.length - 1; i >= 0; i--) {
       const m = loners[i];
+      if (m.boss) { updateBoss(m, dt, px, py, now, playerDead); continue; } // the dreadboar runs its own fight
       if (Math.hypot(m.x - px, m.y - py) > DESPAWN_R) { world.removeChild(m.view); loners.splice(i, 1); continue; }
       if (m.flashT > 0) {
         m.flashT -= dt;
@@ -387,7 +563,7 @@ window.Enemies = (() => {
       hits++;
       m.hp -= 1;
       m.flashT = 0.18;
-      if (m.hp <= 0) { world.removeChild(m.view); loners.splice(i, 1); }
+      if (m.hp <= 0) { if (m.boss) bossDown(m); world.removeChild(m.view); loners.splice(i, 1); }
     }
     return hits;
   }
@@ -429,7 +605,8 @@ window.Enemies = (() => {
       m.hp -= dmg;
       m.flashT = 0.18; // flicker on any non-lethal connect
       if (m.hp <= 0) {
-        deaths.push({ x: m.x, y: m.y, value: m.price || 2 }); // the hunter's bounty
+        deaths.push({ x: m.x, y: m.y, value: m.price || 2 }); // the hunter's bounty — or a boss purse
+        if (m.boss) bossDown(m); // bar off, telegraph gone, SLAIN banner
         world.removeChild(m.view);
         loners.splice(i, 1);
         kills++;
@@ -598,5 +775,5 @@ window.Enemies = (() => {
       `She runs 300 — she outruns both. Bite = 1 heart at 42px. Open grassland, no cover.\n`;
   }
 
-  return { init, update, hostileCount, playerAttack, damageAt, nearest, sense, senseView, nearestView, priceListText, bestiary, bestiaryText, combatFacts, dismissNear, debugGroups: () => groups };
+  return { init, update, hostileCount, playerAttack, damageAt, nearest, sense, senseView, nearestView, priceListText, bestiary, bestiaryText, combatFacts, dismissNear, spawnBoss, bossAlive, debugGroups: () => groups };
 })();

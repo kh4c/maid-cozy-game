@@ -169,7 +169,11 @@ window.Settings = (() => {
       const heal = document.createElement('button');
       heal.textContent = 'Heal ♥+1';
       heal.addEventListener('click', () => window.Health && window.Health.heal(1));
-      row.append(hurt, heal);
+      const boss = document.createElement('button');
+      boss.textContent = 'Spawn boss 🐗';
+      boss.title = 'One DREADBOAR, off-screen — refuses while one already walks';
+      boss.addEventListener('click', () => { try { window.Enemies && window.Enemies.spawnBoss && window.Enemies.spawnBoss(); } catch (e) {} });
+      row.append(hurt, heal, boss);
       tabMain.appendChild(row);
     }
 
