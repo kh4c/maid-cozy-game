@@ -119,7 +119,7 @@ window.Equipment = (() => {
   }
   function stopDoll() { try { clearInterval(animT); } catch (e) {} animT = null; }
 
-  function tick() { try { window.Sound && window.Sound.playSfx('combat', 'release_click.mp3', { rate: 1.8, volume: 0.12 }); } catch (e) {} }
+  function tick() { try { window.Sound && window.Sound.playSfx('combat', 'release_click.mp3', { rate: 1.1, volume: 0.22 }); } catch (e) {} } // natural metal click, never chipmunk
   function ownsAcc(id) { try { return window.Accessories && typeof window.Accessories.owns === 'function' ? window.Accessories.owns(id) : false; } catch (e) { return false; } }
 
   function setOpen(v) {

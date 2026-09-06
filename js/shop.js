@@ -25,7 +25,7 @@ window.Shop = (() => {
   function purse() { try { return window.Inventory && window.Inventory.purse ? window.Inventory.purse() : 0; } catch (e) { return 0; } }
 
   let toastT = null;
-  function sndTick() { try { window.Sound && window.Sound.playSfx('combat', 'release_click.mp3', { rate: 1.8, volume: 0.15 }); } catch (e) {} } // wooden counter tick
+  function sndTick() { try { window.Sound && window.Sound.playSfx('combat', 'coin.ogg', { rate: 1.7, volume: 0.07 }); } catch (e) {} } // soft coin blip on hover, not a gun click
   function toast(msg) { // buy feedback line under the till head, pops + fades
     const t = $('shop-toast'); if (!t) return;
     t.textContent = msg;
