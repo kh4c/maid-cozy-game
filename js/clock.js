@@ -22,9 +22,11 @@ window.Clock = (() => {
     return `${DAYS[di]} ${h12}:${String(mm).padStart(2, '0')}${ap}`;
   }
   function paint() {
-    const l = label();
-    if (l === lastLabel) return;
-    lastLabel = l;
+    const tick = Math.floor(performance.now() / 1000) % 2 === 0 ? ':' : ' '; // living clock — the colon breathes every second
+    const l = label().replace(':', tick);
+    const key = l + tick;
+    if (key === lastLabel) return;
+    lastLabel = key;
     try { const el = document.getElementById('clock-line'); if (el) el.textContent = '🕰 ' + l; } catch (e) {}
   }
   function update(rdt) {
