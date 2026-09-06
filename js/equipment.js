@@ -120,6 +120,12 @@ window.Equipment = (() => {
   function stopDoll() { try { clearInterval(animT); } catch (e) {} animT = null; }
 
   function tick() { try { window.Sound && window.Sound.playSfx('combat', 'release_click.mp3', { rate: 1.1, volume: 0.22 }); } catch (e) {} } // natural metal click, never chipmunk
+  let lastHover = null;
+  function blip(key) { // the shop's coin blip — same voice across both panels
+    if (!key || key === lastHover) return;
+    lastHover = key;
+    try { window.Sound && window.Sound.playSfx('combat', 'coin.ogg', { rate: 1.7, volume: 0.07 }); } catch (e) {}
+  }
   function ownsAcc(id) { try { return window.Accessories && typeof window.Accessories.owns === 'function' ? window.Accessories.owns(id) : false; } catch (e) { return false; } }
 
   function setOpen(v) {
@@ -140,7 +146,7 @@ window.Equipment = (() => {
         if (t.id === 'equip-panel' || t.id === 'equip-close') { setOpen(false); return; } // backdrop + ✕ close
         const d = t.dataset || {};
         if (d.shop && window.Shop && window.Shop.setOpen) { setOpen(false); window.Shop.setOpen(true); return; } // 🏪 nudge jumps to the till
-        if (d.tab) { tab = d.tab; pendingAcc = null; tick(); render(); return; } // WEAPONS | TRINKETS
+        if (d.tab) { tab = d.tab; pendingAcc = null; lastHover = null; tick(); render(); return; } // WEAPONS | TRINKETS
         if (d.equip && window.Weapons && window.Weapons.equip(d.equip)) { tick(); render(); return; } // swap + repaint tags
         if (d.acc && window.Accessories && window.Accessories.equip(d.acc) >= 0) { pendingAcc = null; tick(); render(); return; } // WEAR fills first empty
         if (d.accIcon && ownsAcc(d.accIcon)) { pendingAcc = d.accIcon; tick(); render(); return; } // icon arms the jiggle
@@ -150,6 +156,13 @@ window.Equipment = (() => {
           if (window.Accessories && window.Accessories.unequip(i)) { tick(); render(); } // trinket off
         }
       } catch (_) { /* a bad click equips nothing */ }
+    });
+    if (p) p.addEventListener('mouseover', (e) => { // hover blips like the shop till
+      try {
+        const t = e.target || {};
+        const hot = t.closest ? t.closest('[data-equip],[data-acc-icon],[data-acc],[data-unslot],[data-tab],[data-shop]') : null;
+        blip(hot && hot.getAttribute ? hot.getAttribute('data-equip') || hot.getAttribute('data-acc-icon') || hot.getAttribute('data-acc') || hot.getAttribute('data-unslot') || hot.getAttribute('data-tab') || 'shop' : null);
+      } catch (_) {}
     });
   }
 
