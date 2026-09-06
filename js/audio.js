@@ -11,9 +11,13 @@ window.Sound = (() => {
   let masterGain = null;
   const buses = {};       // name -> GainNode
   let bgmSource = null;   // looping BufferSource for the current track
-  let bgmName = 'cozy';   // current mood: 'cozy' | 'battle' | 'night'
+  let bgmName = 'cozy';   // BASE mood: 'cozy' | 'night' — this loop never stops for combat, only ducks
   let bgmToken = 0;       // races between slow decodes and fast mood flips
-  let bgmPending = null;  // mood currently being decoded — repeat calls wait
+  let bgmPending = null;  // base mood currently being decoded — repeat calls wait
+  let battleSource = null; // BATTLE layer: stacked on top while hot, gone when calm
+  let battlePending = false;
+  let inBattle = false;
+  const BASE_DUCK = 0.25; // base loop level under battle — still playing, never replayed
   const BGM_URLS = { cozy: 'assets/Cozy1.mp3', battle: 'assets/battle1.mp3', night: 'assets/Cozy1_night.mp3' };
   const bgmCache = {};    // mood -> AudioBuffer (switching never re-decodes)
   let started = false;    // first user gesture handled
@@ -105,12 +109,39 @@ window.Sound = (() => {
     bgmSource = startTrack(buffer); // swells in like a switch
   }
 
-  // Combat music: main loop calls setBgmMood('battle') while any pack is
-  // hostile, ('cozy')/('night') after calm (day/night pick). Old track ducks
-  // out under the new one over BGM_XF. Same bus/slider, no-op on repeat,
-  // stale decodes token-guarded.
+  // Combat music, STACKED not switched: the base loop (cozy/night) keeps
+  // playing underneath at BASE_DUCK while the battle loop rides on top — so
+  // when calm returns the song resumes mid-phrase instead of replaying.
+  // Same bus/slider, no-op on repeat, stale decodes guarded.
   async function setBgmMood(mood) {
     if (!ctx || (mood !== 'cozy' && mood !== 'battle' && mood !== 'night')) return;
+    if (mood === 'battle') {
+      if (inBattle && (battleSource || battlePending)) return; // already stacked
+      inBattle = true;
+      battlePending = true;
+      try { if (bgmSource && bgmSource._gain) bgmSource._gain.gain.setTargetAtTime(BASE_DUCK, ctx.currentTime, 0.4); } catch (e) {} // base ducks, keeps her place
+      try {
+        let buffer = bgmCache.battle;
+        if (!buffer) {
+          buffer = await loadBgm(BGM_URLS.battle);
+          bgmCache.battle = buffer;
+        }
+        if (!inBattle) { battlePending = false; return; } // calmed mid-decode — stay quiet
+        if (!battleSource) battleSource = startTrack(buffer);
+        try { battleSource._gain.gain.setTargetAtTime(1.0, ctx.currentTime, BGM_XF / 3); } catch (e) {}
+      } catch (e) { console.warn('BGM battle layer failed', e); }
+      finally { battlePending = false; }
+      return;
+    }
+    // calm: drop the battle layer, base swells back mid-song — no replay, ever.
+    inBattle = false;
+    const b = battleSource; battleSource = null;
+    if (b) {
+      try { b._gain.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.4); } catch (e) {}
+      setTimeout(() => { try { b.stop(); } catch (e) {} try { b._gain && b._gain.disconnect(); } catch (e) {} }, 2000);
+    }
+    try { if (bgmSource && bgmSource._gain) bgmSource._gain.gain.setTargetAtTime(1.0, ctx.currentTime, BGM_XF / 3); } catch (e) {}
+    if (mood === bgmName && (bgmSource || bgmPending)) return;
     // same mood playing OR already decoding it -> do nothing (the game loop
     // calls this every frame; without the pending guard it would stack a
     // fresh 5MB fetch+decode per frame and tank combat fps)
