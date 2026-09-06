@@ -18,6 +18,7 @@ window.Pet = (() => {
 
   let world = null, spr = null, texBullet = null, texSpark = null;
   let bullets = [];
+  let sh = null; // blob shadow on the grass below — altitude you can read
   let t = 0, cd = 0, dx = 0, dy = 0; // flight clock, trigger clock, smoothed feet
   let rot = 0, lx = null, ly = null; // nose heading + last feet (art faces UP, so heading aims the nose)
   let owned = false, on = false;     // the deed + the slot
@@ -48,7 +49,7 @@ window.Pet = (() => {
   function known(id) { return id === 'drone'; }
 
   function describe() {
-    return `Hover Drone ${PRICE}c (🏪 shop, own 🎒 PET slot): rides an oval above her head, slides to 230px and pews (2dmg every 0.9s) at anything in her 520px circle. Kills pay full coins. Owned: ${owned ? 'yes' : 'no'}. Riding: ${equipped() ? 'yes' : 'benched'}.`;
+    return `Hover Drone ${PRICE}c (🏪 shop, 🎒 PETS tab): rides an oval above her head, slides to 230px and pews (2dmg every 0.9s) at anything in her 520px circle. Kills pay full coins. Owned: ${owned ? 'yes' : 'no'}. Flying: ${equipped() ? 'yes' : 'benched'}.`;
   }
 
   async function init(w) {
@@ -67,6 +68,12 @@ window.Pet = (() => {
       spr.visible = false;
       world.addChild(spr);
     } catch (e) { spr = null; }
+    try {
+      sh = new PIXI.Graphics();
+      sh.ellipse(0, 0, 13, 5).fill({ color: 0x000000, alpha: 0.3 });
+      sh.visible = false;
+      world.addChild(sh);
+    } catch (e) { sh = null; }
     try {
       const b = await PIXI.Assets.load('assets/bullet.png');
       texBullet = (b && b.texture) || b;
@@ -118,6 +125,7 @@ window.Pet = (() => {
   function update(wdt, px, py) {
     if (!spr) return;
     spr.visible = equipped();
+    if (sh) sh.visible = equipped();
     if (!equipped()) { flyBullets(wdt); return; } // benched: old needles finish flying, nothing new
     t += wdt; cd -= wdt;
     let dead = false;
@@ -136,6 +144,7 @@ window.Pet = (() => {
     if (!dx && !dy) { dx = tx; dy = ty; } // first frame: start home, never fly in from origin
     dx += (tx - dx) * k; dy += (ty - dy) * k;
     spr.position.set(dx, dy);
+    if (sh) { sh.position.set(dx, dy + 22); sh.zIndex = dy; } // glued to the grass under it, sorted below the iron
     try { // face travel — but in range the nose locks onto the victim, not the flight path
       if (lx === null) { lx = dx; ly = dy; }
       const vx = dx - lx, vy = dy - ly;
@@ -162,5 +171,6 @@ window.Pet = (() => {
   }
 
   function grant() { owned = true; save(); return true; } // dev-panel free deed — testing skips the till
-  return { init, update, buy, grant, equip, unequip, toggle, known, owns, equipped, price, describe };
+  return { init, update, buy, grant, equip, unequip, toggle, known, owns, equipped, price, describe,
+    debug: () => ({ x: dx, y: dy, sh }) };
 })();

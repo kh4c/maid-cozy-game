@@ -17,6 +17,7 @@ window.Lode = (() => {
   const OWN_KEY = 'cosette.lode';
 
   let world = null, spr = null, ring = null;
+  let sh = null; // blob shadow on the grass below — altitude you can read
   let t = 0, dx = 0, dy = 0; // flight clock, smoothed feet
   let rot = 0, lx = null, ly = null; // nose heading + last feet (art faces UP, so heading aims the nose)
   let owned = false, on = false;     // the deed + the slot
@@ -47,7 +48,7 @@ window.Lode = (() => {
   function known(id) { return id === 'lode'; }
 
   function describe() {
-    return `Lodestone Drone ${PRICE}c (🏪 shop, own 🎒 PET slot): fetches loose coins into her purse (700px nose for them) and slows everything in its 200px frost ring to half speed. No gun — the scout's job. Owned: ${owned ? 'yes' : 'no'}. Riding: ${equipped() ? 'yes' : 'benched'}.`;
+    return `Lodestone Drone ${PRICE}c (🏪 shop, 🎒 PETS tab): fetches loose coins into her purse (700px nose for them) and slows everything in its 200px frost ring to half speed. No gun — the scout's job. Owned: ${owned ? 'yes' : 'no'}. Flying: ${equipped() ? 'yes' : 'benched'}.`;
   }
 
   async function init(w) {
@@ -72,12 +73,19 @@ window.Lode = (() => {
       ring.visible = false;
       world.addChild(ring);
     } catch (e) { ring = null; }
+    try {
+      sh = new PIXI.Graphics();
+      sh.ellipse(0, 0, 13, 5).fill({ color: 0x000000, alpha: 0.3 });
+      sh.visible = false;
+      world.addChild(sh);
+    } catch (e) { sh = null; }
   }
 
   function update(wdt, px, py) {
     if (!spr) return;
     spr.visible = equipped();
     if (ring) ring.visible = equipped();
+    if (sh) sh.visible = equipped();
     if (!equipped()) return;
     t += wdt;
     let dead = false;
@@ -97,6 +105,7 @@ window.Lode = (() => {
     if (!dx && !dy) { dx = tx; dy = ty; } // first frame: start home, never fly in from origin
     dx += (tx - dx) * k; dy += (ty - dy) * k;
     spr.position.set(dx, dy);
+    if (sh) { sh.position.set(dx, dy + 22); sh.zIndex = dy; } // glued to the grass under it, sorted below the iron
     try { // face travel — but mid-fetch the nose locks onto the coin, not the flight path
       if (lx === null) { lx = dx; ly = dy; }
       const vx = dx - lx, vy = dy - ly;
@@ -128,5 +137,6 @@ window.Lode = (() => {
 
   function grant() { owned = true; save(); return true; } // dev-panel free deed — testing skips the till
   return { init, update, buy, grant, equip, unequip, toggle, known, owns, equipped, price, describe,
+    debug: () => ({ x: dx, y: dy, sh }),
     snareR: () => SNARE_R, snareF: () => SNARE_F, fetchR: () => FETCH_R, scoopR: () => SCOOP_R };
 })();

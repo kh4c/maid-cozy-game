@@ -100,14 +100,14 @@ window.Shop = (() => {
       }
       if (window.Pet && typeof window.Pet.known === 'function' && window.Pet.known(id)) {
         const r = window.Pet.buy();
-        if (r && r.ok) { toast(`🛸 ${r.name} — YOURS! Wear it in the 🎒 pet slot.`); flashPanel(); }
-        else toast(r && r.why === 'owned' ? 'Already yours — see the 🎒 pet slot.' : 'Not enough coins!');
+        if (r && r.ok) { toast(`🛸 ${r.name} — YOURS! Fly it from the 🎒 PETS tab.`); flashPanel(); }
+        else toast(r && r.why === 'owned' ? 'Already yours — see the 🎒 PETS tab.' : 'Not enough coins!');
         render(); return r;
       }
       if (window.Lode && typeof window.Lode.known === 'function' && window.Lode.known(id)) {
         const r = window.Lode.buy();
-        if (r && r.ok) { toast(`🧲 ${r.name} — YOURS! Wear it in the 🎒 pet slot.`); flashPanel(); }
-        else toast(r && r.why === 'owned' ? 'Already yours — see the 🎒 pet slot.' : 'Not enough coins!');
+        if (r && r.ok) { toast(`🧲 ${r.name} — YOURS! Fly it from the 🎒 PETS tab.`); flashPanel(); }
+        else toast(r && r.why === 'owned' ? 'Already yours — see the 🎒 PETS tab.' : 'Not enough coins!');
         render(); return r;
       }
     } catch (e) {}

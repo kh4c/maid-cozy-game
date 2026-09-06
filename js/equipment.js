@@ -2,15 +2,15 @@
 // Opening does NOT pause the world (only the Shop freezes the ticker): her
 // idle sprite plays middle on a canvas, a COMPACT IN HAND strip beside her
 // names the equipped iron (small icon — the slots column owns the room), her
-// 3 trinket slots + the big pet square stack at her left, and two tabs
-// (WEAPONS / TRINKETS) run along the bottom. Grids show OWNED pieces only —
-// unowned never lists. Click a trinket icon and the empty slots jiggle:
-// click one to wear it there. Click 🛸 to deploy / dismiss the drone.
+// 3 trinket slots stack at her left, and three tabs (WEAPONS / TRINKETS /
+// PETS) run along the bottom. Grids show OWNED pieces only — unowned never
+// lists. Click a trinket icon and the empty slots jiggle: click one to wear
+// it there. Click a drone in PETS to fly / bench it — benched means no drone.
 window.Equipment = (() => {
   const $ = (id) => document.getElementById(id);
   let open = false;
   let animT = null;
-  let tab = 'weapons'; // weapons | acc
+  let tab = 'weapons'; // weapons | acc | pets
   let pendingAcc = null; // trinket picked by icon, waiting on a jiggling slot
 
   function esc(s) {
@@ -38,6 +38,12 @@ window.Equipment = (() => {
   function worn() {
     try { return window.Accessories && typeof window.Accessories.worn === 'function' ? window.Accessories.worn() : [null, null, null]; } catch (e) { return [null, null, null]; }
   }
+  function pets() { // owned drones only — unbought never lists, worn = in the sky
+    const out = [];
+    try { if (window.Pet && window.Pet.owns()) out.push({ id: 'drone', img: 'assets/drone1.png', name: 'Hover Drone', desc: window.Pet.describe(), equipped: window.Pet.equipped() }); } catch (e) {}
+    try { if (window.Lode && window.Lode.owns()) out.push({ id: 'lode', img: 'assets/drone2.png', name: 'Lodestone Drone', desc: window.Lode.describe(), equipped: window.Lode.equipped() }); } catch (e) {}
+    return out;
+  }
 
   function render() {
     const grid = $('equip-grid'), hand = $('equip-hand'), slotsEl = $('equip-slots'), tabsEl = $('equip-tabs');
@@ -45,7 +51,8 @@ window.Equipment = (() => {
     if (tabsEl) {
       tabsEl.innerHTML =
         `<button class="equip-tab${tab === 'weapons' ? ' sel' : ''}" data-tab="weapons">WEAPONS</button>` +
-        `<button class="equip-tab${tab === 'acc' ? ' sel' : ''}" data-tab="acc">TRINKETS</button>`;
+        `<button class="equip-tab${tab === 'acc' ? ' sel' : ''}" data-tab="acc">TRINKETS</button>` +
+        `<button class="equip-tab${tab === 'pets' ? ' sel' : ''}" data-tab="pets">PETS</button>`;
     }
     const rs = rows();
     if (!rs.length) {
@@ -68,7 +75,7 @@ window.Equipment = (() => {
           `<span class="equip-tip"><span class="t-name">${esc(w.name)}</span><br>${esc(statLine(w))}<br>${esc(w.desc)}</span>` +
         `</div>`
       )).join('') : '<div class="equip-sub2">No iron yet… (weapons unreachable)</div>';
-    } else {
+    } else if (tab === 'acc') {
       const list = accs();
       grid.innerHTML = list.length ? list.map((a) => (
         `<div class="equip-cell${a.equipped ? ' sel' : ''}">` +
@@ -77,28 +84,20 @@ window.Equipment = (() => {
         `</div>`
       )).join('') : '<div class="equip-sub2">no trinkets yet — the 🏪 shop sells them</div>' +
         `<button class="equip-cell-btn" data-shop="1">🏪 SHOP</button>`;
+    } else {
+      const list = pets();
+      grid.innerHTML = list.length ? list.map((p) => (
+        `<div class="equip-cell${p.equipped ? ' sel' : ''}">` +
+          `<img class="equip-cell-icon" data-pet-equip="${esc(p.id)}" title="${esc(p.name)} — click to ${p.equipped ? 'bench' : 'fly'}" src="${esc(p.img)}" alt="" onerror="this.style.display='none'" />` +
+          `<span class="equip-tip"><span class="t-name">${esc(p.name)}</span><br>${esc(p.desc)}<br>click to ${p.equipped ? 'bench' : 'fly'}</span>` +
+        `</div>`
+      )).join('') : '<div class="equip-sub2">no drones yet — the 🏪 shop builds them</div>' +
+        `<button class="equip-cell-btn" data-shop="1">🏪 SHOP</button>`;
     }
     // trinket slots: small squares stacked beside her, tags not emoji.
-    // The pet square rides below them — same column, its own deed.
     if (slotsEl) {
       const w = worn();
       const list = accs();
-      let petHtml = '';
-      try {
-        if (window.Pet && typeof window.Pet.owns === 'function') {
-          if (window.Pet.equipped()) {
-            petHtml = `<button class="equip-slot pet" data-pet="1" title="Hover Drone — click to dismiss">🛸<span class="equip-tip"><span class="t-name">Hover Drone</span><br>${esc(window.Pet.describe())}<br>click to dismiss</span></button>`;
-          } else if (window.Pet.owns()) {
-            petHtml = `<button class="equip-slot pet" data-pet="1" title="Hover Drone — click to deploy">🛸<span class="equip-tip"><span class="t-name">Hover Drone</span><br>${esc(window.Pet.describe())}<br>click to deploy</span></button>`;
-          } else {
-            petHtml = `<button class="equip-slot empty" disabled title="pet slot — drones at 🏪">+</button>`;
-          }
-        }
-        if (window.Lode && typeof window.Lode.owns === 'function' && window.Lode.owns()) { // second square stacks below — own deed, own toggle
-          const dep = window.Lode.equipped();
-          petHtml += `<button class="equip-slot pet" data-pet="2" title="Lodestone Drone — click to ${dep ? 'dismiss' : 'deploy'}">🧲<span class="equip-tip"><span class="t-name">Lodestone Drone</span><br>${esc(window.Lode.describe())}<br>click to ${dep ? 'dismiss' : 'deploy'}</span></button>`;
-        }
-      } catch (e) {}
       slotsEl.innerHTML = w.map((id, i) => {
         const a = list.find((x) => x.id === id);
         if (!a) {
@@ -106,7 +105,7 @@ window.Equipment = (() => {
           return `<button class="equip-slot empty${jig}" data-unslot="${i}" title="empty trinket slot"${pendingAcc ? '' : ' disabled'}>+</button>`;
         }
         return `<button class="equip-slot" data-unslot="${i}" title="${esc(a.name)} — click to take off">${esc(a.tag)}<span class="equip-tip"><span class="t-name">${esc(a.name)}</span><br>${esc(a.desc)}<br>click to take off</span></button>`;
-      }).join('') + petHtml;
+      }).join(''); // trinkets only now — drones moved to the PETS tab
     }
   }
 
@@ -165,12 +164,14 @@ window.Equipment = (() => {
         if (t.id === 'equip-panel' || t.id === 'equip-close') { setOpen(false); return; } // backdrop + ✕ close
         const d = t.dataset || {};
         if (d.shop && window.Shop && window.Shop.setOpen) { setOpen(false); window.Shop.setOpen(true); return; } // 🏪 nudge jumps to the till
-        if (d.tab) { tab = d.tab; pendingAcc = null; lastHover = null; tick(); render(); return; } // WEAPONS | TRINKETS
+        if (d.tab) { tab = d.tab; pendingAcc = null; lastHover = null; tick(); render(); return; } // WEAPONS | TRINKETS | PETS
         if (d.equip && window.Weapons && window.Weapons.equip(d.equip)) { tick(); render(); return; } // swap + repaint tags
         if (d.acc && window.Accessories && window.Accessories.equip(d.acc) >= 0) { pendingAcc = null; tick(); render(); return; } // WEAR fills first empty
         if (d.accIcon && ownsAcc(d.accIcon)) { pendingAcc = d.accIcon; tick(); render(); return; } // icon arms the jiggle
-        if (d.pet === '2' && window.Lode && window.Lode.toggle && window.Lode.toggle()) { tick(); render(); return; } // 🧲 square: deploy / dismiss
-        if (d.pet && window.Pet && window.Pet.toggle && window.Pet.toggle()) { tick(); render(); return; } // 🛸 square: deploy / dismiss
+        if (d.petEquip) { // PETS grid: fly / bench it — benched means no drone
+          const P = d.petEquip === 'lode' ? window.Lode : window.Pet;
+          if (P && P.toggle && P.toggle()) { tick(); render(); return; }
+        }
         if (d.unslot !== undefined && d.unslot !== null && d.unslot !== '') {
           const i = Number(d.unslot);
           if (pendingAcc && window.Accessories && window.Accessories.equipTo(pendingAcc, i)) { pendingAcc = null; tick(); render(); return; } // into the jiggling slot
@@ -181,8 +182,8 @@ window.Equipment = (() => {
     if (p) p.addEventListener('mouseover', (e) => { // hover blips like the shop till
       try {
         const t = e.target || {};
-        const hot = t.closest ? t.closest('[data-equip],[data-acc-icon],[data-acc],[data-unslot],[data-tab],[data-shop],[data-pet]') : null;
-        blip(hot && hot.getAttribute ? hot.getAttribute('data-equip') || hot.getAttribute('data-acc-icon') || hot.getAttribute('data-acc') || hot.getAttribute('data-unslot') || hot.getAttribute('data-tab') || hot.getAttribute('data-pet') || 'shop' : null);
+        const hot = t.closest ? t.closest('[data-equip],[data-acc-icon],[data-acc],[data-unslot],[data-tab],[data-shop],[data-pet-equip]') : null;
+        blip(hot && hot.getAttribute ? hot.getAttribute('data-equip') || hot.getAttribute('data-acc-icon') || hot.getAttribute('data-acc') || hot.getAttribute('data-unslot') || hot.getAttribute('data-tab') || hot.getAttribute('data-pet-equip') || 'shop' : null);
       } catch (_) {}
     });
   }
