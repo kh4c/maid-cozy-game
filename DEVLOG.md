@@ -2,6 +2,11 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Smaller, faster slugs (ranges kept)
+- Rifle 0.3 → **0.18** slug at **1800px/s** (was 1400); shotgun 0.32 → **0.2** at
+  **1500px/s** (was 1100). Lifetimes shortened to match, so reach stays ~846 /
+  ~390px — her brain's range math untouched. W21/W22 pin it. 29/29 green.
+
 ## 2026-09-06 — Equipment panel + pump shotgun (2nd gun, live swap)
 - **🔫 panel (I key or button).** Big iron closet, left side: every weapon row
   with its sprite, blurb, and live numbers; EQUIP swaps instantly — even

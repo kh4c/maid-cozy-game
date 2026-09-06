@@ -14,12 +14,12 @@ window.Weapons = (() => {
   const TABLE = {
     rifle: { name: 'M1 Rifle', kind: 'gun', desc: 'Slow trigger, fast needle — one loud word at a time.',
       icon: 'assets/m1.png', tex: 'm1',
-      cd: 0.85, dmg: 4, base: 4, speed: 1400, life: 0.6, slug: 0.3, recoil: 1.5,
+      cd: 0.85, dmg: 4, base: 4, speed: 1800, life: 0.47, slug: 0.18, recoil: 1.5,
       pellets: 1, spread: 0, pingEvery: 8,
       sfx: 'rifle_real.wav', rate: 1.0, ping: 'release_click.mp3' },
     shotgun: { name: 'Pump Shotgun', kind: 'gun', desc: 'Close thunder — a fan of pellets, short reach, huge manners.',
       icon: 'assets/shotgun.png', tex: 'shotgun',
-      cd: 1.5, dmg: 2, base: 2, speed: 1100, life: 0.35, slug: 0.32, recoil: 2.4,
+      cd: 1.5, dmg: 2, base: 2, speed: 1500, life: 0.26, slug: 0.2, recoil: 2.4,
       pellets: 6, spread: 0.26, pingEvery: 6,
       sfx: 'shotgun_real.wav', rate: 0.6, ping: 'pump_shotgun.mp3' },
   };
