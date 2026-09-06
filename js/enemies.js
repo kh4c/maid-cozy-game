@@ -41,7 +41,8 @@ window.Enemies = (() => {
 
   // ---- boss: the DREADBOAR ---------------------------------------------------
   // Dev-spawned (dev panel button), one at a time, never despawns, never
-  // calms. A giant gilt-bodied boar, always hostile: it chases, bites, and
+  // calms. A giant dreadboar (own Monster sheet, no ring — bulk IS the
+  // readout), always hostile: it chases, bites, and
   // every few seconds plants its feet, paints its charge lane RED, then
   // dashes down it — sidestep the lane, not the boar. All tunables, top.
   const BOSS_NAME = 'DREADBOAR';
@@ -90,6 +91,7 @@ window.Enemies = (() => {
 
   let hunterFrames = null; // assets/hunter.png (4x24px) — enemy frames stand in until it exists
   let giltFrames = null;   // assets/giltboar.png (4x24px, Monster/creature-sheet 7) — swap the file to reskin
+  let bossFrames = null;   // assets/dreadboar.png (4x24px, Monster/creature-sheet 4, bulkiest silhouette) — HIS body, no ring, no tint
   async function init(world) {
     const loaded = await PIXI.Assets.load('assets/enemy.png');
     const slice = window.Assets.makeSlicer(loaded, 24, 24);
@@ -104,6 +106,11 @@ window.Enemies = (() => {
       const gSlice = window.Assets.makeSlicer(gLoaded, 24, 24);
       giltFrames = [gSlice(0, 0), gSlice(1, 0), gSlice(2, 0), gSlice(3, 0)];
     } catch (e) { giltFrames = null; }
+    try {
+      const bLoaded = await PIXI.Assets.load('assets/dreadboar.png');
+      const bSlice = window.Assets.makeSlicer(bLoaded, 24, 24);
+      bossFrames = [bSlice(0, 0), bSlice(1, 0), bSlice(2, 0), bSlice(3, 0)];
+    } catch (e) { bossFrames = null; }
     init._world = world;
   }
 
@@ -227,18 +234,14 @@ window.Enemies = (() => {
       const view = new Container();
       const sh = new Graphics();
       sh.ellipse(0, -2, 26, 10).fill({ color: 0x000000, alpha: 0.35 });
-      const anim = new AnimatedSprite(giltFrames || frames); // dread gilt body — the quarry, grown monstrous
+      const anim = new AnimatedSprite(bossFrames || frames); // HIS body — dreadboar sheet, never a tint, never a ring
       anim.anchor.set(0.5, 1);
       anim.animationSpeed = 1 / 4; // heavy gallop
       anim.play();
       view.addChild(sh, anim);
       const baseScale = SCALE * BOSS_BULK;
       view.scale.set(baseScale);
-      try {
-        const ring = new Graphics();
-        ring.ellipse(0, -12, 15, 15).stroke({ color: 0xff2222, width: 3, alpha: 0.95 }); // boss-red, thick — no mistaking him
-        view.addChild(ring);
-      } catch (e) {}
+      // NO RING — his 2.4x bulk is the whole readout
       const m = { view, anim, id: 'boss1', x: lastPx + Math.cos(a) * r, y: lastPy + Math.sin(a) * r, vx: 0, vy: 0,
         hostile: true, lastHit: 0, hp: BOSS_HP, maxHp: BOSS_HP, flashT: 0,
         rarity: 'epic', price: BOSS_PRICE, baseScale, lone: true, boss: true,

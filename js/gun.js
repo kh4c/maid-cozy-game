@@ -293,7 +293,8 @@ window.Gun = (() => {
     if (flashT > 0) { flashT -= dt; if (flashT <= 0) flash.visible = false; }
 
     const blocked = (window.EditMode && window.EditMode.active) ||
-      (window.Health && window.Health.dead);
+      (window.Health && window.Health.dead) ||
+      (window.Stamina && window.Stamina.tripped); // face-down: no trigger discipline issues — the gun stays silent
     if (blocked) holding = false;
     if (blocked) aiFireUntil = 0;
 
