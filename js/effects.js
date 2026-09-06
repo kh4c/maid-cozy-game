@@ -41,6 +41,21 @@ window.Effects = (() => {
     return Texture.from(c);
   }
 
+  // directional sunlight shade: clear at the top-left source, dim to the
+  // bottom-right falloff (normal blend — this one darkens, not glows).
+  function shadeTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const g = c.getContext('2d');
+    const d = g.createLinearGradient(0, 0, 256, 256);
+    d.addColorStop(0, 'rgba(4,4,14,0)');
+    d.addColorStop(0.55, 'rgba(4,4,14,0.06)');
+    d.addColorStop(1, 'rgba(4,4,16,0.45)');
+    g.fillStyle = d;
+    g.fillRect(0, 0, 256, 256);
+    return Texture.from(c);
+  }
+
   function create(app) {
     const layer = new Container();
     // Beams back on per user request — breathing is slow/small and the wrap
@@ -106,13 +121,17 @@ window.Effects = (() => {
       layer.addChild(m);
     }
 
-    // very subtle warm grade over everything
+    // very subtle warm grade over everything, plus the directional shade:
+    // top-left stays sun-clear, bottom-right falls dim (both day-only).
     const grade = new Sprite(Texture.WHITE);
     grade.width = app.screen.width; grade.height = app.screen.height;
     grade.tint = 0xffe9b8;
     grade.alpha = 0.06;
     grade.blendMode = 'add';
     layer.addChild(grade);
+    const shade = new Sprite(shadeTexture());
+    shade.width = app.screen.width; shade.height = app.screen.height;
+    layer.addChild(shade);
 
     let t = 0;
     function update(dtSec, dayF) {
@@ -121,6 +140,7 @@ window.Effects = (() => {
       layer.alpha = window.Settings.settings.sunray;
       const W = app.screen.width, H = app.screen.height;
       glow.alpha = 0.3 * day;
+      shade.alpha = day; // the falloff is sunlight — gone by night
 
       for (const b of beams) {
         // gentle breathing: small amplitude, slow — a smooth sine, never a strobe
