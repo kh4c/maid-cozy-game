@@ -148,6 +148,7 @@ window.Enemies = (() => {
       const ox = (Math.random() - 0.5) * PACK_R * 2;
       const oy = (Math.random() - 0.5) * PACK_R * 2;
       view.position.set(anchor.x + ox, anchor.y + oy);
+      view.zIndex = anchor.y + oy; // pack newborns sort by feet too
       world.addChild(view);
       g.members.push({ view, anim, id: 'p' + g.id + 'c' + i, x: anchor.x + ox, y: anchor.y + oy, vx: 0, vy: 0, ox, oy,
         hostile: false, lastHit: 0, hp: rar.hp, flashT: 0, // white-out blink on hit
@@ -186,6 +187,7 @@ window.Enemies = (() => {
       hostile: false, lastHit: 0, hp: rar.hp + LONER_GRIT, flashT: 0, // born CALM — the fuse (below) turns it, permanently
       rarity: rar.key, price: rar.price + LONER_BOUNTY, baseScale, lone: true, dir: Math.random() * Math.PI * 2, retarget: 0 };
     view.position.set(m.x, m.y);
+    view.zIndex = m.y; // newborns sort by feet from the first frame
     m.ax = m.x; m.ay = m.y; // anchor it mills around until provoked
     world.addChild(view);
     loners.push(m);
@@ -248,9 +250,11 @@ window.Enemies = (() => {
         dir: Math.random() * Math.PI * 2, retarget: 0,
         mode: 'chase', atkT: 3, aimT: 0, chargeT: 0, chargeHit: false, cdx: 1, cdy: 0 }; // first charge comes fast — hello
       view.position.set(m.x, m.y);
+    view.zIndex = m.y; // newborns sort by feet from the first frame
       world.addChild(view);
       loners.push(m);
       bossTele = new Graphics(); // the red lane, drawn during aim, cleared after
+      bossTele.zIndex = -400; // paint lies on the dirt, under every foot
       world.addChild(bossTele);
       bossBar(true, 1);
       bossBanner('⚠ CAUTION ⚠', BOSS_NAME + ' APPROACHES', BOSS_BANNER_T);
@@ -301,6 +305,7 @@ window.Enemies = (() => {
     if (m.vx < -2) m.view.scale.x = -(m.baseScale || SCALE);
     else if (m.vx > 2) m.view.scale.x = (m.baseScale || SCALE);
     m.view.position.set(m.x, m.y);
+    m.view.zIndex = m.y; // y-sort: pack feet decide the cover order
   }
 
   // ---- boss fight: chase / aim (red lane) / charge ---------------------------
@@ -355,6 +360,7 @@ window.Enemies = (() => {
       m.y += m.cdy * BOSS_CHARGE_SPEED * dt;
       if (m.cdx < 0) m.view.scale.x = -m.baseScale; else m.view.scale.x = m.baseScale;
       m.view.position.set(m.x, m.y);
+    m.view.zIndex = m.y; // y-sort: pack feet decide the cover order
       if (!m.chargeHit && bossLaneHit(m, px, py)) {
         m.chargeHit = true; // once per dash — no double-tap
         if (window.Health) window.Health.damage(BOSS_CHARGE_DMG); // damage() itself kicks the camera
@@ -538,6 +544,7 @@ window.Enemies = (() => {
       if (m.vx < -2) m.view.scale.x = -(m.baseScale || SCALE);
       else if (m.vx > 2) m.view.scale.x = (m.baseScale || SCALE);
       m.view.position.set(m.x, m.y);
+    m.view.zIndex = m.y; // y-sort: pack feet decide the cover order
     }
   }
 

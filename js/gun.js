@@ -72,11 +72,16 @@ window.Gun = (() => {
   }
   // which way the gun is pointing, world-x: -1 enemy-left, +1 enemy-right.
   // main.js feeds it to the sprite while the trigger is latched (attack-face
-  // override); 0 inside the dead zone = hold last side, no jitter.
+  // override). Sticky sides: crossing her x-line re-arms the flip only 30px
+  // past it, so strafing orbits don't strobe her sprite every frame.
+  let sideStick = 0;
   function aimSide() {
     if (lastAimX === null) return 0;
     const dx = lastAimX - px;
-    return dx < -8 ? -1 : dx > 8 ? 1 : 0;
+    if (dx < -30) sideStick = -1;
+    else if (dx > 30) sideStick = 1;
+    if (dx > -8 && dx < 8) return 0; // dead zone = hold last side, no jitter
+    return sideStick || (dx < 0 ? -1 : 1);
   }
   function aiFire(secs) {
     const s = Math.max(0.3, Math.min(10, Number(secs) || 2));
@@ -174,6 +179,7 @@ window.Gun = (() => {
       spr.scale.set(W('slugScale', 0.3)); // fast needle, not a lobbed slug
       spr.rotation = a;
       spr.position.set(mx, my);
+      spr.zIndex = 1e9; // slugs fly OVER heads — never buried under the pack
       world.addChild(spr);
       bullets.push({ spr, vx: dx * W('projSpeed', 1400), vy: dy * W('projSpeed', 1400), life: W('projLife', 0.6) });
     }
@@ -276,7 +282,7 @@ window.Gun = (() => {
     world.addChild(rig); // after enemies -> renders above them
 
     // coins render between enemies and the gun
-    try { window.InventoryLayer = new window.PIXI.Container(); world.addChild(window.InventoryLayer); } catch (e) {}
+    try { window.InventoryLayer = new window.PIXI.Container(); window.InventoryLayer.zIndex = -100; world.addChild(window.InventoryLayer); } catch (e) {} // ground loot lies UNDER feet
 
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerdown', onDown);
@@ -329,6 +335,7 @@ window.Gun = (() => {
     rig.position.set(
       px + HOVER_X - ca * RECOIL_DIST * recoil,
       py + HOVER_Y + bob - sa * RECOIL_DIST * recoil);
+    rig.zIndex = py + 2; // the iron stays in HER hands, above her sprite
     gunSpr.rotation = aim - RECOIL_TILT * recoil; // muzzle jumps up
     gunSpr.scale.y = GUN_SCALE * (ca < 0 ? -1 : 1); // no upside-down gun aiming left
     flash.rotation = aim;

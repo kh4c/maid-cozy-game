@@ -96,6 +96,8 @@
     background = await window.Tilemap.create();
     background.setNight(nightOn()); // boot texture matches WORLD-tab default (night)
     world.addChild(background.layer);
+    world.sortableChildren = true; // y-sort: feet decide who covers whom
+    background.layer.zIndex = -1000; // dirt always at the bottom
     document.getElementById('bg-status').textContent = 'bg ✓';
   } catch (err) {
     reportError('background failed: ' + err.message);
@@ -187,6 +189,7 @@
   try {
     window.Town && window.Town.init && await window.Town.init(world);
     world.setChildIndex(window.Town.layer || world.children[world.children.length - 1], 1);
+    try { if (window.Town && window.Town.layer) window.Town.layer.zIndex = -500; } catch (e) {} // streets under actors
   } catch (err) {
     reportError('town failed: ' + err.message);
   }
@@ -366,6 +369,7 @@
     try { if (window.Gun && window.Gun.status && window.Gun.status().firing && !(window.Combat && window.Combat.dodging && window.Combat.dodging())) { a.x = 0; a.y = 0; moved = false; } } catch (e) {}
     view.x += a.x * s.speed * spdMul * wdt;
     view.y += a.y * s.speed * spdMul * wdt;
+    view.zIndex = view.y; // y-sort: whoever stands lower covers whoever stands higher
 
     // INFINITE world: no bounds clamping — background chunks stream in around the camera
     // FACE THE ENEMY: trigger latched -> sprite faces the gun's side, not her
@@ -435,6 +439,7 @@
     if (tripBubbleT > 0) { // the "ahh!" floats over her head, then goes away
       try {
         tripBubble.position.set(view.x - 45, view.y - 180);
+        tripBubble.zIndex = view.y + 1; // the "ahh!" floats above every head
         tripBubbleT -= wdt;
         if (tripBubbleT <= 0) tripBubble.visible = false;
       } catch (e) { tripBubbleT = 0; }

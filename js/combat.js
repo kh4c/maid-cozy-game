@@ -7,6 +7,8 @@
 window.Combat = (() => {
   let active = false, moving = false;
   let orbitDir = 1, orbitT = 0; // strafe side, re-rolled every couple seconds
+  let smX = 0, smY = 0; // smoothed feet: eased toward the raw vector so the
+  // sprite never strobes left-right on jitter between opposing pushes
 
   function gunRange() {
     try { if (window.Gun && window.Gun.rangePx) return window.Gun.rangePx() || 500; } catch (e) {}
@@ -73,9 +75,15 @@ window.Combat = (() => {
       }
     }
     const len = Math.hypot(out.x, out.y);
-    if (active && len > 0.01) {
+    // ease the feet toward the raw order (~8/s) — kills the per-tick jitter
+    // that used to flip her sprite left-right in a fight.
+    const k = active ? 1 - Math.exp(-8 * wdt) : 1;
+    smX += ((len > 0.01 ? out.x / len : 0) - smX) * k;
+    smY += ((len > 0.01 ? out.y / len : 0) - smY) * k;
+    const sml = Math.hypot(smX, smY);
+    if (active && sml > 0.15) {
       moving = true; // she shoots on the move — the gun doesn't care
-      try { window.Input && window.Input.setCombat && window.Input.setCombat(out.x / len, out.y / len); } catch (e) {}
+      try { window.Input && window.Input.setCombat && window.Input.setCombat(smX / sml, smY / sml); } catch (e) {}
       // weak-prey escape (mirrors the old flee reflex): hp 4 or less, or legs
       // under 30% — combat legs bill as PUSHED so she can run past quarter.
       try {
