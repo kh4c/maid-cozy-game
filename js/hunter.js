@@ -189,7 +189,7 @@ window.Hunter = (() => {
           m.spd = Math.min(CRUISE_SPD, m.spd + SEEK_ACCEL * dt);
           m.vx = Math.cos(cur) * m.spd; m.vy = Math.sin(cur) * m.spd;
         }
-        try { m.spr.rotation = Math.atan2(m.vy, m.vx) + Math.PI / 2; } catch (e) {}
+        try { m.spr.rotation = Math.atan2(m.vy, m.vx); } catch (e) {} // bullet art flies nose-first like her slugs — rotation IS the heading, no offset
         if (Math.random() < 0.8) puff(m.x - m.vx * 0.02, m.y - m.vy * 0.02, false); // smoke trails the tail
       }
       m.x += m.vx * dt; m.y += m.vy * dt;
