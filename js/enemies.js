@@ -319,6 +319,14 @@ window.Enemies = (() => {
     } catch (e) {}
   }
   function clearTele() { try { if (bossTele) bossTele.clear(); } catch (e) {} }
+  // combat telegraph, read per-tick by Combat mode: null unless the boss is
+  // winding up (aim) or mid-dash (charge) — the lane to NOT stand in.
+  function combatTelegraph() {
+    const b = bossAlive();
+    if (!b || (b.mode !== 'aim' && b.mode !== 'charge')) return null;
+    return { x: b.x, y: b.y, dx: b.cdx, dy: b.cdy, len: BOSS_LANE_LEN, half: BOSS_LANE_HALF, phase: b.mode };
+  }
+
   function updateBoss(m, dt, px, py, now, playerDead) {
     if (m.flashT > 0) { // same white-out blink as every monster
       m.flashT -= dt;
@@ -775,5 +783,5 @@ window.Enemies = (() => {
       `She runs 300 — she outruns both. Bite = 1 heart at 42px. Open grassland, no cover.\n`;
   }
 
-  return { init, update, hostileCount, playerAttack, damageAt, nearest, sense, senseView, nearestView, priceListText, bestiary, bestiaryText, combatFacts, dismissNear, spawnBoss, bossAlive, debugGroups: () => groups };
+  return { init, update, hostileCount, playerAttack, damageAt, nearest, sense, senseView, nearestView, priceListText, bestiary, bestiaryText, combatFacts, dismissNear, spawnBoss, bossAlive, combatTelegraph, debugGroups: () => groups };
 })();

@@ -309,6 +309,13 @@
     const s = window.Settings.settings;
 
     const view = character.view;
+    // COMBAT MODE: owns her feet while the battle runs (kite/strafe/dodge).
+    // Runs before axis() so the combat vector outranks brain/chat orders;
+    // click pins still outrank combat. Clears itself when the fight ends.
+    if (window.Combat) {
+      try { window.Combat.update(wdt, view.x, view.y); }
+      catch (err) { /* a clumsy fighter must not kill the loop */ }
+    }
     const a = (window.EditMode.active || (window.Health && window.Health.dead))
       ? { x: 0, y: 0 } // fainted: no control until respawn
       : window.Input.axis(view.x, view.y); // click pin (yours) or AI orders (hers)
@@ -354,7 +361,9 @@
       ((window.Accessories && typeof window.Accessories.speedMult === 'function') ? window.Accessories.speedMult() : 1); // Swift Boots ride along
     // STOP AND SHOOT: trigger latched -> plant feet, no strafing while firing.
     // (Flee still works: legs run only when the trigger is released — [cease] to run.)
-    try { if (window.Gun && window.Gun.status && window.Gun.status().firing) { a.x = 0; a.y = 0; moved = false; } } catch (e) {}
+    // COMBAT MODE exempts itself: kiting/strafing/dodging keeps shooting on
+    // the move — planting during a boss charge is how maids die.
+    try { if (window.Gun && window.Gun.status && window.Gun.status().firing && !(window.Combat && window.Combat.dodging && window.Combat.dodging())) { a.x = 0; a.y = 0; moved = false; } } catch (e) {}
     view.x += a.x * s.speed * spdMul * wdt;
     view.y += a.y * s.speed * spdMul * wdt;
 

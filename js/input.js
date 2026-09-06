@@ -22,6 +22,12 @@ window.Input = (() => {
   // push=true = the PLAYER told her (chat words / move tag) — these legs may
   // drain the tank past quarter to empty. push=false (default) = her own
   // auto-run (brain strolls/follows) — parks at 1/4 to rest instead.
+  // Combat-mode feet: per-tick override from window.Combat (kite/strafe/
+  // lane-dodge). Beats brain/chat orders while live, yields to click pins.
+  // Set every tick by Combat; cleared when the battle ends.
+  let combatMove = null; // {x,y}
+  function setCombat(x, y) { combatMove = { x: Number(x) || 0, y: Number(y) || 0 }; }
+  function clearCombat() { combatMove = null; }
   let chatMove = null; // { x, y, until, push }
   function order(x, y, secs, push) {
     const s = Math.max(0.3, Math.min(8, Number(secs) || 2));
@@ -95,6 +101,10 @@ window.Input = (() => {
       }
     }
     let x = 0, y = 0;
+    if (combatMove && (combatMove.x || combatMove.y)) {
+      const cl = Math.hypot(combatMove.x, combatMove.y) || 1;
+      return { x: combatMove.x / cl, y: combatMove.y / cl }; // combat override: kite/strafe/dodge until the battle ends (click pins still outrank it)
+    }
     if (chatMove) {
       if (performance.now() > chatMove.until) chatMove = null;
       else { x += chatMove.x; y += chatMove.y; }
@@ -111,5 +121,5 @@ window.Input = (() => {
     return q;
   }
 
-  return { axis, order, stopWalk, clickTo, manualActive, pushedActive, directedPush, pushFor, bindCanvas, attackPressed };
+  return { axis, order, stopWalk, clickTo, manualActive, pushedActive, directedPush, pushFor, bindCanvas, attackPressed, setCombat, clearCombat };
 })();

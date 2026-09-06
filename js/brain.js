@@ -1176,13 +1176,16 @@ window.Brain = (() => {
   }
   function getGoalHud() {
     // one-liner for the HUD: her standing POSTURE, plain words.
+    // ⚔ prefix while combat mode owns her feet (kite/strafe/dodge).
+    let t = '💤 idle';
     try {
-      if (objective && objective.kind === 'find') return '🔎 finding…';
-      if (objective && objective.kind === 'heel') return '🛑 heeling…';
-      if (objective) return '🎯 hunt on';
-      if (following) return '👀 shadowing…';
-      return '💤 idle';
-    } catch (e) { return '💤 idle'; }
+      if (objective && objective.kind === 'find') t = '🔎 finding…';
+      else if (objective && objective.kind === 'heel') t = '🛑 heeling…';
+      else if (objective) t = '🎯 hunt on';
+      else if (following) t = '👀 shadowing…';
+    } catch (e) { t = '💤 idle'; }
+    try { if (window.Combat && window.Combat.active && window.Combat.active()) return '⚔ ' + t; } catch (e) {}
+    return t;
   }
 
   // ---- built-in keep-distance reflex -----------------------------------------
@@ -1194,6 +1197,7 @@ window.Brain = (() => {
   const ENGAGE_MAX = 500; // hard sense/engage cap — nothing beyond this exists for her
   let kdAcc = 0;
   function keepDistance(dt) {
+    if (window.Combat && window.Combat.active && window.Combat.active()) return; // combat mode owns the feet — no stale orders underneath it
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     // reflex is HERS: only while she owns the gun (AI aim) — in mouse mode
     // your keyboard stays the only thing that moves her.
@@ -1242,6 +1246,7 @@ window.Brain = (() => {
   // the gun handle it; this is only the weak-prey escape.
   let fleeAcc = 0;
   function fleeReflex(dt) {
+    if (window.Combat && window.Combat.active && window.Combat.active()) return; // combat mode owns the feet — flee is inside it (kite + separate)
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     try { if (!window.Gun || window.Gun.getAimMode() !== 'ai') return; } catch (e) { return; }
     if (window.Stamina && !window.Stamina.canMove(true)) return; // nothing left to run on (flee pushes — quarter rest never blocks escape)
