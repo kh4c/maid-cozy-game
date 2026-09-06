@@ -102,6 +102,7 @@ window.Entities = (() => {
     for (let i = 0; i < POOL; i++) {
       const s = new Sprite(texs[0]);
       s.anchor.set(0.5);
+      s.blendMode = 'add'; // dust glows — kicked-up light at her heels, fireflies by night
       s.visible = false;
       layer.addChild(s);
       puffs.push({ s, life: 0, max: 1, vx: 0, vy: 0, s0: 0.5, rot: 0, a0: 1 });

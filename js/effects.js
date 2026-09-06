@@ -43,8 +43,9 @@ window.Effects = (() => {
 
   function create(app) {
     const layer = new Container();
-    // Beams disabled per user request — keep glow + motes only.
-    const BEAMS_ON = false;
+    // Beams back on per user request — breathing is slow/small and the wrap
+    // margin (1000px) keeps long beams fully off-screen, so no flicker.
+    const BEAMS_ON = true;
 
     // sun glow pinned near the top-left corner (sun sits just off-screen)
     const glow = new Sprite(radialTexture(256, 'rgba(255,244,200,0.9)', 'rgba(255,244,200,0.35)'));
@@ -55,8 +56,7 @@ window.Effects = (() => {
     glow.blendMode = 'add';
     layer.addChild(glow);
 
-    // light shafts crossing the screen — DISABLED per user request (flicker).
-    // Keep this block for a future re-enable; BEAMS_ON=false skips creation entirely.
+    // light shafts crossing the screen — slow breathing + wide wrap, no flicker.
     const beams = [];
     let seed = 7;
     const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647; // deterministic

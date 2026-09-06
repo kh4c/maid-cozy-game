@@ -176,6 +176,7 @@ window.Gun = (() => {
       const a = baseA + off, dx = Math.cos(a), dy = Math.sin(a);
       const spr = new Sprite(texBullet);
       spr.anchor.set(0.5, 0.5);
+      spr.blendMode = 'add'; // slugs glow — tracer needles at night, bright streaks by day
       spr.scale.set(W('slugScale', 0.3)); // fast needle, not a lobbed slug
       spr.rotation = a;
       spr.position.set(mx, my);
