@@ -85,7 +85,7 @@ window.Gun = (() => {
   function status() {
     const now = performance.now();
     const firing = aimMode === 'ai' ? now < aiFireUntil : holding;
-    return { mode: aimMode, firing, bullets: bullets.length,
+    return { mode: aimMode, firing, bullets: bullets.length, shown: !!(rig && rig.visible),
       aiAimValid: !!(aiAim && now < aiAim.until) };
   }
 
@@ -291,6 +291,14 @@ window.Gun = (() => {
     flash.rotation = aim;
 
     if (firing && cd <= 0) { cd = W('cooldown', 0.85); strike(ca, sa); }
+
+    // HIDE WHEN RUNNING (dev option gunHide=1): iron only comes out to shoot —
+    // latch the trigger and the gun is there, cease and it's gone. Bullets and
+    // tracers live on the world layer, so fired shots keep flying while hidden.
+    try {
+      const hide = window.Settings && Number(window.Settings.settings.gunHide) === 1;
+      rig.visible = hide ? !!firing : true;
+    } catch (e) { rig.visible = true; }
 
     // FACE THE ENEMY: while the trigger is latched she turns head + eyes to
     // the target's side (Live2D carries it — the overlay can't turn around).
