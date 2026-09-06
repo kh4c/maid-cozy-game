@@ -217,6 +217,7 @@
 
   try {
     window.Inventory && window.Inventory.init();
+    window.Weapons && window.Weapons.init();
     window.Store && window.Store.init();
     window.Bestiary && window.Bestiary.init();
   } catch (err) {

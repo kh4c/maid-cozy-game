@@ -21,7 +21,10 @@ window.Store = (() => {
   // effect of one more level, applied cumulatively (idempotent — safe to re-run on boot)
   function applyAll() {
     try { window.Stamina && window.Stamina.setMax && window.Stamina.setMax(100 + 25 * levels.stamina); } catch (e) {}
-    try { window.Gun && window.Gun.setDamage && window.Gun.setDamage(1 + levels.damage); } catch (e) {}
+    try {
+      if (window.Weapons && window.Weapons.setActiveDamage) window.Weapons.setActiveDamage(window.Weapons.baseDamage() + levels.damage);
+      else if (window.Gun && window.Gun.setDamage) window.Gun.setDamage(4 + levels.damage);
+    } catch (e) {}
     try { window.Inventory && window.Inventory.setMagnetBonus && window.Inventory.setMagnetBonus(40 * levels.magnet); } catch (e) {}
   }
   function speedMult() { return 1 + 0.08 * levels.speed; } // read live by main.js movement
@@ -36,7 +39,7 @@ window.Store = (() => {
       can: () => (levels.stamina >= 4 ? { ok: false, why: 'maxed' } : { ok: true }),
       effect: () => { levels.stamina++; applyAll(); } },
     { id: 'damage', icon: '🔫', name: 'Stronger bullets', price: 120, cap: 3,
-      blurb: () => `+1 bullet damage (now ${1 + levels.damage} → ${2 + levels.damage}).`,
+      blurb: () => { let now = 4 + levels.damage; try { now = window.Weapons ? window.Weapons.damage() : (window.Gun && window.Gun.bulletDamage ? window.Gun.bulletDamage() : now); } catch (e) {} return `+1 bullet damage (now ${now} → ${now + 1}).`; },
       can: () => (levels.damage >= 3 ? { ok: false, why: 'maxed' } : { ok: true }),
       effect: () => { levels.damage++; applyAll(); } },
     { id: 'magnet', icon: '🧲', name: 'Wider magnet', price: 40, cap: 4,

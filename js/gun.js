@@ -8,12 +8,11 @@ window.Gun = (() => {
   // tuning — all game-feel
   const HOVER_X = 26, HOVER_Y = -40;   // rest offset from her feet anchor
   const BOB_FREQ = 2.4, BOB_AMP = 4;   // idle hover bob
-  const FIRE_CD = 0.16;                // seconds between shots (hold = auto)
-  const BULLET_SPEED = 950;
-  const BULLET_LIFE = 0.9;             // ~850px range
+  // Shots come from the weapon system (js/weapons.js) — the rifle is entry #1.
+  // W() reads the active row live so future guns/melee need no gun surgery.
+  const W = (k, fb) => { try { const w = window.Weapons; return (w && typeof w[k] === 'function') ? w[k]() : fb; } catch (e) { return fb; } };
   const HIT_R = 44;                    // bullet splash vs critters (they're big)
-  let BULLET_DMG = 1; // raised by the store (damage upgrade) — combatFacts() quotes it live
-  function setDamage(d) { BULLET_DMG = Math.max(1, Math.round(Number(d) || 1)); } // store-bought punch
+  function setDamage(d) { try { if (window.Weapons) window.Weapons.setActiveDamage(d); } catch (e) {} } // store upgrades ride the active weapon row
   const RECOIL_DIST = 13, RECOIL_TILT = 0.38;
   const GUN_SCALE = 1.8;               // big iron (was 1.15)
 
@@ -129,11 +128,11 @@ window.Gun = (() => {
     const mx = px + HOVER_X + ax * 34, my = py + HOVER_Y + ay * 34; // barrel tip
     const spr = new Sprite(texBullet);
     spr.anchor.set(0.5, 0.5);
-    spr.scale.set(0.45); // petite round (was 0.8 — looked like a log)
+    spr.scale.set(W('slugScale', 0.7)); // heavy slug, not a pellet
     spr.rotation = Math.atan2(ay, ax);
     spr.position.set(mx, my);
     world.addChild(spr);
-    bullets.push({ spr, vx: ax * BULLET_SPEED, vy: ay * BULLET_SPEED, life: BULLET_LIFE });
+    bullets.push({ spr, vx: ax * W('projSpeed', 700), vy: ay * W('projSpeed', 700), life: W('projLife', 1.2) });
 
     // muzzle flash: random size + mirror flip, gone in a blink
     flash.position.set(ax * 30 + 6, ay * 30);
@@ -143,12 +142,60 @@ window.Gun = (() => {
     flash.visible = true;
     flashT = 0.05;
 
-    recoil = 1; // kick back + muzzle up, decays in update()
+    recoil = W('recoilMul', 1.5); // kick back + muzzle up, decays in update()
 
-    // layered shot: WAV body + high snap
-    try { window.Sound.playSfx('combat', 'gunshot.wav', { rate: 0.9 + Math.random() * 0.2 }); } catch (e) {}
+    // layered shot: WAV body + high snap (row's sfx/rate — slow guns sound deep)
+    try { window.Sound.playSfx('combat', W('shotSfx', 'gunshot.wav'), { rate: W('shotRate', 0.55) + Math.random() * 0.1 }); } catch (e) {}
     try { window.Sound.playSfx('combat', 'swing.ogg', { rate: 1.6 + Math.random() * 0.2, volume: 0.3 }); } catch (e) {}
     if (camera) camera.shake(0.1);
+  }
+
+  // strike: guns spawn a slug, melee swings an arc — same kill accounting
+  function strike(ca, sa) {
+    if (W('kind', 'gun') === 'melee') { meleeSwing(ca, sa); return; }
+    fire(ca, sa);
+  }
+  function meleeSwing(ca, sa) {
+    const reach = W('meleeReach', 90), arc = W('meleeArc', 70);
+    const ix = px + HOVER_X + ca * reach, iy = py + HOVER_Y + sa * reach;
+    flash.position.set(ca * 30 + 6, sa * 30);
+    flash.rotation = Math.atan2(sa, ca);
+    flash.scale.set(0.2); flash.visible = true; flashT = 0.08;
+    recoil = W('recoilMul', 1);
+    try { window.Sound.playSfx('combat', W('shotSfx', 'swing.ogg'), { rate: W('shotRate', 1.2) }); } catch (e) {}
+    if (camera) camera.shake(0.12);
+    try {
+      const res = window.Enemies && window.Enemies.damageAt(ix, iy, arc, W('damage', 8));
+      if (res && res.hits > 0) accountHits(res, ix, iy);
+    } catch (e) {}
+  }
+  // shared kill accounting: pops, counters, loot, hit sounds, shake
+  function accountHits(res, hx, hy) {
+    for (const p of res.deaths) burst(p.x, p.y - 14, 12, true); // kill pop
+    burst(hx, hy, 6, false);                                    // hit sparks
+    try {
+      // kills split by kind: pack critters feed the critter counter,
+      // lone hunters feed the hunter counter — never mixed.
+      const hk = res.hunterKills | 0, pk = Math.max(0, (res.kills | 0) - hk);
+      if (window.Brain && window.Brain.note) {
+        if (pk > 0) window.Brain.note('kill', pk);
+        if (hk > 0) window.Brain.note('hunterkill', hk);
+      }
+    } catch (e) {}
+    // loot: each kill pays its appraised price in coins (Inventory picks up)
+    try {
+      for (const d of res.deaths) {
+        const val = Math.max(1, Math.min(60, (d.value | 0) || 2));
+        window.Inventory && window.Inventory.drop(d.x, d.y, val);
+      }
+    } catch (e) {}
+    try { window.Sound.playSfx('combat', 'hit_' + ((Math.random() * 4) | 0) + '.ogg',
+      { rate: 0.95 + Math.random() * 0.25, volume: 0.9 }); } catch (e) {}
+    if (res.kills > 0) {
+      try { window.Sound.playSfx('combat', 'hurt_' + ((Math.random() * 5) | 0) + '.ogg',
+        { rate: 0.75, volume: 0.7 }); } catch (e) {}
+      if (camera) camera.shake(0.28);
+    } else if (camera) camera.shake(0.14);
   }
 
   // ---- lifecycle ------------------------------------------------------------
@@ -229,7 +276,7 @@ window.Gun = (() => {
     gunSpr.scale.y = GUN_SCALE * (ca < 0 ? -1 : 1); // no upside-down gun aiming left
     flash.rotation = aim;
 
-    if (firing && cd <= 0) { cd = FIRE_CD; fire(ca, sa); }
+    if (firing && cd <= 0) { cd = W('cooldown', 0.85); strike(ca, sa); }
 
     // bullets: fly, splash-check critters, die
     for (let i = bullets.length - 1; i >= 0; i--) {
@@ -250,35 +297,8 @@ window.Gun = (() => {
       let dead = b.life <= 0;
       if (!dead && window.Enemies) {
         try {
-          const res = window.Enemies.damageAt(b.spr.x, b.spr.y, HIT_R, BULLET_DMG);
-          if (res.hits > 0) {
-            dead = true;
-            for (const p of res.deaths) burst(p.x, p.y - 14, 12, true); // kill pop
-            burst(b.spr.x, b.spr.y, 6, false);                          // hit sparks
-            try {
-              // kills split by kind: pack critters feed the critter counter,
-              // lone hunters feed the hunter counter — never mixed.
-              const hk = res.hunterKills | 0, pk = Math.max(0, (res.kills | 0) - hk);
-              if (window.Brain && window.Brain.note) {
-                if (pk > 0) window.Brain.note('kill', pk);
-                if (hk > 0) window.Brain.note('hunterkill', hk);
-              }
-            } catch (e) {}
-            // loot: each kill pays its appraised price in coins (Inventory picks up)
-            try {
-              for (const d of res.deaths) {
-                const val = Math.max(1, Math.min(60, (d.value | 0) || 2));
-                window.Inventory && window.Inventory.drop(d.x, d.y, val);
-              }
-            } catch (e) {}
-            try { window.Sound.playSfx('combat', 'hit_' + ((Math.random() * 4) | 0) + '.ogg',
-              { rate: 0.95 + Math.random() * 0.25, volume: 0.9 }); } catch (e) {}
-            if (res.kills > 0) {
-              try { window.Sound.playSfx('combat', 'hurt_' + ((Math.random() * 5) | 0) + '.ogg',
-                { rate: 0.75, volume: 0.7 }); } catch (e) {}
-              if (camera) camera.shake(0.28);
-            } else if (camera) camera.shake(0.14);
-          }
+          const res = window.Enemies.damageAt(b.spr.x, b.spr.y, HIT_R, W('damage', 4));
+          if (res.hits > 0) { dead = true; accountHits(res, b.spr.x, b.spr.y); }
         } catch (e) { /* deaf frame */ }
       }
       if (dead) { world.removeChild(b.spr); b.spr.destroy(); bullets.splice(i, 1); }
@@ -313,5 +333,5 @@ window.Gun = (() => {
   return { init, update, debug, status,
     setAimMode, toggleAim, getAimMode,
     aiAimAt, aiAimDir, aiAimNearest, aiFire, aiCease,
-    bulletDamage: () => BULLET_DMG, setDamage, rangePx: () => Math.round(BULLET_SPEED * BULLET_LIFE) };
+    bulletDamage: () => W('damage', 4), setDamage, rangePx: () => W('rangePx', 840) };
 })();
