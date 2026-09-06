@@ -243,8 +243,8 @@ window.Gun = (() => {
         const base = (typeof texStreak !== 'undefined' && texStreak) ? texStreak : texSpark;
         const s = new Sprite(base);
         s.anchor.set(1, 0.5); // head pinned on the slug, tail streaming behind
-        s.blendMode = 'add'; s.alpha = 0.55;
-        s.scale.set(0.65);
+        s.blendMode = 'add'; s.alpha = 0.45;
+        s.scale.set(0.38); // slim comet (~36px) — a hint of fire, not a rope
         s.zIndex = 1e9 - 1; // just under its slug, over everything else
         world.addChild(s);
         b.trail = s;
