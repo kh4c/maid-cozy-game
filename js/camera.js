@@ -120,7 +120,14 @@ window.Camera = (() => {
       } catch (e) { return { x: 0, y: 0, hw: 640, hh: 360 }; }
     }
 
-    return { update, snap, shake, lookAt, viewCenter, viewRect, toWorld, timeScale };
+    // spotlight hook: the live lookAt point (world) while a pan holds, else
+    // null — at night the clear hole centers on what the camera SHOWS.
+    function spot() {
+      try { if (focus && performance.now() < focus.until) return { x: focus.x, y: focus.y }; } catch (e) {}
+      return null;
+    }
+
+    return { update, snap, shake, lookAt, viewCenter, viewRect, toWorld, timeScale, spot };
   }
   return { create };
 })();

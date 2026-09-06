@@ -83,8 +83,10 @@
   function updateVignettePos(charView) {
     if (!vignette || !vignette.visible || !charView) return;
     try {
-      const sx = world.x + charView.x;
-      const sy = world.y + charView.y;
+      let wx = charView.x, wy = charView.y; // her, by default
+      try { const s = camera && camera.spot ? camera.spot() : null; if (s) { wx = s.x; wy = s.y; } } catch (e) {} // a pan holds: light what the camera shows, not her
+      const sx = world.x + wx;
+      const sy = world.y + wy;
       vignette.x = sx - vignette.width / 2;
       vignette.y = sy - vignette.height / 2;
     } catch (e) { /* cosmetic */ }
