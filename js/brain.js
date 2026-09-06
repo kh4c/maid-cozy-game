@@ -736,6 +736,7 @@ window.Brain = (() => {
     } catch (e) { newsBusy = false; }
   }
   let followTarget = null; // last seen pos of the followed pack (recallable)
+  let followPack = null;   // pack id she's shadowing — identity over proximity, she doesn't swap targets
   let followKills0 = 0; // kill count when the shadow started — wiped = kills since
   const FOLLOW_DIST = 280;  // shadow at this range (the flinch stands down for calm packs she shadows)
   const OBSERVE_DIST = 340; // observing a calm pack: stand off, watch, wait for orders
@@ -829,6 +830,7 @@ window.Brain = (() => {
       const bDir = dirWord(avail.dx, avail.dy);
       const bVal = (avail.price) | 0;
       followTarget = { x: avail.x, y: avail.y };
+      try { followPack = avail.pack; } catch (e) {} // the new shadow's identity
       followLostAcc = 0; followAcc = 0;
       try { followKills0 = memory.kills | 0; } catch (e2) {}
       searchDone = true;
@@ -859,6 +861,7 @@ window.Brain = (() => {
     // and she never asks permission for one (it won't stay calm; the gun is right to fire)
     const isHunter = !!((best && best.pack === 'lone') || (n && n.pack === 'lone'));
     followTarget = { x: (best && best.x !== undefined ? best.x : n.x), y: (best && best.y !== undefined ? best.y : n.y) };
+    try { followPack = (best && best.pack !== undefined ? best.pack : (n && n.pack)) || null; } catch (e) { followPack = null; } // pin the identity, not the spot
     try { followKills0 = memory.kills | 0; } catch (e) { followKills0 = 0; }
     const bDir = best && best.dx !== undefined ? dirWord(best.dx, best.dy) : dir;
     const freshOrder = performance.now() - lastAskAt < 45000 || (objective && objective.kind === 'hunt'); // hunt posture never goes stale
@@ -934,7 +937,12 @@ window.Brain = (() => {
     if (playerOnFeet()) return; // master's order owns her feet — shadowing waits
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
-      const n = p && p.enemies && p.enemies.nearest;
+      const list = (p && p.enemies && p.enemies.list) || [];
+      // identity first: HER pack by id, wherever on screen — never the nearest stranger.
+      // No identity pinned (legacy entries) → nearest, like before.
+      let n = null;
+      if (followPack != null) { try { n = list.find((e) => e && e.pack === followPack) || null; } catch (e) { n = null; } }
+      else n = p && p.enemies && p.enemies.nearest;
       if (!n || n.dist > LOSE_R || leftSpot(n.x, n.y)) {
         // WIPED or lost? Check for survivors near where she last saw them.
         // No one breathing there → she KILLED them, not lost them: say so at
@@ -944,6 +952,7 @@ window.Brain = (() => {
           const last = followTarget;
           live = last && window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(last.x, last.y, LOSE_R) : null;
         } catch (e2) { live = null; }
+        try { if (live && live.pack !== undefined) { followPack = live.pack; followTarget = { x: live.x, y: live.y }; } } catch (e2) {} // re-acquired: re-pin
         if (!live) {
           let wiped = 0;
           try { wiped = Math.max(0, (memory.kills | 0) - (followKills0 | 0)); } catch (e2) {}
@@ -954,22 +963,35 @@ window.Brain = (() => {
           try { pushEvent(`wiped the pack she was shadowing${wiped ? ` (${wiped} kills)` : ''}`); } catch (e2) {}
           return;
         }
-        // pack gone — don't loiter: an empty field or a standing job means
-        // move on fast (2s grace); otherwise the full 6s for stragglers.
+        // survivors near last-known → PURSUE, don't stare: legs at the spot so a
+        // drifting pack walks back into view. Generous grace — she doesn't lose targets.
         const total = (p && p.enemies && p.enemies.total) || 0;
-        const grace = (total === 0 || objective) ? 2 : 6;
+        const grace = (total === 0 || objective) ? 10 : 8;
         followLostAcc += dt;
         if (followLostAcc > grace) {
-          // she shadowed them and lost them while they still LIVE — no filing:
-          // no pin, no memory, no going back. Next find, or walk back yourself.
+          // truly gone (10s of chasing grass) — no filing: no pin, no memory,
+          // no going back. Next find, or walk back yourself.
           stopFollow();
           showThought('*…lost them in the grass. Sorry, master.*', ['👋 lost'], 0);
           try { pushEvent('lost the pack she was following'); } catch (e) {}
+          return;
         }
+        try {
+          if (window.Stamina && !window.Stamina.canMove()) return;
+          const last = followTarget;
+          if (last && p) {
+            const dx = last.x - p.px, dy = last.y - p.py, len = Math.hypot(dx, dy) || 1;
+            if (len > 120) { // close enough: her eyes cover the rest
+              followAcc += dt;
+              if (followAcc >= 0.4) { followAcc = 0; window.Input.order(dx / len, dy / len, 0.7); }
+            }
+          }
+        } catch (e) {}
         return;
       }
       followLostAcc = 0;
       followTarget = { x: n.x, y: n.y };
+      try { if (n.pack !== undefined) followPack = n.pack; } catch (e) {} // identity reaffirmed in view
       if (window.Stamina && !window.Stamina.canMove()) return; // tired — hold position
       // OBSERVE: calm pack + no fresh kill order → stand off at 340px and
       // wait for instruction. Hunting (order/hostiles) closes to 280px.
@@ -984,7 +1006,7 @@ window.Brain = (() => {
       }
     } catch (e) {}
   }
-  function stopFollow() { following = false; followLostAcc = 0; followTarget = null; }
+  function stopFollow() { following = false; followLostAcc = 0; followTarget = null; followPack = null; }
 
   // ---- coin greed: hoover up loose coins whenever it's safe -------------------
   // Kills drop coins; they're hers when she walks over them (magnet ~110px).

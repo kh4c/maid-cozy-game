@@ -4,7 +4,7 @@
 // decides — code, not the LLM: calm critters walk free, announced with
 // tsundere smugness. Tunables below; dev panel patienceSecs overrides.
 window.Patience = (() => {
-  const WAIT_SECS = 25; // silence tolerated while a question stands (dev: patienceSecs)
+  const WAIT_SECS = 15; // silence tolerated while a question stands (dev: patienceSecs)
   const NAG_AT = 0.5;   // one foot-tap reminder at half fuse
 
   let waiting = null;   // { topic } while a question is open
