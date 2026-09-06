@@ -22,6 +22,14 @@ window.Situation = (() => {
     if (a >= -112.5 && a < -67.5) return 'north';
     return 'north-east';
   }
+  // range words for her head — direction + close/far, never pixels.
+  // Bands match her trigger: hostile reach 650, calm reach 500.
+  function rangeWord(d) {
+    const x = Number(d) || 0;
+    if (x < 300) return 'close up';
+    if (x < 650) return 'nearby';
+    return 'far off';
+  }
 
   function snapshot() {
     const p = pos();
@@ -95,7 +103,9 @@ window.Situation = (() => {
       shown.forEach((e, i) => {
         const rare = e.rarity && e.rarity !== 'common' ? `, ${String(e.rarity).toUpperCase()}` : '';
         const color = e.outline || { common: 'gray', uncommon: 'green', rare: 'blue', epic: 'purple', legendary: 'gold', hunter: 'red' }[e.rarity] || '';
-        lines.push(`  #${i + 1}: ${Math.round(e.dist)}px ${dirName(e.dx, e.dy)} (dx ${Math.round(e.dx)}, dy ${Math.round(e.dy)}) — ${e.hostile ? 'HOSTILE, will bite' : 'calm, milling around'}${e.hp !== undefined ? `, ${e.hp}hp` : ''}${rare}${color ? ` (${color} outline)` : ''} worth ~${e.price || 2} coins.`);
+        // her eyes, in words: state + range + direction (+ rare/color if shiny).
+        // No pixels, no hp, no prices here — code aims by numbers, she thinks in words.
+        lines.push(`  #${i + 1}: ${e.hostile ? 'HOSTILE, will bite' : 'calm, milling around'} — ${rangeWord(e.dist)} to the ${dirName(e.dx, e.dy)}${rare}${color ? ` (${color} outline)` : ''}.`);
       });
       if (enemies.total > shown.length) lines.push(`  (+${enemies.total - shown.length} more further out)`);
     }
