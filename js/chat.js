@@ -373,11 +373,12 @@ window.Chat = (() => {
         tired: `you just RAN OUT OF BREATH mid-work and your legs locked — you must stand still and rest. Tell master NOW in your own voice: 1 short sentence, in-character, *action* allowed. Breathless, annoyed at your own legs, tsundere about needing the break. No numbers.`,
         rested: `you just CAUGHT YOUR BREATH after being forced to rest and can move again. Tell master NOW in your own voice: 1 short sentence, in-character, *action* allowed. Relieved, a little embarrassed, ready to go. No numbers.`,
         resting: `your legs got heavy so YOU chose to pause at low stamina before running dry — a smart breather, not a collapse. Tell master NOW in your own voice: 1 short sentence, in-character, *action* allowed. A little sheepish, framing it as pacing yourself. No numbers.`,
+        trip: `you just TRIPPED over your own tired feet and face-planted mid-work. Yelp NOW in your own voice: 1 short sentence, in-character, *action* allowed — startled "Ahhh", sheepish, annoyed at your own legs, already getting up. No numbers.`,
         'money-banter': `master just said to kill ONLY the valuable critters (pick the rich ones, skip the cheap). REFUSE playfully in your own voice: 1 short sentence, in-character, *action* allowed — money is money, every critter pays, you kill them ALL. No numbers.`,
         'which-ones': `master said "those ones / go back" but you see NO pack in reach. ASK which ones they mean in your own voice: 1 short sentence, in-character, *action* allowed — invite them to walk you closer or point you at them.`,
       };
-      // quiet-found doctrine: the counts/tiers below are TRUTH for her head —
-      // she only VOICES them when something is rare+. Commons stay plain.
+      // quiet-found doctrine: tiers live in code, never in her mouth — at most
+      // a word for shiny. Commons stay plain.
       const rarePlus = ['rare', 'epic', 'legendary', 'gilt'].includes((f.bestRarity || 'common'));
       let sysText = (s.chatSystem || 'You are Cosette, a tsundere maid game companion.') +
         `\n\n[EVENT — ${EV[f.event] || EV.found} ` +
@@ -394,11 +395,11 @@ window.Chat = (() => {
             : (!f.event || f.event === 'found')
               ? (f.species === 'hunter'
                 ? `Facts: a LONE HUNTER (red ring, always alone) to the ${f.dir || 'east'}, ${f.dist || 'nearby'}. Say HUNTER, never critter, never pack. ` +
-                  (rarePlus ? `It is ${f.bestRarity} tier, worth ~${f.bestPrice || 2} COINS bounty — NAME the rarity, that shiny is worth master's attention. ` : `Ordinary tier — do NOT mention rarity, tier, or bounty. `)
+                  (rarePlus ? `It looks SHINY — say so with interest, but no tiers, colors, or bounties. ` : `Ordinary tier — do NOT mention rarity, tier, or bounty. `)
                 : (f.species === 'giltboar'
                   ? `Facts: golden GILTBOARS (her main quarry) to the ${f.dir || 'east'}, ${f.dist || 'nearby'}. NAME them — gold and worth every bullet (~${f.bestPrice || 18} coins each). No doubt about these, ever. `
                   : `Facts: a critter pack to the ${f.dir || 'east'}, ${f.dist || 'nearby'}. ` +
-                  (rarePlus ? `One of them is a ${f.bestColor || ''} ${f.bestRarity} worth ~${f.bestPrice || 2} COINS — NAME the color and rarity, that shiny is worth master's attention. ` : `Nothing special about them — do NOT mention counts, colors, rarity, or prices. `) +
+                  (rarePlus ? `One of them looks SHINY — note it with interest, but no tiers, colors, or bounties. ` : `Nothing special about them — do NOT mention counts, colors, rarity, or prices. `) +
                   `Never say a bare number — critters are critters, money is coins. `))
               : `No new facts — the approved line above IS the whole situation (a feeling, a state, an acknowledgement). Reword it lightly in your own voice, stay close to it, and do NOT invent critters, numbers, directions, or places. `) +
         `${(f.hostile | 0) > 0 && f.event !== 'wiped' && !(f.event || '').startsWith('posture') ? (f.species === 'hunter' ? 'It looks HOSTILE (angry) — say so and fight.' : 'Some look HOSTILE (angry).') : (f.ordered && f.event === 'found' ? 'Master ordered the engagement.' : f.event === 'found' ? (f.species === 'hunter' ? 'It is calm FOR NOW, but hunters never stay that way — say you are ready for it, NEVER ask master for permission.' : f.species === 'giltboar' ? 'Golden giltboars — main quarry, NO doubt: say the hunger, engage freely, never ask.' : 'Calm critters are HARMLESS grazers and killing them feels wrong — say the doubt out loud, then await orders.') : '')} ` +

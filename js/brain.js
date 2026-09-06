@@ -92,7 +92,7 @@ window.Brain = (() => {
         genLine('resting', {}, `*easing off, hands on knees* Legs are getting heavy, master — resting a moment before I run them empty.`);
       } else if (kind === 'trip') {
         pushEvent('tripped over her own tired feet and ate dirt');
-        genLine('trip', {}, `*face-down in the grass, legs still running* Tired legs! Master — a moment, I'm collecting myself...`);
+        genLine('trip', {}, `*face-down in the dirt* Ahhh—! T-tired legs got me, master — a moment, I'm collecting myself...`);
       } else if (kind === 'urged') {
         // master told her to work through the rest (any words — regex or [push]
         // tag): memory only, no chatter — her chat reply already answers him.
@@ -864,11 +864,11 @@ window.Brain = (() => {
     try { followKills0 = memory.kills | 0; } catch (e) { followKills0 = 0; }
     const bDir = best && best.dx !== undefined ? dirWord(best.dx, best.dy) : dir;
     const freshOrder = performance.now() - lastAskAt < 45000 || (objective && objective.kind === 'hunt'); // hunt posture never goes stale
-    // quiet-found doctrine: no counts, no rarity in VOICE — UNLESS rare+, named
-    // by the builder below so her reword keeps the shiny news. The whole
+    // quiet-found doctrine: no counts and no rarity in VOICE, ever — the event
+    // below names species + direction only; tiers live in code, not her mouth.
     // stance/feeling/template assembly used to live here; now fb('found') builds
     // the fallback from facts (same words the harnesses pin, none of the prose).
-    try { pushEvent(`found ${en.total} ${isGilt ? 'giltboar(s)' : 'critter(s)'} ${bDir} — best ${best.rarity}`); } catch (e) {}
+    try { pushEvent(`found ${en.total} ${isHunter ? 'hunter' : (isGilt ? 'giltboar(s)' : 'critter(s)')} ${bDir}`); } catch (e) {}
     // Grazers are not the job: a SEARCH find moves on in silence — no line, no
     // beat, no thought. (Idle rare+ finds still report + observe; heel holds.)
     const grazers = !isHunter && !isGilt && !(en.hostile > 0) && !(attackOrder && freshOrder);
@@ -901,7 +901,7 @@ window.Brain = (() => {
       facts.compare = `the new one is ${distWord(n.dist)} vs ${prev.dist || 'nearby'} before — say which is closer and which you'd take first`;
     }
     queueNews({ facts, fallback: fb('found', facts) });
-    showThought(`*found ${en.total === 1 ? 'it' : `all ${en.total} of them`} — best is ${best.rarity}*`, ['🔎 found', '👀 waiting orders'], 0);
+    showThought(`*found ${en.total === 1 ? 'it' : `all ${en.total} of them`} — ${isHunter ? 'hunter' : (isGilt ? 'giltboar' : 'grazers')}*`, ['🔎 found', '👀 waiting orders'], 0);
     if (objective && objective.kind === 'heel') stopFollow(); // heel: announced, never shadowed
   }
   // ---- generated one-liners: facts in, HER words out (template = crash fallback)
@@ -916,7 +916,7 @@ window.Brain = (() => {
     f = f || {};
     if (event === 'found') {
       const where = `, ${f.dist || 'nearby'}, to the ${f.dir || '?'}`;
-      const shiny = ['rare', 'epic', 'legendary'].includes(f.bestRarity) ? ` A ${f.bestRarity} one — shiny!` : '';
+      const shiny = ['rare', 'epic', 'legendary'].includes(f.bestRarity) ? ' One of them looks shiny!' : '';
       if (f.species === 'hunter') return `Found a hunter — red ring${where}!${shiny}`;
       if (f.species === 'giltboar') return `Found giltboars${where} — golden! Taking them!`;
       if ((f.hostile | 0) > 0) return `Found critters${where} — some look angry!${shiny}`;

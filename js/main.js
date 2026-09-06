@@ -310,6 +310,7 @@
         if (window.Stamina.justTripped) { // face-plant: she says so, something thuds
           try { window.Brain && window.Brain.note && window.Brain.note('trip'); } catch (e) {}
           try { window.Sound && window.Sound.playSfx && window.Sound.playSfx('combat', 'hurt_0.ogg', { rate: 0.7, volume: 0.6 }); } catch (e) {}
+          try { camera.shake(0.55); } catch (e) {} // the ground hits back — screen takes the fall with her
         }
         if (window.Stamina.justRested) {
           try { window.Brain && window.Brain.note && window.Brain.note('resting'); } catch (e) {}

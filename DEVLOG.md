@@ -2,6 +2,19 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Trip thud + rarity silence (no more "blue rare")
+- **Face-plant lands.** Tripping now kicks the camera (0.55 shake, between a hurt
+  jolt and the death rattle) and she yelps: "Ahhh—! T-tired legs got me, master…"
+  with its own `trip` voice prompt (the missing EV entry — it used to inherit
+  the found prompt). htrip M2/M7 pin both.
+- **Tiers live in code, never in her mouth.** Found lines, think events, thought
+  box, and snapshot entries name species + direction only — no more "blue rare".
+  A rare+ pack earns at most the word "shiny", with explicit no-tiers/colors/
+  bounties instructions. Her bestiary knowledge (OUTLINES, price list, doctrine)
+  stays — it names no live pack, so it can't leak into chat.
+- Guards: T3 (event names species), G3 (no tier words), M6 (shiny, names nothing).
+  28/28 green.
+
 ## 2026-09-06 — Silent skip: grazers get no line and no camera, just the walk
 - **No "found what", no investigation.** A search find of calm critters now moves
   on in full silence — no Found line, no focus beat, no thought-box flicker.
