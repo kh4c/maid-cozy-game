@@ -231,7 +231,7 @@ window.Brain = (() => {
   function leftSpot(x, y) {
     return !!(leaveSpot && performance.now() < leaveSpot.until && Math.hypot(leaveSpot.x - x, leaveSpot.y - y) < 260);
   }
-  function leavePack(why) {
+  function leavePack(why, silent) {
     if (!following && !searchDone && !attackOrder) return;
     stopFollow();
     setAttackOrder(false, 'left the pack');
@@ -249,7 +249,7 @@ window.Brain = (() => {
     } catch (e) {}
     searchDone = false; // re-arm: a DIFFERENT pack may found; the left one just cools down, unfiled
     note(`left the pack (${why || 'master said so'}) — walking away, no pin, no memory`);
-    genLine('leave', {}, '*nods, lowering her gun* Leaving them be, master — walking on.');
+    if (!silent) genLine('leave', {}, '*nods, lowering her gun* Leaving them be, master — walking on.');
   }
   function setMemo(text, from) {
     memo = { text: String(text || '').slice(0, 240), from: String(from || '').slice(0, 120), at: performance.now() };
@@ -1114,6 +1114,7 @@ window.Brain = (() => {
         P.resolve();
         pushEvent('waited on master too long and decided herself — leaving the calm critters be');
         genLine('decided', {}, `*huffs, lowering her gun* Took you long enough — I decided: we leave the poor things. You're welcome.`);
+        try { leavePack('decided herself — master went quiet', true); } catch (e) {} // the decision WALKS: same feet/spot/tag as your leave order, minus the second announcement
       }
     } catch (e) {}
   }
