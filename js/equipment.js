@@ -1,9 +1,10 @@
 // Equipment — survivor.io paper doll (navy, never brown).
-// Opening PAUSES the world (main.js freezes while isOpen): her idle sprite
-// plays middle on a canvas, the IN HAND panel beside her names the equipped
-// iron, her 3 trinket slots run under them, and two tabs (WEAPONS / TRINKETS)
-// run along the bottom. Grids show OWNED pieces only — unowned never lists.
-// Click a trinket icon and the empty slots jiggle: click one to wear it there.
+// Opening does NOT pause the world (only the Shop freezes the ticker): her
+// idle sprite plays middle on a canvas, the IN HAND panel beside her names
+// the equipped iron, her 3 trinket slots stack at her left, and two tabs
+// (WEAPONS / TRINKETS) run along the bottom. Grids show OWNED pieces only —
+// unowned never lists. Click a trinket icon and the empty slots jiggle:
+// click one to wear it there.
 window.Equipment = (() => {
   const $ = (id) => document.getElementById(id);
   let open = false;

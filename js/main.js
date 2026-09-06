@@ -301,8 +301,7 @@
   app.ticker.add((ticker) => {
     // clamp dt: this pane throttles hard when unfocused — spikes teleport the character
     const dtSec = Math.min(ticker.deltaMS / 1000, 0.05);
-    if ((window.Equipment && window.Equipment.isOpen && window.Equipment.isOpen()) ||
-        (window.Shop && window.Shop.isOpen && window.Shop.isOpen())) return; // paper-doll pause: frozen world behind the panel
+    if (window.Shop && window.Shop.isOpen && window.Shop.isOpen()) return; // shop pause: frozen world behind the till (equipment never pauses)
     // focus beats: while the camera holds a lookAt, the WORLD runs at ~30%
     // ( slow-mo ) but the CAMERA keeps full dt — the pan stays smooth. wdt is
     // the world's dt below; dtSec stays real for camera / music / fps clocks.
