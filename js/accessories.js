@@ -59,8 +59,14 @@ window.Accessories = (() => {
     if (slots.includes(id)) return slots.indexOf(id);
     const i = slots.indexOf(null);
     if (i < 0) return -1;
+    return equipTo(id, i) ? i : -1;
+  }
+  function equipTo(id, i) { // wear into one exact slot (icon click → jiggling slot)
+    if (!owned[id] || !known(id) || i < 0 || i > 2) return false;
+    const cur = slots.indexOf(id);
+    if (cur >= 0 && cur !== i) slots[cur] = null;
     slots[i] = id; save(); apply();
-    return i;
+    return true;
   }
   function unequip(i) {
     if (i < 0 || i > 2 || !slots[i]) return false;
@@ -86,5 +92,5 @@ window.Accessories = (() => {
 
   function init() { load(); apply(); } // apply after boot — Health exists by main init
 
-  return { init, known, owns, list, worn, buy, equip, unequip, speedMult, coinMult, apply, describe };
+  return { init, known, owns, list, worn, buy, equip, equipTo, unequip, speedMult, coinMult, apply, describe };
 })();

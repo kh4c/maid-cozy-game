@@ -2,6 +2,26 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Tabs + owned-only grids + jiggling slots, 4 columns, doll back in frame
+- Out-of-frame fix: the doll row is a real grid now (112px doll + IN HAND),
+  sprite capped at 96px — Cosette can't push the hand panel off-stage again.
+- Two tabs, WEAPONS | TRINKETS, both grids 4 columns (shop grid too — the
+  shotgun + 3 trinkets sit one row). Grids list OWNED pieces only: deedless
+  shotgun hides, unbought boots never show; empty trinkets point at the 🏪.
+- Icon-first equipping: click a trinket icon and the empty slots jiggle gold
+  ("wear here") — click one and she wears it there (equipTo). WEAR still
+  quick-fills; clicking a worn slot takes it off. hequip 30/30, hshop 21/21.
+
+## 2026-09-06 — Navy shop + trinkets: heal/upgrades out, boots/locket/charm in
+- Shop stock is the shotgun deed + 3 equipable accessories (Swift Boots 100c
+  +12% speed, Heart Locket 140c +2 max hearts while worn, Greedy Charm 160c
+  +25% coins). Full heal + store upgrades left the till (levels persist).
+- 🎒 wears them in 3 persistent slots (cosette.gear); deeds in cosette.shop.acc.
+  Hooks: main.js ×1.12, Health.setBonusMax, Inventory.drop ×1.25.
+- Shop restyled navy like the doll (no brown anywhere), detail pane + all item
+  text left-aligned. Store.describe points at the 🏪 so the maid never hawks
+  heal that doesn't exist. Idle doll plays her 9 verified frames on canvas.
+
 ## 2026-09-06 — Survivor.io paper doll: paused, sprite middle, IN HAND + grid
 - Fullscreen navy doll (no brown anywhere): her idle sprite framed middle
   (first 64px frame, 2x pixelated), ✦ IN HAND panel beside her (icon + live

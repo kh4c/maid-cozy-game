@@ -256,7 +256,7 @@ canvas { display: block; }
 @keyframes toast-pop { 0% { transform: scale(0.85); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
 #shop-main { display: flex; gap: 16px; }
 #shop-grid {
-  flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
   align-content: start;
 }
 .shop-cell {
@@ -332,13 +332,13 @@ canvas { display: block; }
   background: #2a3368; border: 2px solid #3d4a7a; border-radius: 6px; padding: 6px 9px;
 }
 #equip-close:hover { border-color: #4de3ff; color: #fff; }
-#equip-mid { display: flex; gap: 14px; align-items: center; margin: 12px 0 8px; }
+#equip-mid { display: grid; grid-template-columns: 112px 1fr; gap: 14px; align-items: center; margin: 12px 0 8px; }
 #equip-maid { display: flex; flex-direction: column; align-items: center; flex: none; }
 #equip-maid-frame {
-  width: 128px; height: 128px; overflow: hidden;
+  width: 104px; height: 104px; overflow: hidden;
   border: 3px solid #ffd24a; border-radius: 12px; background: #0a0e24;
 }
-#equip-maid-frame img, #equip-sprite { width: 128px; height: 128px; image-rendering: pixelated; display: block; }
+#equip-maid-frame img, #equip-sprite { width: 96px; height: 96px; image-rendering: pixelated; display: block; }
 #equip-maid-name { margin-top: 6px; font-size: 9px; color: #ffd9a0; }
 #equip-hand {
   flex: 1; display: flex; gap: 10px; align-items: center;
@@ -351,8 +351,15 @@ canvas { display: block; }
 .equip-hand-name { font-size: 10px; color: #ffd24a; }
 .equip-hand-stats { font-size: 8px; color: #aeb8e8; }
 .equip-hand-desc { font-size: 8px; color: #8d96c8; font-style: italic; }
+#equip-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+.equip-tab {
+  flex: 1; cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 9px; color: #8d96c8;
+  background: #171d42; border: 2px solid #3d4a7a; border-radius: 8px; padding: 9px 10px;
+}
+.equip-tab:hover { color: #dfe6ff; border-color: #4de3ff; }
+.equip-tab.sel { color: #0a0e24; background: #ffd24a; border-color: #ffd24a; }
 #equip-sub { font-size: 8px; color: #8d96c8; text-align: center; margin-bottom: 10px; }
-#equip-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+#equip-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 .equip-cell {
   aspect-ratio: 1 / 1;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
@@ -382,7 +389,8 @@ canvas { display: block; }
 .equip-slot:hover { box-shadow: 0 0 12px rgba(77, 227, 255, 0.5); }
 .equip-slot.empty { color: #5a639c; border-color: #3d4a7a; background: #171d42; cursor: default; }
 .equip-slot.empty:hover { box-shadow: none; }
-.equip-acc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 8px; }
+.equip-slot.jiggle { cursor: pointer; border-color: #ffd24a; color: #ffd24a; animation: jiggle 0.3s ease-in-out 4; }
+@keyframes jiggle { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-7deg) scale(1.07); } 75% { transform: rotate(7deg) scale(1.07); } }
 
 /* ---- Combat bar: sense readout + aim/auto/think buttons -------------------- */
 #combat-bar {

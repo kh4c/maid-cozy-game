@@ -1,12 +1,15 @@
 // Equipment — survivor.io paper doll (navy, never brown).
 // Opening PAUSES the world (main.js freezes while isOpen): her idle sprite
 // plays middle on a canvas, the IN HAND panel beside her names the equipped
-// iron, her 3 trinket slots run under them, and the weapon + accessory grids
-// run along the bottom. I key / 🔫 / ✕ / backdrop all close.
+// iron, her 3 trinket slots run under them, and two tabs (WEAPONS / TRINKETS)
+// run along the bottom. Grids show OWNED pieces only — unowned never lists.
+// Click a trinket icon and the empty slots jiggle: click one to wear it there.
 window.Equipment = (() => {
   const $ = (id) => document.getElementById(id);
   let open = false;
   let animT = null;
+  let tab = 'weapons'; // weapons | acc
+  let pendingAcc = null; // trinket picked by icon, waiting on a jiggling slot
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>\\\"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\\\"': '&quot;' }[c]));
@@ -18,31 +21,42 @@ window.Equipment = (() => {
     return `${per} · every ${w.cd}s · range ~${w.range}px`;
   }
 
-  function rows() {
-    try { return window.Weapons && typeof window.Weapons.info === 'function' ? window.Weapons.info() : []; } catch (e) { return []; }
+  function rows() { // owned iron only — the deedless stay in the shop
+    try {
+      const rs = window.Weapons && typeof window.Weapons.info === 'function' ? window.Weapons.info() : [];
+      return rs.filter((w) => !w.locked);
+    } catch (e) { return []; }
   }
-  function accs() {
-    try { return window.Accessories && typeof window.Accessories.list === 'function' ? window.Accessories.list() : []; } catch (e) { return []; }
+  function accs() { // owned trinkets only — unbought never lists
+    try {
+      const as = window.Accessories && typeof window.Accessories.list === 'function' ? window.Accessories.list() : [];
+      return as.filter((a) => a.owned);
+    } catch (e) { return []; }
+  }
+  function worn() {
+    try { return window.Accessories && typeof window.Accessories.worn === 'function' ? window.Accessories.worn() : [null, null, null]; } catch (e) { return [null, null, null]; }
   }
 
   function cellBtn(w) {
     if (w.equipped) return `<button class="equip-cell-btn equipped" disabled>EQUIPPED</button>`;
-    if (w.locked) return `<button class="equip-cell-btn" data-shop="1" title="sold in the 🏪 shop">🔒 SHOP</button>`;
     return `<button class="equip-cell-btn" data-equip="${esc(w.id)}">EQUIP</button>`;
   }
   function accBtn(a) {
     if (a.equipped) return `<button class="equip-cell-btn equipped" disabled>WORN</button>`;
-    if (!a.owned) return `<button class="equip-cell-btn" data-shop="1" title="sold in the 🏪 shop">🔒 SHOP</button>`;
     return `<button class="equip-cell-btn" data-acc="${esc(a.id)}">WEAR</button>`;
   }
 
   function render() {
-    const grid = $('equip-grid'), hand = $('equip-hand'), slotsEl = $('equip-slots');
+    const grid = $('equip-grid'), hand = $('equip-hand'), slotsEl = $('equip-slots'), tabsEl = $('equip-tabs');
     if (!grid || !hand) return;
+    if (tabsEl) {
+      tabsEl.innerHTML =
+        `<button class="equip-tab${tab === 'weapons' ? ' sel' : ''}" data-tab="weapons">WEAPONS</button>` +
+        `<button class="equip-tab${tab === 'acc' ? ' sel' : ''}" data-tab="acc">TRINKETS</button>`;
+    }
     const rs = rows();
     if (!rs.length) {
       hand.innerHTML = '<div class="equip-hand-name">no iron…</div>';
-      grid.innerHTML = '<div class="equip-sub2">No iron yet… (weapons unreachable)</div>';
     } else {
       const eq = rs.find((w) => w.equipped) || rs[0];
       hand.innerHTML =
@@ -53,34 +67,40 @@ window.Equipment = (() => {
           `<div class="equip-hand-stats">${esc(statLine(eq))}</div>` +
           `<div class="equip-hand-desc">${esc(eq.desc)}</div>` +
         '</div>';
-      grid.innerHTML = rs.map((w) => (
+    }
+    if (tab === 'weapons') {
+      grid.innerHTML = rs.length ? rs.map((w) => (
         `<div class="equip-cell${w.equipped ? ' sel' : ''}">` +
           `<img class="equip-cell-icon" src="${esc(w.icon || 'assets/m1.png')}" alt="" onerror="this.style.display='none'" />` +
           `<span class="equip-cell-name">${esc(w.name)}</span>` +
           `<span class="equip-cell-stats">${esc(statLine(w))}</span>` +
           cellBtn(w) +
         `</div>`
-      )).join('');
-    }
-    // trinket slots: click a worn one to take it off, WEAR below fills empties
-    if (slotsEl) {
-      let worn = [null, null, null];
-      try { worn = window.Accessories && typeof window.Accessories.worn === 'function' ? window.Accessories.worn() : worn; } catch (e) {}
+      )).join('') : '<div class="equip-sub2">No iron yet… (weapons unreachable)</div>';
+    } else {
       const list = accs();
-      slotsEl.innerHTML = '<span class="equip-slots-label">TRINKETS</span>' + worn.map((id, i) => {
+      grid.innerHTML = list.length ? list.map((a) => (
+        `<div class="equip-cell${a.equipped ? ' sel' : ''}">` +
+          `<span class="equip-cell-icon" data-acc-icon="${esc(a.id)}" title="click, then a jiggling slot">${esc(a.emoji)}</span>` +
+          `<span class="equip-cell-name">${esc(a.name)}</span>` +
+          `<span class="equip-cell-stats">${esc(a.desc)}</span>` +
+          accBtn(a) +
+        `</div>`
+      )).join('') : '<div class="equip-sub2">no trinkets yet — the 🏪 shop sells them</div>' +
+        `<button class="equip-cell-btn" data-shop="1">🏪 SHOP</button>`;
+    }
+    // trinket slots: pending icon jiggles the empties; click one to wear it there
+    if (slotsEl) {
+      const w = worn();
+      const list = accs();
+      slotsEl.innerHTML = '<span class="equip-slots-label">TRINKETS</span>' + w.map((id, i) => {
         const a = list.find((x) => x.id === id);
-        if (!a) return `<button class="equip-slot empty" disabled>empty</button>`;
+        if (!a) {
+          const jig = pendingAcc ? ' jiggle' : '';
+          return `<button class="equip-slot empty${jig}" data-unslot="${i}"${pendingAcc ? '' : ' disabled'}>${pendingAcc ? 'wear here' : 'empty'}</button>`;
+        }
         return `<button class="equip-slot" data-unslot="${i}" title="click to take off">${esc(a.emoji)} ${esc(a.name)}</button>`;
-      }).join('') +
-      (list.length ? '<div class="equip-sub2">accessories — WEAR fills an empty slot</div><div class="equip-acc-grid">' +
-        list.map((a) => (
-          `<div class="equip-cell${a.equipped ? ' sel' : ''}">` +
-            `<span class="equip-cell-icon">${esc(a.emoji)}</span>` +
-            `<span class="equip-cell-name">${esc(a.name)}</span>` +
-            `<span class="equip-cell-stats">${a.price}c · ${esc(a.desc)}</span>` +
-            accBtn(a) +
-          `</div>`
-        )).join('') + '</div>' : '');
+      }).join('');
     }
   }
 
@@ -113,10 +133,11 @@ window.Equipment = (() => {
   function stopDoll() { try { clearInterval(animT); } catch (e) {} animT = null; }
 
   function tick() { try { window.Sound && window.Sound.playSfx('combat', 'release_click.mp3', { rate: 1.8, volume: 0.12 }); } catch (e) {} }
+  function ownsAcc(id) { try { return window.Accessories && typeof window.Accessories.owns === 'function' ? window.Accessories.owns(id) : false; } catch (e) { return false; } }
 
   function setOpen(v) {
     open = !!v;
-    if (open) { render(); startDoll(); } else stopDoll(); // repaint on every open — upgrades never go stale
+    if (open) { render(); startDoll(); } else { stopDoll(); pendingAcc = null; } // repaint on every open — upgrades never go stale
     const p = $('equip-panel');
     if (p) p.style.display = open ? 'flex' : 'none';
   }
@@ -131,10 +152,16 @@ window.Equipment = (() => {
         const t = e.target || {};
         if (t.id === 'equip-panel' || t.id === 'equip-close') { setOpen(false); return; } // backdrop + ✕ close
         const d = t.dataset || {};
-        if (d.shop && window.Shop && window.Shop.setOpen) { setOpen(false); window.Shop.setOpen(true); return; } // 🔒 SHOP jumps to the till
+        if (d.shop && window.Shop && window.Shop.setOpen) { setOpen(false); window.Shop.setOpen(true); return; } // 🏪 nudge jumps to the till
+        if (d.tab) { tab = d.tab; pendingAcc = null; tick(); render(); return; } // WEAPONS | TRINKETS
         if (d.equip && window.Weapons && window.Weapons.equip(d.equip)) { tick(); render(); return; } // swap + repaint tags
-        if (d.acc && window.Accessories && window.Accessories.equip(d.acc) >= 0) { tick(); render(); return; } // trinket on
-        if (d.unslot !== undefined && window.Accessories && window.Accessories.unequip(Number(d.unslot))) { tick(); render(); } // trinket off
+        if (d.acc && window.Accessories && window.Accessories.equip(d.acc) >= 0) { pendingAcc = null; tick(); render(); return; } // WEAR fills first empty
+        if (d.accIcon && ownsAcc(d.accIcon)) { pendingAcc = d.accIcon; tick(); render(); return; } // icon arms the jiggle
+        if (d.unslot !== undefined && d.unslot !== null && d.unslot !== '') {
+          const i = Number(d.unslot);
+          if (pendingAcc && window.Accessories && window.Accessories.equipTo(pendingAcc, i)) { pendingAcc = null; tick(); render(); return; } // into the jiggling slot
+          if (window.Accessories && window.Accessories.unequip(i)) { tick(); render(); } // trinket off
+        }
       } catch (_) { /* a bad click equips nothing */ }
     });
   }
