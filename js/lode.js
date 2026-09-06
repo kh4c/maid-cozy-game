@@ -13,12 +13,12 @@ window.Lode = (() => {
   const LODE_SCALE = 1.5, ANIM_SPD = 0.35;               // same rotor flicker
   const DROP = 70;         // altitude: the ground point hangs 70px under its feet
   const ROAM_X = 380, ROAM_Y = 260; // drift box half-extents around her — the screen, not her heels
-  const SPD = 120, FETCH_SPD = 180; // px/s — ONE pace everywhere, the commute only slightly brisker. No easing, no bursts, no teleports
+  const SPD = 180, FETCH_SPD = 260; // px/s — ONE pace everywhere, the commute only slightly brisker. No easing, no bursts, no teleports
   const FETCH_R = 700;     // spots loose coins this far from its ground point
   const SCOOP_R = 50;      // swallows coins this close (at the ground point)
   const SNARE_R = 140, SNARE_F = 0.5; // the storm mouth: half speed inside
   const ZAP_CD = 1.0, ZAP_DMG = 1;    // electric tick — polite, not a second rifle
-  const LEASH = 900;       // she outruns it this far and it comes home
+  const LEASH = 600;       // she outruns it this far and it comes home — it follows, not just visits
   const OWN_KEY = 'cosette.lode';
 
   let world = null, spr = null, cone = null;

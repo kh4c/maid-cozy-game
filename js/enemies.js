@@ -267,18 +267,34 @@ window.Enemies = (() => {
 
   // dev-panel swarm: a RING of gilt packs + hunters closes around her — many
   // bodies, evenly spaced, on-screen, born ALREADY after her (the natural
-  // alert lines, skipped) — banner + battle mood on.
+  // alert lines, skipped). NOT one burst: wave 1 lands now, two more ride
+  // the update clock and drop where she stands THEN — banner + battle mood on.
+  let swarmLeft = 0, swarmT = 0; // pending waves + countdown
+  const SWARM_EVERY = 7; // seconds between waves — time to breathe, not to rest
+  function swarmRing(shift) { // one ring around her CURRENT spot, born hostile
+    const R = 450; // the ring — on-screen all around her, nobody spawns on top of her
+    for (let i = 0; i < 3; i++) spawnPack(lastPx, lastPy, true, (i / 3) * Math.PI * 2 + 0.3 + shift, R); // ~9-12 gilts
+    for (let i = 0; i < 2; i++) spawnLoner(lastPx, lastPy, ((i + 0.5) / 2) * Math.PI * 2 + 0.3 + shift, R); // hunters in the gaps
+    for (const g of groups.slice(-3)) { g.alerted = true; for (const m of g.members) m.hostile = true; }
+    for (const l of loners.slice(-2)) { if (l && !l.boss) l.hostile = true; }
+  }
   function swarm() {
     try {
-      const world = init._world;
-      if (!world) return false;
-      const R = 450; // the ring — on-screen all around her, nobody spawns on top of her
-      for (let i = 0; i < 3; i++) spawnPack(lastPx, lastPy, true, (i / 3) * Math.PI * 2 + 0.3, R); // ~9-12 gilts
-      for (let i = 0; i < 2; i++) spawnLoner(lastPx, lastPy, ((i + 0.5) / 2) * Math.PI * 2 + 0.3, R); // hunters in the gaps
-      for (const g of groups.slice(-3)) { g.alerted = true; for (const m of g.members) m.hostile = true; }
-      for (const l of loners.slice(-2)) { if (l && !l.boss) l.hostile = true; }
-      bossBanner('⚠ SWARM ⚠', 'SURROUNDED — THE PACKS CLOSE IN', BOSS_BANNER_T);
+      if (!init._world) return false;
+      swarmRing(0);
+      swarmLeft = 2; swarmT = SWARM_EVERY; // two more rings incoming
+      bossBanner('⚠ SWARM ⚠', 'WAVE 1 — THE PACKS CLOSE IN', BOSS_BANNER_T);
       try { window.Sound && window.Sound.setBgmMood && window.Sound.setBgmMood('battle'); } catch (e) {}
+      return true;
+    } catch (e) { return false; }
+  }
+  // dev-panel single: one hunter at the ring, already after her — the small case
+  function sendOne() {
+    try {
+      if (!init._world) return false;
+      spawnLoner(lastPx, lastPy, Math.random() * Math.PI * 2, 450);
+      const l = loners[loners.length - 1];
+      if (l && !l.boss) l.hostile = true;
       return true;
     } catch (e) { return false; }
   }
@@ -454,6 +470,14 @@ window.Enemies = (() => {
     if (bossBannerT > 0) { // caution banner countdown
       bossBannerT -= dt;
       if (bossBannerT <= 0) { try { document.getElementById('boss-banner').style.display = 'none'; } catch (e) {} }
+    }
+    if (swarmLeft > 0) { // the swarm comes in waves — each ring drops where she stands NOW
+      swarmT -= dt;
+      if (swarmT <= 0) {
+        swarmLeft--; swarmT = SWARM_EVERY;
+        try { swarmRing(swarmLeft * 0.5); } catch (e) {} // rotated a little, so rings don't stack
+        bossBanner('⚠ SWARM ⚠', 'WAVE ' + (3 - swarmLeft) + ' — THEY KEEP COMING', 2.0);
+      }
     }
     const playerDead = !!(window.Health && window.Health.dead);
     const now = performance.now() / 1000;
@@ -866,5 +890,5 @@ window.Enemies = (() => {
       `She runs 300 — she outruns both. Bite = 1 heart at 42px. Open grassland, no cover.\n`;
   }
 
-  return { init, update, hostileCount, playerAttack, damageAt, nearest, snare, sense, senseView, nearestView, priceListText, bestiary, bestiaryText, combatFacts, dismissNear, spawnBoss, bossAlive, swarm, combatTelegraph, debugGroups: () => groups };
+  return { init, update, hostileCount, playerAttack, damageAt, nearest, snare, sense, senseView, nearestView, priceListText, bestiary, bestiaryText, combatFacts, dismissNear, spawnBoss, bossAlive, swarm, sendOne, combatTelegraph, debugGroups: () => groups };
 })();
