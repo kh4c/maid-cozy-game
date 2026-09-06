@@ -14,7 +14,7 @@ window.Weapons = (() => {
   const TABLE = {
     rifle: { name: 'M1 Rifle', kind: 'gun', desc: 'Slow trigger, fast needle — one loud word at a time.',
       cd: 0.85, dmg: 4, base: 4, speed: 1400, life: 0.6, slug: 0.3, recoil: 1.5,
-      sfx: 'rifle_real.wav', rate: 1.0, ping: 'clip_click.mp3' },
+      sfx: 'rifle_real.wav', rate: 1.0, ping: 'release_click.mp3' },
   };
   let active = 'rifle';
 
