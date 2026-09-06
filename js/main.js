@@ -82,10 +82,21 @@
   try {
     const ub = document.getElementById('urge-btn');
     if (ub) ub.addEventListener('click', () => {
+      const nowMs = performance.now();
+      if (nowMs < (window.__urgeReadyAt || 0)) return; // one order per cooldown — no button-mashing the maid
+      window.__urgeReadyAt = nowMs + 8000;
+      let legs = 'fresh legs'; // her tone bends with this; her obedience doesn't
+      try {
+        const st = window.Stamina && window.Stamina.state ? window.Stamina.state() : null;
+        const p = st && st.pct != null ? st.pct : 1;
+        legs = p < 0.3 ? 'spent legs, about to buckle' : p < 0.6 ? 'winded legs' : 'fresh legs';
+      } catch (e) {}
       try { window.Input && window.Input.pushFor && window.Input.pushFor(6); } catch (e) {}
       try { window.Stamina && window.Stamina.kick && window.Stamina.kick(); } catch (e) {}
       try { window.Brain && window.Brain.note && window.Brain.note('urged'); } catch (e) {}
+      try { window.Chat && window.Chat.announce && window.Chat.announce({ event: 'urge-push', legs }, 'Yes, master — moving!'); } catch (e) {} // an order gets a YES, in whatever tone her legs allow
       try { ub.classList.add('poked'); setTimeout(() => ub.classList.remove('poked'), 180); } catch (e) {}
+      try { ub.classList.add('cooling'); setTimeout(() => ub.classList.remove('cooling'), 8000); } catch (e) {}
     });
   } catch (e) {}
 

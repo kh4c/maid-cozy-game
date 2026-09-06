@@ -469,6 +469,7 @@ span.equip-cell-icon { font-size: 32px; line-height: 1; cursor: pointer; }
 }
 #urge-btn:hover { border-color: rgba(255, 210, 74, 0.7); }
 #urge-btn.poked { background: rgba(255, 210, 74, 0.25); transform: scale(0.94); }
+#urge-btn.cooling { opacity: 0.35; pointer-events: none; } /* one order per cooldown — the button itself naps */
 #chat-input {
   flex: 1; min-width: 0; box-sizing: border-box;
   background: rgba(0, 0, 0, 0.45);            /* same transparent black */

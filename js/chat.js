@@ -375,6 +375,7 @@ window.Chat = (() => {
         resting: `your legs got heavy so YOU chose to pause at low stamina before running dry — a smart breather, not a collapse. Tell master NOW in your own voice: 1 short sentence, in-character, *action* allowed. A little sheepish, framing it as pacing yourself. No numbers.`,
         'money-banter': `master just said to kill ONLY the valuable critters (pick the rich ones, skip the cheap). REFUSE playfully in your own voice: 1 short sentence, in-character, *action* allowed — money is money, every critter pays, you kill them ALL. No numbers.`,
         'which-ones': `master said "those ones / go back" but you see NO pack in reach. ASK which ones they mean in your own voice: 1 short sentence, in-character, *action* allowed — invite them to walk you closer or point you at them.`,
+        'urge-push': `master just gave a direct ORDER through the URGE button ("keep going!"). This is NOT a request — say YES in your own voice: 1 short sentence, in-character, *action* allowed. You WILL obey however tired you are; only the TONE bends with the legs report below (fresh: crisp and dutiful; winded: breathy and grudging; spent: strained to the edge but STILL yes). Never refuse, never bargain, never ask why — obey first, complain second.`,
       };
       // quiet-found doctrine: tiers live in code, never in her mouth — at most
       // a word for shiny. Commons stay plain.
@@ -400,6 +401,8 @@ window.Chat = (() => {
                   : `Facts: a critter pack to the ${f.dir || 'east'}, ${f.dist || 'nearby'}. ` +
                   (rarePlus ? `One of them looks SHINY — note it with interest, but no tiers, colors, or bounties. ` : `Nothing special about them — do NOT mention counts, colors, rarity, or prices. `) +
                   `Never say a bare number — critters are critters, money is coins. `))
+              : f.event === 'urge-push'
+              ? `Legs report: ${f.legs || 'fresh legs'} — fresh means crisp and dutiful; winded means breathy and grudging; spent means strained to the edge but STILL yes. Obey first, complain second, in that order. `
               : `No new facts — the approved line above IS the whole situation (a feeling, a state, an acknowledgement). Reword it lightly in your own voice, stay close to it, and do NOT invent critters, numbers, directions, or places. `) +
         `${(f.hostile | 0) > 0 && f.event !== 'wiped' && !(f.event || '').startsWith('posture') ? (f.species === 'hunter' ? 'It looks HOSTILE (angry) — say so and fight.' : 'Some look HOSTILE (angry).') : (f.ordered && f.event === 'found' ? 'Master ordered the engagement.' : f.event === 'found' ? (f.species === 'hunter' ? 'It is calm FOR NOW, but hunters never stay that way — say you are ready for it, NEVER ask master for permission.' : f.species === 'giltboar' ? 'Giltboars — main quarry, NO doubt: say the hunger, engage freely, never ask.' : 'Calm critters are HARMLESS grazers and killing them feels wrong — say the doubt out loud, then leave them be. Never ask for orders, never wait on master for grazers.') : '')} ` +
         `${f.prev ? `Context: you already reported another pack (${f.prev}). ${f.compare || 'Say which pack is closer and which you would take first, and why.'} ` : ''}` +
