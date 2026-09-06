@@ -70,23 +70,23 @@ window.Equipment = (() => {
       const list = accs();
       grid.innerHTML = list.length ? list.map((a) => (
         `<div class="equip-cell${a.equipped ? ' sel' : ''}">` +
-          `<span class="equip-cell-icon" data-acc-icon="${esc(a.id)}" title="${esc(a.name)} — click, then a jiggling slot">${esc(a.emoji)}</span>` +
+          `<span class="equip-cell-tag" data-acc-icon="${esc(a.id)}" title="${esc(a.name)} — click, then a jiggling slot">${esc(a.tag)}</span>` +
           `<span class="equip-tip"><span class="t-name">${esc(a.name)}</span><br>${esc(a.desc)}</span>` +
         `</div>`
       )).join('') : '<div class="equip-sub2">no trinkets yet — the 🏪 shop sells them</div>' +
         `<button class="equip-cell-btn" data-shop="1">🏪 SHOP</button>`;
     }
-    // trinket slots: small squares, emoji only — pending icon jiggles the empties
+    // trinket slots: small squares stacked beside her, tags not emoji
     if (slotsEl) {
       const w = worn();
       const list = accs();
-      slotsEl.innerHTML = '<span class="equip-slots-label">TRINKETS</span>' + w.map((id, i) => {
+      slotsEl.innerHTML = w.map((id, i) => {
         const a = list.find((x) => x.id === id);
         if (!a) {
           const jig = pendingAcc ? ' jiggle' : '';
-          return `<button class="equip-slot empty${jig}" data-unslot="${i}"${pendingAcc ? '' : ' disabled'}>+</button>`;
+          return `<button class="equip-slot empty${jig}" data-unslot="${i}" title="empty trinket slot"${pendingAcc ? '' : ' disabled'}>+</button>`;
         }
-        return `<button class="equip-slot" data-unslot="${i}" title="${esc(a.name)} — click to take off">${esc(a.emoji)}<span class="equip-tip"><span class="t-name">${esc(a.name)}</span><br>${esc(a.desc)}<br>click to take off</span></button>`;
+        return `<button class="equip-slot" data-unslot="${i}" title="${esc(a.name)} — click to take off">${esc(a.tag)}<span class="equip-tip"><span class="t-name">${esc(a.name)}</span><br>${esc(a.desc)}<br>click to take off</span></button>`;
       }).join('');
     }
   }

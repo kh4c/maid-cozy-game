@@ -7,11 +7,11 @@ window.Accessories = (() => {
   const OWN_KEY = 'cosette.shop.acc';
   const GEAR_KEY = 'cosette.gear';
   const TABLE = [
-    { id: 'boots', emoji: '👟', name: 'Swift Boots', price: 100,
+    { id: 'boots', emoji: '👟', tag: 'SPD', name: 'Swift Boots', price: 100,
       desc: '+12% move speed, always on. Lace them and go.' },
-    { id: 'locket', emoji: '💖', name: 'Heart Locket', price: 140,
+    { id: 'locket', emoji: '💖', tag: 'HP', name: 'Heart Locket', price: 140,
       desc: '+2 max hearts while worn. She hates taking it off.' },
-    { id: 'charm', emoji: '🪙', name: 'Greedy Charm', price: 160,
+    { id: 'charm', emoji: '🪙', tag: '+25%', name: 'Greedy Charm', price: 160,
       desc: '+25% coins from every kill. Money is money.' },
   ];
   let owned = { boots: false, locket: false, charm: false };
@@ -37,7 +37,7 @@ window.Accessories = (() => {
   function known(id) { return TABLE.some((t) => t.id === id); }
   function owns(id) { return !!owned[id]; }
   function list() {
-    return TABLE.map((t) => ({ id: t.id, emoji: t.emoji, name: t.name, price: t.price,
+    return TABLE.map((t) => ({ id: t.id, emoji: t.emoji, tag: t.tag, name: t.name, price: t.price,
       desc: t.desc + (slots.includes(t.id) ? ' (wearing it)' : ''),
       owned: !!owned[t.id], equipped: slots.includes(t.id) }));
   }

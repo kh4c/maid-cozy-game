@@ -2,6 +2,13 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Big doll, vertical tag slots, bigger VT323, no emoji
+- Doll row is slots | maid | hand now: sprite up to 144px (3x canvas, still
+  crisp), 3 trinket slots stacked vertically at her left.
+- No emoji anywhere in the doll: trinkets wear SPD / HP / +25% text tags
+  (grid cells + slots, tooltips keep full names). Panel type up ~1.25x.
+- hequip 34/34 (tags-not-emoji pinned), hshop 21/21.
+
 ## 2026-09-06 — Small square slots + hover tooltips, no inline text
 - Grid cells are 68px icon-only squares (click iron = EQUIP, gold ring = worn);
   name + stats live in a hover tooltip pinned above the cell. No names, no
