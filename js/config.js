@@ -58,6 +58,7 @@ window.CONFIG = {
     // Survival brain (separate from chat): aim authority + think cadence.
     aimMode: 'ai',   // she owns the gun — cursor aim removed, always 'ai'
     gunHide: 1,       // 0 = iron always out, 1 = gun appears only while shooting
+    goalHide: 0,      // 0 = show her tactic goal-line, 1 = hide it (MAIN tab toggle)
 
     brainInterval: 6,   // seconds between auto thinks while danger is near
     brainTokens: 300,   // max tokens per tactical thought (short + cheap)

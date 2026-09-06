@@ -388,7 +388,12 @@ window.Brain = (() => {
     } catch (e) { /* buttons are cosmetic */ }
     try {
       const gl = $('goal-line');
-      if (gl) { const t = getGoalHud(); if (gl.textContent !== t) gl.textContent = t; }
+      if (gl) {
+        const t = getGoalHud(); if (gl.textContent !== t) gl.textContent = t;
+        const hide = window.Settings && Number(window.Settings.settings.goalHide) === 1;
+        const d = hide ? 'none' : '';
+        if (gl.style.display !== d) gl.style.display = d;
+      }
     } catch (e) {}
     paintKills(false); // lifetime total onto the HUD panel (boot + every 0.5s)
   }

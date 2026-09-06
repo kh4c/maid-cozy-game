@@ -231,7 +231,7 @@ canvas { display: block; }
   background: linear-gradient(180deg, #1c2450, #12173a);
   border: 2px solid #3d4a7a;
   border-radius: 14px; padding: 16px 20px 20px;
-  font-family: '8bitoperator', monospace; font-size: 17px; line-height: 1.5;
+  font-family: 'Silkscreen', monospace; font-size: 17px; line-height: 1.5;
   color: #dfe6ff; user-select: none; position: relative;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
 }
@@ -244,7 +244,7 @@ canvas { display: block; }
 }
 #shop-coins { flex: 1; font-size: 16px; color: #ffe08a; }
 #shop-close {
-  cursor: pointer; font-family: '8bitoperator', monospace; font-size: 16px; color: #dfe6ff;
+  cursor: pointer; font-family: 'Silkscreen', monospace; font-size: 16px; color: #dfe6ff;
   background: #2a3368; border: 2px solid #3d4a7a; border-radius: 6px; padding: 6px 9px;
 }
 #shop-close:hover { background: #343e7d; border-color: #4de3ff; color: #fff; }
@@ -274,7 +274,7 @@ canvas { display: block; }
 .shop-cell-icon { width: 84px; height: 84px; object-fit: contain; image-rendering: pixelated; font-size: 56px; }
 .shop-cell-name { color: #dfe6ff; font-size: 15px; width: 100%; text-align: left; }
 .shop-cell-buy {
-  cursor: pointer; font-family: '8bitoperator', monospace; font-size: 15px; color: #1a1206;
+  cursor: pointer; font-family: 'Silkscreen', monospace; font-size: 15px; color: #1a1206;
   background: #ffd24a; border: none; border-radius: 5px; padding: 7px 8px; width: 100%;
 }
 .shop-cell-buy:hover:not(.disabled) { background: #ffe08a; }
@@ -290,7 +290,7 @@ canvas { display: block; }
 .shop-detail-desc { font-size: 15px; color: #aeb8e8; }
 .shop-detail-price { font-size: 18px; color: #fff; }
 .shop-buy-big {
-  cursor: pointer; font-family: '8bitoperator', monospace; font-size: 17px; color: #1a1206;
+  cursor: pointer; font-family: 'Silkscreen', monospace; font-size: 17px; color: #1a1206;
   background: #ffd24a; border: none; border-radius: 6px; padding: 11px 14px; width: 100%;
 }
 .shop-buy-big:hover:not(.disabled) { background: #ffe08a; box-shadow: 0 0 14px rgba(255, 210, 74, 0.6); }
@@ -316,7 +316,7 @@ canvas { display: block; }
   width: min(800px, 95vw);
   background: linear-gradient(180deg, #1c2450, #12173a);
   border: 2px solid #3d4a7a; border-radius: 14px; padding: 14px 16px 18px;
-  font-family: '8bitoperator', monospace; font-size: 17px; line-height: 1.5;
+  font-family: 'Silkscreen', monospace; font-size: 17px; line-height: 1.5;
   color: #dfe6ff; user-select: none;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
 }
@@ -326,7 +326,7 @@ canvas { display: block; }
 }
 #equip-close {
   margin-left: auto;
-  cursor: pointer; font-family: '8bitoperator', monospace; font-size: 16px; color: #dfe6ff;
+  cursor: pointer; font-family: 'Silkscreen', monospace; font-size: 16px; color: #dfe6ff;
   background: #2a3368; border: 2px solid #3d4a7a; border-radius: 6px; padding: 6px 9px;
 }
 #equip-close:hover { border-color: #4de3ff; color: #fff; }
@@ -351,7 +351,7 @@ canvas { display: block; }
 .equip-hand-desc { font-size: 16px; color: #8d96c8; font-style: italic; }
 #equip-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
 .equip-tab {
-  flex: 1; cursor: pointer; font-family: '8bitoperator', monospace; font-size: 17px; color: #8d96c8;
+  flex: 1; cursor: pointer; font-family: 'Silkscreen', monospace; font-size: 17px; color: #8d96c8;
   background: #171d42; border: 2px solid #3d4a7a; border-radius: 8px; padding: 9px 10px;
 }
 .equip-tab:hover { color: #dfe6ff; border-color: #4de3ff; }
@@ -369,18 +369,18 @@ canvas { display: block; }
 .equip-cell.sel { border-color: #ffd24a; box-shadow: 0 0 14px rgba(255, 210, 74, 0.45); }
 img.equip-cell-icon { width: 44px; height: 44px; object-fit: contain; image-rendering: pixelated; }
 span.equip-cell-icon { font-size: 32px; line-height: 1; cursor: pointer; }
-.equip-cell-tag { font-family: '8bitoperator', monospace; font-size: 16px; color: #4de3ff; cursor: pointer; }
+.equip-cell-tag { font-family: 'Silkscreen', monospace; font-size: 16px; color: #4de3ff; cursor: pointer; }
 .equip-tip {
   display: none; position: absolute; bottom: calc(100% + 8px); left: 50%;
   transform: translateX(-50%); width: max-content; max-width: 190px;
   background: #0f1440; border: 2px solid #4de3ff; border-radius: 8px;
-  padding: 8px 10px; font-family: '8bitoperator', monospace; font-size: 15px;
+  padding: 8px 10px; font-family: 'Silkscreen', monospace; font-size: 15px;
   line-height: 1.7; color: #dfe6ff; text-align: left; z-index: 5; pointer-events: none;
 }
 .equip-tip .t-name { color: #ffd24a; }
 .equip-cell:hover .equip-tip, .equip-slot:hover .equip-tip { display: block; }
 .equip-cell-btn {
-  cursor: pointer; font-family: '8bitoperator', monospace; font-size: 15px; color: #0a0e24;
+  cursor: pointer; font-family: 'Silkscreen', monospace; font-size: 15px; color: #0a0e24;
   background: #4de3ff; border: none; border-radius: 5px; padding: 7px 8px; width: 100%;
 }
 .equip-cell-btn:hover:not(.equipped) { background: #a5f1ff; }
@@ -390,7 +390,7 @@ span.equip-cell-icon { font-size: 32px; line-height: 1; cursor: pointer; }
 #equip-slots { display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: center; }
 .equip-slot {
   width: 56px; height: 56px; padding: 0;
-  cursor: pointer; font-family: '8bitoperator', monospace; font-size: 14px; line-height: 1; color: #ffd24a;
+  cursor: pointer; font-family: 'Silkscreen', monospace; font-size: 14px; line-height: 1; color: #ffd24a;
   background: #0f1440; border: 2px solid #4de3ff; border-radius: 8px; position: relative;
 }
 .equip-slot:hover { box-shadow: 0 0 12px rgba(77, 227, 255, 0.5); }

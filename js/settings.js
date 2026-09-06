@@ -151,6 +151,7 @@ window.Settings = (() => {
     addSlider('maxTilt', 0, 1.2, 0.05);
     addSlider('l2dOn', 0, 1, 1);
     addSlider('gunHide', 0, 1, 1, undefined, 'hide gun unless shooting', (v) => (Number(v) === 1 ? 'hide' : 'always out'));
+    addSlider('goalHide', 0, 1, 1, undefined, 'tactic goal line', (v) => (Number(v) === 1 ? 'hide' : 'show'));
 
     addSlider('l2dZoom', 0.1, 2, 0.05);
     addSlider('l2dx', 0, 1, 0.02);
