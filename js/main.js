@@ -355,7 +355,7 @@
             let f = 1; try { f = character && character.facing ? character.facing() : 1; } catch (e) {}
             if (!f) f = 1;
             const j = (Math.random() - 0.5) * (Math.PI / 3); // ±30° of wobble, like a real stumble
-            const d = 52 + (Math.random() - 0.5) * 20; // a step, give or take — no two face-plants land identical
+            const d = 104 + (Math.random() - 0.5) * 30; // a proper tumble — no two face-plants land identical
             launchX = Math.cos(j) * f * d; launchY = Math.sin(j) * d;
           } catch (e) { launchX = 0; launchY = 0; }
         }
