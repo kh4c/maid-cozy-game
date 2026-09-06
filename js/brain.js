@@ -1298,5 +1298,5 @@ window.Brain = (() => {
     if (t && !t.textContent) t.textContent = 'field is quiet… press 💭 and I’ll size it up.';
   }
 
-  return { init, tick, thinkNow: () => think(true), orderAttack, orderFind: () => { setObjective({ kind: 'find' }); objectiveMaster = true; memoMode = 'find'; }, syncButtons, note, resetMemory, setMemo, getGoalHud, getObjectiveText, get thinking() { return thinking; } };
+  return { init, tick, thinkNow: () => think(true), orderAttack, orderFind: () => { setObjective({ kind: 'find' }); objectiveMaster = true; memoMode = 'find'; }, orderHunt: () => { setObjective({ kind: 'hunt' }); objectiveMaster = true; memoMode = 'hunt'; }, syncButtons, note, resetMemory, setMemo, getGoalHud, getObjectiveText, get thinking() { return thinking; } };
 })();

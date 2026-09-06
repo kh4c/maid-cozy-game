@@ -99,15 +99,15 @@
       try { ub.classList.add('cooling'); setTimeout(() => ub.classList.remove('cooling'), 8000); } catch (e) {}
     });
   } catch (e) {}
-  // FIND BUTTON: bare "keep finding" order on a click — same as typing it
-  // (master-locked find posture + her salute line), one order per cooldown.
+  // HUNT BUTTON: bare "hunt" order on a click — same as typing it
+  // (master-locked hunt posture + her knuckle-crack line), one order per cooldown.
   try {
-    const fb = document.getElementById('find-btn');
+    const fb = document.getElementById('hunt-btn');
     if (fb) fb.addEventListener('click', () => {
       const nowMs = performance.now();
-      if (nowMs < (window.__findReadyAt || 0)) return; // one order per cooldown
-      window.__findReadyAt = nowMs + 8000;
-      try { window.Brain && window.Brain.orderFind && window.Brain.orderFind(); } catch (e) {}
+      if (nowMs < (window.__huntReadyAt || 0)) return; // one order per cooldown
+      window.__huntReadyAt = nowMs + 8000;
+      try { window.Brain && window.Brain.orderHunt && window.Brain.orderHunt(); } catch (e) {}
       try { fb.classList.add('poked'); setTimeout(() => fb.classList.remove('poked'), 180); } catch (e) {}
       try { fb.classList.add('cooling'); setTimeout(() => fb.classList.remove('cooling'), 8000); } catch (e) {}
     });
