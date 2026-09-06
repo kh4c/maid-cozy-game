@@ -71,7 +71,7 @@ window.Effects = (() => {
         [0.58, 0.55, 2100, 150, 0.05, 0.56, 8],
         [0.84, 0.38, 1700, 70,  0.07, 0.51, 12],
       ];
-      for (const [fx, fy, len, thick, a, rot, drift] of defs) {
+      for (const [fx, fy, len, thick, a, rot] of defs) {
         const s = new Sprite(btex);
         s.anchor.set(0.5);
         s.position.set(app.screen.width * fx, app.screen.height * fy);
@@ -81,10 +81,12 @@ window.Effects = (() => {
         s.blendMode = 'add';
         beams.push({
           s, base: a,
+          bx: s.x, by: s.y, // sway AROUND home — no wrapping, no teleport, no flicker, ever
+          dirX: Math.cos(rot), dirY: Math.sin(rot),
           phase: rand() * Math.PI * 2,
           pulse: 0.3 + rand() * 0.5,        // rad/s of alpha flicker
-          dirX: Math.cos(rot), dirY: Math.sin(rot),
-          drift,
+          amp: 50 + rand() * 50,            // px of drift along the beam
+          rate: 0.10 + rand() * 0.12,       // sway speed — barely moving
         });
         layer.addChild(s);
       }
@@ -113,22 +115,21 @@ window.Effects = (() => {
     layer.addChild(grade);
 
     let t = 0;
-    function update(dtSec) {
+    function update(dtSec, dayF) {
       t += dtSec;
+      const day = (typeof dayF === 'number') ? dayF : 1; // 1 = noon sun, 0 = night — the sun goes to bed, motes stay up
       layer.alpha = window.Settings.settings.sunray;
       const W = app.screen.width, H = app.screen.height;
+      glow.alpha = 0.3 * day;
 
       for (const b of beams) {
-        // gentle breathing: small amplitude, slow — no visible flicker
-        b.s.alpha = b.base * (0.9 + 0.1 * Math.sin(t * b.pulse * 0.4 + b.phase));
-        // slow drift along the beam axis, wrapped in an extended box.
-        // Margin must exceed max beam half-extent (~930px) or long beams pop
-        // back on-screen mid-wrap -> visible flicker. 1000 keeps them fully out.
-        b.s.x += b.dirX * b.drift * dtSec;
-        b.s.y += b.dirY * b.drift * dtSec;
-        const m = 1000, spanX = W + 2 * m, spanY = H + 2 * m;
-        b.s.x = ((b.s.x % spanX) + spanX) % spanX - m;
-        b.s.y = ((b.s.y % spanY) + spanY) % spanY - m;
+        // gentle breathing: small amplitude, slow — a smooth sine, never a strobe
+        b.s.alpha = b.base * day * (0.9 + 0.1 * Math.sin(t * b.pulse * 0.4 + b.phase));
+        // slow sway around home along the beam axis — bounded, continuous,
+        // nothing ever wraps or teleports, so there is nothing TO flicker.
+        const sw = Math.sin(t * b.rate + b.phase);
+        b.s.x = b.bx + b.dirX * sw * b.amp;
+        b.s.y = b.by + b.dirY * sw * b.amp;
       }
 
       for (const mo of motes) {

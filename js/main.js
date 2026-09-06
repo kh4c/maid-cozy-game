@@ -216,6 +216,7 @@
 
   // ---- Sunrays + dust motes (screen-space overlay, above character) -----------------
   let effects;
+  let effDay = 1; // eased daylight for the sunrays: 1 noon, 0 night — no sun after 5PM
   try {
     effects = window.Effects.create(app);
     app.stage.addChild(effects.layer);
@@ -529,7 +530,12 @@
       chunkEl.textContent = `chunks ${n}`;
     }
 
-    if (effects) effects.update(wdt);
+    try { // the sun sets over ~1s, not in one hard flip
+      const target = nightOn() ? 0 : 1;
+      effDay += (target - effDay) * Math.min(1, dtSec * 2);
+      if (Math.abs(target - effDay) < 0.005) effDay = target;
+    } catch (e) { effDay = 1; }
+    if (effects) effects.update(wdt, effDay);
     if (live2d) live2d.apply(s);
 
     // fps readout
