@@ -2,6 +2,11 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Gilt country: golden packs outnumber critters 70/30, spawner stocked
+- Spawns flipped from 55/45 to **30% critters / 70% giltboars**, tick 6s → **4s**,
+  concurrent packs 2 → **3**. The field stays stocked with her main quarry;
+  loners untouched. W7/W8 pin it. 28/28 green.
+
 ## 2026-09-06 — Shiny-bool voice + pixel bubble (no more "golden/blue/coins-each")
 - **The voice can't name what it can't see.** Found/switch facts no longer carry
   tier, color, or price — code computes a `shiny` boolean and that is ALL the

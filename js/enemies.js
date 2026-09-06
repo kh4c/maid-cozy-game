@@ -9,8 +9,8 @@ window.Enemies = (() => {
 
   // tuning — all game-feel, no persistence
   const GROUP_MIN = 3, GROUP_MAX = 5;  // pack size
-  const MAX_GROUPS = 2;                // packs alive at once
-  const SPAWN_EVERY = 6;               // spawner tick (seconds)
+  const MAX_GROUPS = 3;                // packs alive at once (room for the golden herds)
+  const SPAWN_EVERY = 4;               // spawner tick (seconds) — gilt country stays stocked
   const SPAWN_R_MIN = 750, SPAWN_R_MAX = 1050; // ring around player (off-view)
   const WANDER_SPEED = 45;             // slow drift
   const HOSTILE_SPEED = 95;            // chase (player runs 300 — outrunnable)
@@ -208,7 +208,7 @@ window.Enemies = (() => {
       spawnAcc += dt;
       if (spawnAcc >= SPAWN_EVERY) {
         spawnAcc = 0;
-        if (groups.length < MAX_GROUPS) { if (Math.random() < 0.55) spawnPack(px, py, false); else spawnPack(px, py, true); } // fewer critters — golden packs take the freed spawns
+        if (groups.length < MAX_GROUPS) { if (Math.random() < 0.3) spawnPack(px, py, false); else spawnPack(px, py, true); } // gilt country: golden packs outnumber critters 70/30
       }
       lonerAcc += dt; // the lone hunter stalks on its own clock
       if (lonerAcc >= LONER_EVERY) {
