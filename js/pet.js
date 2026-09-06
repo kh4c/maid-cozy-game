@@ -38,7 +38,7 @@ window.Pet = (() => {
     if (owned) return { ok: false, why: 'owned' };
     if (!window.Inventory || typeof window.Inventory.spend !== 'function') return { ok: false, why: 'no purse' };
     if (!window.Inventory.spend(PRICE)) return { ok: false, why: 'too poor' };
-    owned = true; save();
+    owned = true; on = true; save(); // bought means worn — it rides home on her head, bench it in 🎒 if you'd rather walk alone
     try { window.Sound && window.Sound.playSfx('combat', 'coin.ogg', { rate: 1.4, volume: 0.5 }); } catch (e) {}
     return { ok: true, name: 'Hover Drone' };
   }

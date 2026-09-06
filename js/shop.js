@@ -3,7 +3,8 @@
 // the right with description, price, and the BUY button; every cell also has
 // its own small buy button below it. Stock: the pump shotgun (persistent
 // unlock deed — Equipment shows 🔒 until bought) + 3 equipable accessories
-// (same purse, deeds persist, worn in the 3 🎒 slots).
+// (same purse, deeds persist, worn in the 3 🎒 slots) + the Hover Drone pet
+// (250c deed, auto-worn in the 🎒 pet square).
 window.Shop = (() => {
   const $ = (id) => document.getElementById(id);
   const KEY = 'cosette.shop';
@@ -65,7 +66,7 @@ window.Shop = (() => {
       if (window.Pet && typeof window.Pet.owns === 'function') {
         const owned = window.Pet.owns();
         cells.push({ id: 'drone', img: 'assets/drone1.png', emoji: '🛸', name: 'Hover Drone',
-          price: window.Pet.price(), desc: window.Pet.desc(), owned, soldOut: owned, why: owned ? 'owned' : '' });
+          price: window.Pet.price(), desc: window.Pet.describe(), owned, soldOut: owned, why: owned ? 'owned' : '' });
       }
     } catch (e) {}
     return cells;

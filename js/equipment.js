@@ -1,10 +1,11 @@
 // Equipment — survivor.io paper doll (navy, never brown).
 // Opening does NOT pause the world (only the Shop freezes the ticker): her
-// idle sprite plays middle on a canvas, the IN HAND panel beside her names
-// the equipped iron, her 3 trinket slots stack at her left, and two tabs
+// idle sprite plays middle on a canvas, a COMPACT IN HAND strip beside her
+// names the equipped iron (small icon — the slots column owns the room), her
+// 3 trinket slots + the big pet square stack at her left, and two tabs
 // (WEAPONS / TRINKETS) run along the bottom. Grids show OWNED pieces only —
 // unowned never lists. Click a trinket icon and the empty slots jiggle:
-// click one to wear it there.
+// click one to wear it there. Click 🛸 to deploy / dismiss the drone.
 window.Equipment = (() => {
   const $ = (id) => document.getElementById(id);
   let open = false;
@@ -86,9 +87,9 @@ window.Equipment = (() => {
       try {
         if (window.Pet && typeof window.Pet.owns === 'function') {
           if (window.Pet.equipped()) {
-            petHtml = `<button class="equip-slot pet" data-pet="1" title="Hover Drone — click to dismiss">🛸<span class="equip-tip"><span class="t-name">Hover Drone</span><br>${esc(window.Pet.desc())}<br>click to dismiss</span></button>`;
+            petHtml = `<button class="equip-slot pet" data-pet="1" title="Hover Drone — click to dismiss">🛸<span class="equip-tip"><span class="t-name">Hover Drone</span><br>${esc(window.Pet.describe())}<br>click to dismiss</span></button>`;
           } else if (window.Pet.owns()) {
-            petHtml = `<button class="equip-slot pet" data-pet="1" title="Hover Drone — click to deploy">🛸<span class="equip-tip"><span class="t-name">Hover Drone</span><br>${esc(window.Pet.desc())}<br>click to deploy</span></button>`;
+            petHtml = `<button class="equip-slot pet" data-pet="1" title="Hover Drone — click to deploy">🛸<span class="equip-tip"><span class="t-name">Hover Drone</span><br>${esc(window.Pet.describe())}<br>click to deploy</span></button>`;
           } else {
             petHtml = `<button class="equip-slot empty" disabled title="pet slot — drones at 🏪">+</button>`;
           }

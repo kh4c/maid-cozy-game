@@ -402,7 +402,7 @@ canvas { display: block; }
   background: #2a3368; border: 2px solid #3d4a7a; border-radius: 6px; padding: 6px 9px;
 }
 #equip-close:hover { border-color: #4de3ff; color: #fff; }
-#equip-mid { display: grid; grid-template-columns: 56px 216px 1fr; gap: 14px; align-items: center; margin: 12px 0 8px; }
+#equip-mid { display: grid; grid-template-columns: 104px 216px 1fr; gap: 14px; align-items: center; margin: 12px 0 8px; }
 #equip-maid { display: flex; flex-direction: column; align-items: center; flex: none; }
 #equip-maid-frame {
   width: 208px; height: 208px; overflow: hidden;
@@ -411,11 +411,11 @@ canvas { display: block; }
 #equip-maid-frame img, #equip-sprite { width: 196px; height: 196px; image-rendering: pixelated; display: block; }
 #equip-maid-name { margin-top: 6px; font-size: 16px; color: #ffd9a0; }
 #equip-hand {
-  flex: 1; display: flex; gap: 10px; align-items: center;
+  flex: 1; display: flex; gap: 8px; align-items: center;
   background: #0f1440; border: 2px solid #4de3ff;
-  border-radius: 10px; padding: 10px 12px;
+  border-radius: 10px; padding: 8px 10px;
 }
-.equip-hand-icon { width: 132px; height: 132px; flex: none; object-fit: contain; image-rendering: pixelated; }
+.equip-hand-icon { width: 64px; height: 64px; flex: none; object-fit: contain; image-rendering: pixelated; }
 .equip-hand-body { display: flex; flex-direction: column; gap: 3px; }
 .equip-inhand { font-size: 15px; color: #4de3ff; letter-spacing: 1px; }
 .equip-hand-name { font-size: 19px; color: #ffd24a; }
@@ -459,12 +459,13 @@ span.equip-cell-icon { font-size: 32px; line-height: 1; cursor: pointer; }
 .equip-cell-btn.equipped { background: #ffd24a; cursor: default; }
 .equip-cell span.equip-cell-icon { font-size: 32px; line-height: 1; text-align: center; }
 .equip-sub2 { font-size: 16px; color: #8d96c8; }
-#equip-slots { display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: center; }
+#equip-slots { display: flex; flex-direction: column; gap: 10px; align-items: center; justify-content: center; }
 .equip-slot {
-  width: 56px; height: 56px; padding: 0;
-  cursor: pointer; font-family: 'Silkscreen', monospace; font-size: 14px; line-height: 1; color: #ffd24a;
+  width: 64px; height: 64px; padding: 0;
+  cursor: pointer; font-family: 'Silkscreen', monospace; font-size: 15px; line-height: 1; color: #ffd24a;
   background: #0f1440; border: 2px solid #4de3ff; border-radius: 8px; position: relative;
 }
+.equip-slot.pet { width: 88px; height: 88px; font-size: 36px; border-color: #ffd24a; } /* the pet square runs big — the expandable slot of the column */
 .equip-slot:hover { box-shadow: 0 0 12px rgba(77, 227, 255, 0.5); }
 .equip-slot.empty { font-size: 16px; color: #5a639c; border-color: #3d4a7a; background: #171d42; cursor: default; }
 .equip-slot.empty:hover { box-shadow: none; }
