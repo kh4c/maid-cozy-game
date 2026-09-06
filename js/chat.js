@@ -360,7 +360,7 @@ window.Chat = (() => {
       } catch (e) {}
       // event-specific instruction: the facts block is shared, the ask changes
       const EV = {
-        found: `you just SPOTTED a monster in the field (the approved line below names it — a lone hunter or a critter pack — use ITS words, never swap the species). Announce it to master NOW in your own voice: 1-2 short sentences, in-character, *action* allowed. Keep it PLAIN — no counts, no rarity talk, unless the facts below flag something RARE. CLOSED WORLD: critters and lone hunters are ALL that exists here — never name rabbits, deer, wolves, or any other animal.`,
+        found: `you just SPOTTED a monster in the field (the approved line below names it — a lone hunter, a critter pack, or golden giltboars — use ITS words, never swap the species). Announce it to master NOW in your own voice: 1-2 short sentences, in-character, *action* allowed. Keep it PLAIN — no counts, no rarity talk, unless the facts below flag something RARE (giltboars are ALWAYS worth naming — main quarry). CLOSED WORLD: critters, lone hunters and giltboars are ALL that exists here — never name rabbits, deer, wolves, or any other animal.`,
         wiped: `the pack you were watching is now ALL DEAD (you killed them). Report it to master NOW in your own voice: 1 short sentence, in-character, *action* allowed — bones tired or proud, your pick. Never promise to remember this pack.`,
         leave: `you just WALKED AWAY from the pack in view, on master's order. Say so briefly in your own voice: 1 short sentence, in-character, *action* allowed. No pin, no promise to come back.`,
         switch: `you LEFT the pack you were shadowing for a BETTER/CLOSER one. Say so briefly in your own voice: 1 short sentence, in-character, *action* allowed.`,
@@ -380,7 +380,7 @@ window.Chat = (() => {
       };
       // quiet-found doctrine: the counts/tiers below are TRUTH for her head —
       // she only VOICES them when something is rare+. Commons stay plain.
-      const rarePlus = ['rare', 'epic', 'legendary'].includes((f.bestRarity || 'common'));
+      const rarePlus = ['rare', 'epic', 'legendary', 'gilt'].includes((f.bestRarity || 'common'));
       let sysText = (s.chatSystem || 'You are Cosette, a tsundere maid game companion.') +
         `\n\n[EVENT — ${EV[f.event] || EV.found} ` +
         // TEMPLATE-FIRST: the fallback line below is ALREADY a correct announcement.
@@ -397,11 +397,13 @@ window.Chat = (() => {
               ? (f.species === 'hunter'
                 ? `Facts: a LONE HUNTER (red ring, always alone) to the ${f.dir || 'east'}, ${f.dist || 'nearby'}. Say HUNTER, never critter, never pack. ` +
                   (rarePlus ? `It is ${f.bestRarity} tier, worth ~${f.bestPrice || 2} COINS bounty — NAME the rarity, that shiny is worth master's attention. ` : `Ordinary tier — do NOT mention rarity, tier, or bounty. `)
-                : `Facts: a critter pack to the ${f.dir || 'east'}, ${f.dist || 'nearby'}. ` +
+                : (f.species === 'giltboar'
+                  ? `Facts: golden GILTBOARS (her main quarry) to the ${f.dir || 'east'}, ${f.dist || 'nearby'}. NAME them — gold and worth every bullet (~${f.bestPrice || 18} coins each). No doubt about these, ever. `
+                  : `Facts: a critter pack to the ${f.dir || 'east'}, ${f.dist || 'nearby'}. ` +
                   (rarePlus ? `One of them is a ${f.bestColor || ''} ${f.bestRarity} worth ~${f.bestPrice || 2} COINS — NAME the color and rarity, that shiny is worth master's attention. ` : `Nothing special about them — do NOT mention counts, colors, rarity, or prices. `) +
-                  `Never say a bare number — critters are critters, money is coins. `)
+                  `Never say a bare number — critters are critters, money is coins. `))
               : `No new facts — the approved line above IS the whole situation (a feeling, a state, an acknowledgement). Reword it lightly in your own voice, stay close to it, and do NOT invent critters, numbers, directions, or places. `) +
-        `${(f.hostile | 0) > 0 && f.event !== 'wiped' && !(f.event || '').startsWith('posture') ? (f.species === 'hunter' ? 'It looks HOSTILE (angry) — say so and fight.' : 'Some look HOSTILE (angry).') : (f.ordered && f.event === 'found' ? 'Master ordered the engagement.' : f.event === 'found' ? (f.species === 'hunter' ? 'It is calm FOR NOW, but hunters never stay that way — say you are ready for it, NEVER ask master for permission.' : 'Calm critters are HARMLESS grazers and killing them feels wrong — say the doubt out loud, then await orders.') : '')} ` +
+        `${(f.hostile | 0) > 0 && f.event !== 'wiped' && !(f.event || '').startsWith('posture') ? (f.species === 'hunter' ? 'It looks HOSTILE (angry) — say so and fight.' : 'Some look HOSTILE (angry).') : (f.ordered && f.event === 'found' ? 'Master ordered the engagement.' : f.event === 'found' ? (f.species === 'hunter' ? 'It is calm FOR NOW, but hunters never stay that way — say you are ready for it, NEVER ask master for permission.' : f.species === 'giltboar' ? 'Golden giltboars — main quarry, NO doubt: say the hunger, engage freely, never ask.' : 'Calm critters are HARMLESS grazers and killing them feels wrong — say the doubt out loud, then await orders.') : '')} ` +
         `${f.prev ? `Context: you already reported another pack (${f.prev}). ${f.compare || 'Say which pack is closer and which you would take first, and why.'} ` : ''}` +
         `${f.switched ? `You left the old pack for this one because it is ${f.switched} — say why, briefly. ` : ''}` +
         `${f.aged ? `You spotted this ${f.aged}s ago (the news waited its turn) — mention it may have moved since. ` : ''}` +

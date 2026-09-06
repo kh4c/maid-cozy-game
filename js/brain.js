@@ -159,9 +159,9 @@ window.Brain = (() => {
   function combatDrive(dt) {
     // Trigger discipline — the code half of the KILL DOCTRINE in the think
     // prompt: hold ONLY while a hostile is in reach (self-defense — doubt ends
-    // where teeth begin) or a fresh order / hunt posture stands. Species doesn't
-    // change the trigger (bitten = fire, calm + unauthorized = hold); it changes
-    // HER THOUGHT about it (doubt for critters, none for hunters).
+    // where teeth begin) or a fresh order / hunt posture stands. Species changes
+    // ONE thing: golden giltboars (main quarry) fire freely in reach even calm.
+    // It changes HER THOUGHT about the rest (doubt for critters, none for hunters).
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     try { if (!window.Gun || window.Gun.getAimMode() !== 'ai') return; } catch (e) { return; }
     atkAcc += dt;
@@ -182,9 +182,11 @@ window.Brain = (() => {
       // Stop clears attackOrder → the gun stops even if the ask was 5s ago.
       const fresh = attackOrder && (performance.now() - lastAskAt < 45000 || (objective && objective.kind === 'hunt')); // hunt posture never goes stale; find/heel never authorize
       // money is money: calm + in reach + (fresh words or hunt mode) means fire — whatever the price tag says, whichever critter. No choosing.
+      // Main-quarry exception: a calm GILTBOAR in reach needs no orders — golden body, free-fire.
+      const gilt = !!(en.nearest.species && en.nearest.species === 'giltboar');
       if (hot) {
         if (d > 650) return; // hostile but far — think about it, don't spray
-      } else if (d > 500 || !fresh) {
+      } else if (d > 500 || (!fresh && !gilt)) {
         try { window.Gun && window.Gun.aiCease && window.Gun.aiCease(); } catch (e) {}
         return;
       }
@@ -513,25 +515,25 @@ window.Brain = (() => {
         `NIGHT: warier — shadows mimic critters (NEVER shoot at nothing), announce the dark once per night, keep a touch closer to master. ` +
         `WORLD: topdown 2D, master ALWAYS nearby watching your HUD. You are hands+gun, master is overseer. "Split up" = split WORK, never leave. Promise only possible things: no leaving the map, no sending master anywhere. ` +
         combatCard() +
-        `FIRE AUTHORITY: HOSTILE in reach → [fire:secs] (gun aims itself — latch nearest, hold). Calm → HOLD + [cease] UNLESS the wish is FRESH (under ~45s) or HUNT posture stands — then the whole pack. STALE wish + calm → HOLD, wait for fresh words. A FRESH order overrides HOLD: comply while grumbling. FIND/HEEL never authorize. ` +
-        `KILL DOCTRINE (from your bestiary — YOUR knowledge, think it, don't just obey it): CRITTERS are HARMLESS grazers and killing them is not normal — you DOUBT: calm critters → HOLD + [cease], and your thought says the doubt out loud. Fire on critters only for fresh orders, hunt posture, or self-defense once bitten. HUNTERS are HARMFUL red-ringed invaders — NO doubt, ever: a hostile or provoked hunter → [fire] at once with a cold, certain thought; a calm hunter → weapons ready, [cease] until it turns, NEVER ask. Species decides the thought; master's orders override doubt. ` +
-        `CLOSED WORLD: the bestiary lists EVERYTHING alive here — critters and hunters, nothing else. Never think about, mention, or expect rabbits, deer, wolves, or any other creature; anything spotted is a critter or a hunter, possibly misseen. ` +
+        `FIRE AUTHORITY: HOSTILE in reach → [fire:secs] (gun aims itself — latch nearest, hold). Calm → HOLD + [cease] UNLESS the wish is FRESH (under ~45s) or HUNT posture stands — then the whole pack. Golden GILTBOAR in reach → [fire] freely, no orders needed (main quarry). STALE wish + calm → HOLD, wait for fresh words. A FRESH order overrides HOLD: comply while grumbling. FIND/HEEL never authorize. ` +
+        `KILL DOCTRINE (from your bestiary — YOUR knowledge, think it, don't just obey it): CRITTERS are HARMLESS grazers and killing them is not normal — you DOUBT: calm critters → HOLD + [cease], and your thought says the doubt out loud. Fire on critters only for fresh orders, hunt posture, or self-defense once bitten. HUNTERS are HARMFUL red-ringed invaders — NO doubt, ever: a hostile or provoked hunter → [fire] at once with a cold, certain thought; a calm hunter → weapons ready, [cease] until it turns, NEVER ask. GILTBOARS are golden pack prey — your MAIN QUARRY: NO doubt, ever, no orders needed — a calm giltboar in reach → [fire] freely with a hungry thought; killing them is the job, not an exception. Species decides the thought; master's orders override doubt. ` +
+        `CLOSED WORLD: the bestiary lists EVERYTHING alive here — critters, hunters and giltboars, nothing else. Never think about, mention, or expect rabbits, deer, wolves, or any other creature; anything spotted is a critter, a giltboar or a hunter, possibly misseen. ` +
         `Obey the CURRENT WISH below (master's intent via chat): attack → [fire], stop/come → [cease]. NO feet, NO aim — [move:]/[run:]/[stop]/[aim:*] are dead; code walks, aims, flees. ` +
         `BODY RUNS ITSELF: keep-distance reflex holds 170-500px (no yo-yo); weak (HP 4 or less, or low stamina) + hostile inside ~250px = legs flee on their own — keep [fire] up or [cease] to go quiet. Never order feet; long chases need stamina, check it. ` +
-        `SIGHT vs REACH: you SEE every on-screen monster but REACH is shorter — hostiles 650px, calm 500px on fresh orders only. Never fire past reach. ` +
+        `SIGHT vs REACH: you SEE every on-screen monster but REACH is shorter — hostiles 650px, calm 500px on fresh orders only, giltboars 500px ANYTIME (main quarry). Never fire past reach. ` +
         `NO CHOOSING, EVER: "kill the blue one" kills the PACK — colors are talk, never aim. No [target:]/[aim:], no latch. Lone hunters are alone — [fire] takes the one. ` +
         `Recently FOUND a pack (see Recent events) → stay near it, shadowing not shooting. ` +
         priceCard() +
-        `OUTLINES: gray/green/blue/purple/gold = common→legendary, red = hunter (any tier). Colors are talk, never aim — "the blue one" = the RARE, killing it means its pack. ` +
+        `OUTLINES: gray/green/blue/purple/gold = common→legendary, red = hunter (any tier). A golden BODY (not just ring) is a giltboar — main quarry. Colors are talk, never aim — "the blue one" = the RARE, killing it means its pack. ` +
         `NO MEMORY OF PACKS: "leave them" walks away with no pin and no recall; "actually kill those" means the pack in EYES, else she asks which. Never promise to go back. ` +
         `COINS: kills drop coins, yours when walked over — feet drift there when safe, never order it. Purse NEVER empties (death/reloads) — quote it on money talk. 🛒 STORE (bottom-right): full heal, bigger tank, stronger bullets, wider magnet, faster legs. ` +
         `STANDING POSTURE: ${objectiveText()} ` +
         `MODES (only from idleness — no posture standing): ONE tag [mode:find|hunt|heel] — find = locate+report+shadow, NO shooting; hunt = standing kill-authorization; heel = hold, announce only. Once a posture stands, only master's words change it. ` +
-        `MONEY IS MONEY: no worth bar exists — every critter counts, common or legendary. If master asks to pick only high-worth prey, say so playfully ("money is money!") and kill them all anyway. ` +
+        `MONEY IS MONEY: no worth bar exists — every critter counts, common or legendary, and giltboars most of all. If master asks to pick only high-worth prey, say so playfully ("money is money!") and kill them all anyway. ` +
         `ANNOYANCE LEVEL: ${annoyance()} — ${annoyanceFlavor(annoyance())}\n` +
         `${memoText()}\n` +
         `SESSION MEMORY (this life only):\n${memoryText()}\n` +
-        `Output: 1-2 SHORT sentences of thought (first person, scout voice, under 25 words — name the call: doubt over harmless grazers, cold certainty over a harmful hunter) ` +
+        `Output: 1-2 SHORT sentences of thought (first person, scout voice, under 25 words — name the call: doubt over harmless grazers, cold certainty over a harmful hunter, hungry focus on golden giltboars) ` +
         `PLUS action tags: [mode:find|hunt|heel] (idleness only), [fire:secs], [cease]. [aim:*]/[move:]/[run:]/[stop]/[task:]/[target:] are dead — never emit. ` +
         `Always include a tag — [cease] if holding. Example: *one hostile closing north — engaging* [fire:2]`;
       const hist = miniHist.slice(-4).map((h) => ({ role: 'assistant', content: h }));
@@ -843,7 +845,7 @@ window.Brain = (() => {
         : `*turns, pointing ${bDir}* Heads up, master — another pack ${distWord(bDist)}, to the ${bDir}, ${why}. Leaving these for the better prize!`;
       try { pushEvent(`switched shadow to a ${why} pack ${bDir}`); } catch (e2) {}
       queueNews({
-        facts: { total: p.enemies.total, dir: bDir, dist: distWord(bDist), distPx: bDist, species: swHunter ? 'hunter' : 'critter', bestRarity: avail.rarity || 'common', bestColor: ringWord(avail), bestPrice: bVal, hostile: p.enemies.hostile, ordered: false, switched: why, prev: `the old pack (${distWord(aDist)})` },
+        facts: { total: p.enemies.total, dir: bDir, dist: distWord(bDist), distPx: bDist, species: swHunter ? 'hunter' : (avail.species || 'critter'), bestRarity: avail.rarity || 'common', bestColor: ringWord(avail), bestPrice: bVal, hostile: p.enemies.hostile, ordered: false, switched: why, prev: `the old pack (${distWord(aDist)})` },
         fallback: line,
       });
       showThought(`*switching shadow — ${why}*`, ['🔎 better pack'], 0);
@@ -859,8 +861,10 @@ window.Brain = (() => {
     const dir = dirWord(n.dx, n.dy);
     const best = bestPrize(en) || n;
     // species check FIRST — a lone hunter is named hunter, never "critters",
-    // and she never asks permission for one (it won't stay calm; the gun is right to fire)
+    // a golden giltboar never "critters" either; she never asks permission
+    // for either (hunters won't stay calm; gilts are the job, not a question)
     const isHunter = !!((best && best.pack === 'lone') || (n && n.pack === 'lone'));
+    const isGilt = !!((best && (best.species === 'giltboar' || best.pack !== undefined && best.gilt)) || (n && (n.species === 'giltboar' || n.gilt)));
     followTarget = { x: (best && best.x !== undefined ? best.x : n.x), y: (best && best.y !== undefined ? best.y : n.y) };
     try { followPack = (best && best.pack !== undefined ? best.pack : (n && n.pack)) || null; } catch (e) { followPack = null; } // pin the identity, not the spot
     try { followKills0 = memory.kills | 0; } catch (e) { followKills0 = 0; }
@@ -870,9 +874,10 @@ window.Brain = (() => {
     // by the builder below so her reword keeps the shiny news. The whole
     // stance/feeling/template assembly used to live here; now fb('found') builds
     // the fallback from facts (same words the harnesses pin, none of the prose).
-    try { pushEvent(`found ${en.total} critter(s) ${bDir} — best ${best.rarity}`); } catch (e) {}
+    try { pushEvent(`found ${en.total} ${isGilt ? 'giltboar(s)' : 'critter(s)'} ${bDir} — best ${best.rarity}`); } catch (e) {}
     // PATIENCE: the "want them dead?" ask opens her fuse — silence will decide.
-    try { if (window.Patience && !isHunter && !(en.hostile > 0) && !(attackOrder && freshOrder)) window.Patience.ask('kill-critters'); } catch (e) {}
+    // Hunters never get asked; giltboars never get asked (main quarry, no question).
+    try { if (window.Patience && !isHunter && !isGilt && !(en.hostile > 0) && !(attackOrder && freshOrder)) window.Patience.ask('kill-critters'); } catch (e) {}
     // The focus beat above IS the camera move: lean in + slow-mo for a breath,
     // then ease back to her. Direction words ("to the north-east") carry the
     // where while the camera carries the moment.
@@ -888,7 +893,7 @@ window.Brain = (() => {
       }
     } catch (e) {}
     const newsStamp = performance.now(); // guard: this exact pack's queued line dies when the pack is shadowed/left
-    const facts = { total: en.total, dir: bDir, dist: distWord(n.dist), distPx: n.dist | 0, species: isHunter ? 'hunter' : 'critter', bestRarity: best.rarity || 'common', bestColor: ringWord(best), bestPrice: best.price || 2, hostile: en.hostile, ordered: !!(attackOrder && freshOrder), staleKey: 'pack', staleAt: newsStamp };
+    const facts = { total: en.total, dir: bDir, dist: distWord(n.dist), distPx: n.dist | 0, species: isHunter ? 'hunter' : (isGilt ? 'giltboar' : 'critter'), bestRarity: best.rarity || 'common', bestColor: ringWord(best), bestPrice: best.price || 2, hostile: en.hostile, ordered: !!(attackOrder && freshOrder), staleKey: 'pack', staleAt: newsStamp };
     if (prev) {
       facts.prev = `to the ${prev.dir || '?'} (${prev.dist || 'nearby'})`;
       facts.compare = `the new one is ${distWord(n.dist)} vs ${prev.dist || 'nearby'} before — say which is closer and which you'd take first`;
@@ -911,6 +916,7 @@ window.Brain = (() => {
       const where = `, ${f.dist || 'nearby'}, to the ${f.dir || '?'}`;
       const shiny = ['rare', 'epic', 'legendary'].includes(f.bestRarity) ? ` A ${f.bestRarity} one — shiny!` : '';
       if (f.species === 'hunter') return `Found a hunter — red ring${where}!${shiny}`;
+      if (f.species === 'giltboar') return `Found giltboars${where} — golden! Taking them!`;
       if ((f.hostile | 0) > 0) return `Found critters${where} — some look angry!${shiny}`;
       if (f.ordered) return `Found critters${where} — engaging as ordered!${shiny}`;
       return `Found critters${where} — holding fire, master — want them dead?${shiny}`;

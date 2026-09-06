@@ -2,6 +2,18 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Giltboar: golden main-quarry prey, fewer critters
+- **Third species.** Golden packs of 3-4 (your Monster/creature-sheet 7 as
+  assets/giltboar.png — swap the file to reskin), fixed 18c / 8hp, no tier roll,
+  bolder than critters (stand more than they bolt). Same pack code path, gilded params.
+- **Critters lowered.** Spawner tick still every 6s but rolls 55% critter / 45% gilt
+  (was: critters every tick). Loners untouched.
+- **Main-quarry doctrine.** NO doubt, no orders, no patience-ask: calm giltboar in
+  reach → free-fire in code AND think, hungry thought, "Found giltboars — golden!
+  Taking them!", always named in voice. Doctrine/closed-world/outlines/money lines
+  updated; book has 3 rows; snapshot names non-critter species.
+- Guards: hworld 6, hbestiary 15, hdoctrine 10 (D9 free-fire proof), hprompt 42. 29/29 green.
+
 ## 2026-09-06 — Hometown: a walk-to district with talkable NPCs
 - **Same world, east on foot.** Town square at (3600, 0) in the endless grassland —
   dirt road from spawn, signpost, gate arch, plaza, 5 houses, a well, lamp posts.
