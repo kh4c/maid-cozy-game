@@ -88,7 +88,7 @@ window.Pet = (() => {
       s.position.set(dx, dy);
       s.zIndex = 1e9; // needles fly over heads, like hers
       world.addChild(s);
-      bullets.push({ spr: s, vx: Math.cos(a) * PET_SPD, vy: Math.sin(a) * PET_SPD, life: PET_LIFE });
+      bullets.push({ spr: s, vx: Math.cos(a) * PET_SPD, vy: Math.sin(a) * PET_SPD, life: PET_LIFE, trail: null });
       try { window.Sound && window.Sound.playSfx('combat', 'rifle_real.wav', { rate: 1.8, volume: 0.18 }); } catch (e) {} // pew, pitched up and quiet
     } catch (e) { /* a silent drone still flies */ }
   }
@@ -99,6 +99,7 @@ window.Pet = (() => {
       b.life -= dt;
       b.spr.x += b.vx * dt;
       b.spr.y += b.vy * dt;
+      try { if (window.Gun && window.Gun.trailStep) window.Gun.trailStep(b); } catch (e) {} // her comet style, on loan
       let dead = b.life <= 0;
       if (!dead && window.Enemies) {
         try {
@@ -109,7 +110,7 @@ window.Pet = (() => {
           }
         } catch (e) { /* deaf frame */ }
       }
-      if (dead) { try { world.removeChild(b.spr); b.spr.destroy(); } catch (e) {} bullets.splice(i, 1); }
+      if (dead) { try { if (window.Gun && window.Gun.trailDone) window.Gun.trailDone(b); } catch (e) {} try { world.removeChild(b.spr); b.spr.destroy(); } catch (e) {} bullets.splice(i, 1); }
     }
   }
 

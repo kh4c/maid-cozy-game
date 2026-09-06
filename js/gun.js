@@ -19,8 +19,8 @@ window.Gun = (() => {
   let world = null, app = null, camera = null;
   let rig = null, gunSpr = null, flash = null;
   let bullets = [], sparks = [], dmgNums = [];
-  const DMG_MAX = 24, DMG_LIFE = 0.7; // floating numbers: rise + fade, capped so shotguns can't flood
-  let texGun, texShotgun, texBullet, texFlash, texSpark, texCube;
+  const DMG_MAX = 24, DMG_LIFE = 0.8; // floating numbers: rise + fade, capped so shotguns can't flood
+  let texGun, texShotgun, texBullet, texFlash, texSpark, texCube, texStreak;
   let curTex = 'm1'; // rig sprite tracks the equipped row — swaps live, mid-fight
   let cd = 0, recoil = 0, bobT = 0, flashT = 0;
   let shotsFired = 0; // M1 clip: every 8th round the en-bloc pings out
@@ -183,7 +183,7 @@ window.Gun = (() => {
       spr.position.set(mx, my);
       spr.zIndex = 1e9; // slugs fly OVER heads — never buried under the pack
       world.addChild(spr);
-      bullets.push({ spr, vx: dx * W('projSpeed', 1400), vy: dy * W('projSpeed', 1400), life: W('projLife', 0.6) });
+      bullets.push({ spr, vx: dx * W('projSpeed', 1400), vy: dy * W('projSpeed', 1400), life: W('projLife', 0.6), trail: null });
     }
 
     // muzzle flash sits ON the muzzle tip (64px sprite x1.8, grip at 0.35 -> ~75px), gone in a blink
@@ -226,14 +226,39 @@ window.Gun = (() => {
       if (res && res.hits > 0) accountHits(res, ix, iy);
     } catch (e) {}
   }
+  // slug trails: repose one comet per slug per tick (shared with the drone —
+  // pet.js calls trailStep/trailDone on its own needles; same world, same look).
+  function trailStep(b) {
+    try {
+      if (!b || !b.spr) return;
+      if (!b.trail) {
+        const base = (typeof texStreak !== 'undefined' && texStreak) ? texStreak : texSpark;
+        const s = new Sprite(base);
+        s.anchor.set(1, 0.5); // head pinned on the slug, tail streaming behind
+        s.blendMode = 'add'; s.alpha = 0.55;
+        s.scale.set(0.65);
+        s.zIndex = 1e9 - 1; // just under its slug, over everything else
+        world.addChild(s);
+        b.trail = s;
+      }
+      b.trail.position.set(b.spr.x, b.spr.y);
+      b.trail.rotation = b.spr.rotation;
+    } catch (e) { /* a missing streak never stops the shooting */ }
+  }
+  function trailDone(b) {
+    try {
+      if (b && b.trail) { sparks.push({ spr: b.trail, vx: 0, vy: 0, life: 0, max: 0.12 }); b.trail = null; } // impact wink, then gone
+    } catch (e) {}
+  }
+
   // damage numbers: one Silkscreen pop per connect — white for chips,
-  // gold for the killing blow. Rises ~40px over 0.7s, then gone.
+  // gold for the killing blow. Rises ~40px over 0.8s, then gone.
   function spawnDmg(x, y, dmg, killed) {
     try {
       if (dmgNums.length >= DMG_MAX) { const old = dmgNums.shift(); world.removeChild(old.txt); old.txt.destroy(); }
       const txt = new PIXI.Text(String(dmg), {
-        fontFamily: 'Silkscreen, monospace', fontSize: killed ? 24 : 17,
-        fill: killed ? '#ffd24a' : '#ffffff', stroke: '#1a1030', strokeThickness: 4, align: 'center',
+        fontFamily: 'Silkscreen, monospace', fontSize: killed ? 32 : 24,
+        fill: killed ? '#ffd24a' : '#ffffff', stroke: '#1a1030', strokeThickness: killed ? 5 : 4, align: 'center',
       });
       txt.anchor.set(0.5, 0.5);
       txt.position.set(x + (Math.random() - 0.5) * 16, y - 26);
@@ -289,6 +314,17 @@ window.Gun = (() => {
       c.getContext('2d').fillRect(0, 0, 14, 14);
       texCube = PIXI.Texture.from(c);
     } catch (e) { texCube = texSpark; }
+    try { // streak: one 96x10 gradient sprite per slug — tail fades, head burns.
+      // NEVER shed per frame (that built the old fat rope); one comet, reposed each tick.
+      const sc = document.createElement('canvas'); sc.width = 96; sc.height = 10;
+      const g2 = sc.getContext('2d');
+      const grad = g2.createLinearGradient(0, 0, 96, 0);
+      grad.addColorStop(0, 'rgba(255,255,255,0)');
+      grad.addColorStop(0.55, 'rgba(255,230,170,0.45)');
+      grad.addColorStop(1, 'rgba(255,255,255,1)');
+      g2.fillStyle = grad; g2.fillRect(0, 0, 96, 10);
+      texStreak = PIXI.Texture.from(sc);
+    } catch (e) { texStreak = null; }
 
     rig = new Container();
     gunSpr = new Sprite(texGun);
@@ -400,6 +436,7 @@ window.Gun = (() => {
       b.life -= dt;
       b.spr.x += b.vx * dt;
       b.spr.y += b.vy * dt;
+      trailStep(b); // her comet follows, never sheds
       // No tracer trail — shedding a glow per bullet per frame (6 pellets x 60fps)
       // built a fat additive rope no scale could slim. Slug + muzzle + hit sparks only.
       let dead = b.life <= 0;
@@ -409,7 +446,7 @@ window.Gun = (() => {
           if (res.hits > 0) { dead = true; accountHits(res, b.spr.x, b.spr.y); }
         } catch (e) { /* deaf frame */ }
       }
-      if (dead) { world.removeChild(b.spr); b.spr.destroy(); bullets.splice(i, 1); }
+      if (dead) { trailDone(b); world.removeChild(b.spr); b.spr.destroy(); bullets.splice(i, 1); }
     }
 
     // damage numbers: float up, fade out
@@ -452,6 +489,6 @@ window.Gun = (() => {
 
   return { init, update, debug, status, aimSide,
     setAimMode, toggleAim, getAimMode,
-    aiAimAt, aiAimDir, aiAimNearest, aiFire, aiCease, accountHits,
+    aiAimAt, aiAimDir, aiAimNearest, aiFire, aiCease, accountHits, trailStep, trailDone,
     bulletDamage: () => W('damage', 4), setDamage, rangePx: () => W('rangePx', 840) };
 })();
