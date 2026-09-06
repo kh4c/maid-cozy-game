@@ -99,6 +99,19 @@
       try { ub.classList.add('cooling'); setTimeout(() => ub.classList.remove('cooling'), 8000); } catch (e) {}
     });
   } catch (e) {}
+  // FIND BUTTON: bare "keep finding" order on a click — same as typing it
+  // (master-locked find posture + her salute line), one order per cooldown.
+  try {
+    const fb = document.getElementById('find-btn');
+    if (fb) fb.addEventListener('click', () => {
+      const nowMs = performance.now();
+      if (nowMs < (window.__findReadyAt || 0)) return; // one order per cooldown
+      window.__findReadyAt = nowMs + 8000;
+      try { window.Brain && window.Brain.orderFind && window.Brain.orderFind(); } catch (e) {}
+      try { fb.classList.add('poked'); setTimeout(() => fb.classList.remove('poked'), 180); } catch (e) {}
+      try { fb.classList.add('cooling'); setTimeout(() => fb.classList.remove('cooling'), 8000); } catch (e) {}
+    });
+  } catch (e) {}
 
   // Spotlight follows THE MAID: center the vignette's clear hole on her screen
   // position every frame (world -> screen via the camera-shifted world container).
@@ -136,6 +149,19 @@
   // hidden by the loop when its timer runs out.
   let tripBubble = null, tripBg = null, tripTx = null, tripBubbleT = 0;
   let launchX = 0, launchY = 0; // leftover trip-slide, eased out over ~0.3s so the fall reads as momentum, not a teleport
+  function showDayBanner(dayLabel) { // dawn announcement: big day, small time — gone in ~3s
+    try {
+      const b = document.getElementById('day-banner');
+      if (!b) return;
+      const parts = String(dayLabel || '').split(' ');
+      const big = b.querySelector('.big'), small = b.querySelector('.small');
+      if (big) big.textContent = parts[0] || dayLabel;
+      if (small) small.textContent = parts.slice(1).join(' ') + ' — a new day';
+      b.style.display = 'flex';
+      b.style.animation = 'none'; void b.offsetWidth; b.style.animation = ''; // restart the fade
+      setTimeout(() => { try { b.style.display = 'none'; } catch (e) {} }, 3300);
+    } catch (e) {}
+  }
   function maidBubble(line) {
     if (!tripBubble) return;
     try {
@@ -484,6 +510,7 @@
     }
     camera.update(view.x, view.y, dtSec);
     try { window.Clock && window.Clock.update && window.Clock.update(dtSec); } catch (e) {} // her week: Mon-Sat 9-9, night from 5PM (freezes with the shop pause)
+    try { const dl = window.Clock && window.Clock.popDay ? window.Clock.popDay() : null; if (dl) showDayBanner(dl); } catch (e) {} // one banner per dawn, boot included
     if (tripBubbleT > 0) { // the "ahh!" floats over her head, then goes away
       try {
         tripBubble.position.set(view.x - 45, view.y - 180);

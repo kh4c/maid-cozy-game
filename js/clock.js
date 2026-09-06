@@ -10,8 +10,10 @@ window.Clock = (() => {
   const NIGHT_AT = 17;   // 5:00PM — day cycles to night from here
   const MIN_PER_SEC = 1; // game pace: 1 real second = 1 game minute
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const DAYS_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   let di = 0, mins = DAY_START * 60;
   let lastNight = null, lastLabel = '';
+  let pendingDay = 'Monday 9:00AM'; // game-start banner reads this on the first frame
   let onFlip = null; // main.js registers the night-visual refresh here
 
   function label() {
@@ -29,7 +31,10 @@ window.Clock = (() => {
     try {
       if (!window.Settings || Number(window.Settings.settings.clockOn) !== 1) return;
       mins += Math.max(0, Number(rdt) || 0) * MIN_PER_SEC;
-      if (mins >= DAY_END * 60) { mins = DAY_START * 60; di = (di + 1) % DAYS.length; } // tomorrow, same grind
+      if (mins >= DAY_END * 60) { // tomorrow, same grind — the new day announces itself
+        mins = DAY_START * 60; di = (di + 1) % DAYS.length;
+        pendingDay = `${DAYS_FULL[di]} 9:00AM`;
+      }
       const night = mins >= NIGHT_AT * 60;
       if (night !== lastNight) {
         lastNight = night;
@@ -41,6 +46,7 @@ window.Clock = (() => {
     } catch (e) {}
   }
   function state() { return { day: DAYS[di], mins, night: mins >= NIGHT_AT * 60 }; }
+  function popDay() { const d = pendingDay; pendingDay = null; return d; } // one banner per dawn — main shows it, then it is gone
 
-  return { update, state, label, set onFlip(fn) { onFlip = fn; } };
+  return { update, state, label, popDay, set onFlip(fn) { onFlip = fn; } };
 })();
