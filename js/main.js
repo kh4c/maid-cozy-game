@@ -107,6 +107,7 @@
   // ("ahh!" over her head on a face-plant — a sprite visual, never dialog),
   // hidden by the loop when its timer runs out.
   let tripBubble = null, tripBg = null, tripTx = null, tripBubbleT = 0;
+  let launchX = 1, launchY = 0; // last run direction — a face-plant throws her along it
   function maidBubble(line) {
     if (!tripBubble) return;
     try {
@@ -326,6 +327,7 @@
     // (control locked — clicks, chat walks AND brain runs all stop) until she
     // catches her breath. Moving into exhaustion is allowed; moving after isn't.
     const wantsMove = (a.x !== 0 || a.y !== 0);
+    if (wantsMove) { const l = Math.hypot(a.x, a.y) || 1; launchX = a.x / l; launchY = a.y / l; } // remember the facing while it exists
     let moved = false;
     if (window.Stamina) {
       try {
@@ -348,6 +350,7 @@
           try { maidBubble('ahh!'); } catch (e) {} // sprite bubble over her head, every trip
           try { window.Sound && window.Sound.playSfx && window.Sound.playSfx('combat', 'hurt_0.ogg', { rate: 0.7, volume: 0.6 }); } catch (e) {}
           try { camera.shake(0.55); } catch (e) {} // the ground hits back — screen takes the fall with her
+          try { view.x += launchX * 46; view.y += launchY * 46; } catch (e) {} // momentum: the fall throws her a step along her facing
         }
         if (window.Stamina.justRested) {
           try { window.Brain && window.Brain.note && window.Brain.note('resting'); } catch (e) {}
