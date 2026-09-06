@@ -359,35 +359,44 @@ canvas { display: block; }
 .equip-tab:hover { color: #dfe6ff; border-color: #4de3ff; }
 .equip-tab.sel { color: #0a0e24; background: #ffd24a; border-color: #ffd24a; }
 #equip-sub { font-size: 8px; color: #8d96c8; text-align: center; margin-bottom: 10px; }
-#equip-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+#equip-grid { display: grid; grid-template-columns: repeat(4, 68px); gap: 10px; justify-content: start; }
 .equip-cell {
-  aspect-ratio: 1 / 1;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
+  width: 68px; height: 68px;
+  display: flex; align-items: center; justify-content: center;
   background: #232c52; border: 2px solid #3d4a7a;
-  border-radius: 10px; padding: 8px 6px;
+  border-radius: 10px; cursor: pointer; position: relative;
   transition: transform 0.12s ease-out, border-color 0.12s, box-shadow 0.12s;
 }
 .equip-cell:hover { transform: translateY(-3px); border-color: #4de3ff; box-shadow: 0 0 14px rgba(77, 227, 255, 0.4); }
 .equip-cell.sel { border-color: #ffd24a; box-shadow: 0 0 14px rgba(255, 210, 74, 0.45); }
-.equip-cell-icon { width: 72px; height: 72px; object-fit: contain; image-rendering: pixelated; }
-.equip-cell-name { font-size: 8px; color: #dfe6ff; width: 100%; text-align: left; }
-.equip-cell-stats { font-size: 7px; color: #8d96c8; width: 100%; text-align: left; }
+img.equip-cell-icon { width: 44px; height: 44px; object-fit: contain; image-rendering: pixelated; }
+span.equip-cell-icon { font-size: 32px; line-height: 1; cursor: pointer; }
+.equip-tip {
+  display: none; position: absolute; bottom: calc(100% + 8px); left: 50%;
+  transform: translateX(-50%); width: max-content; max-width: 190px;
+  background: #0f1440; border: 2px solid #4de3ff; border-radius: 8px;
+  padding: 8px 10px; font-family: 'Press Start 2P', monospace; font-size: 8px;
+  line-height: 1.7; color: #dfe6ff; text-align: left; z-index: 5; pointer-events: none;
+}
+.equip-tip .t-name { color: #ffd24a; }
+.equip-cell:hover .equip-tip, .equip-slot:hover .equip-tip { display: block; }
 .equip-cell-btn {
   cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 8px; color: #0a0e24;
   background: #4de3ff; border: none; border-radius: 5px; padding: 7px 8px; width: 100%;
 }
 .equip-cell-btn:hover:not(.equipped) { background: #a5f1ff; }
 .equip-cell-btn.equipped { background: #ffd24a; cursor: default; }
-.equip-cell span.equip-cell-icon { font-size: 44px; line-height: 72px; text-align: center; }
+.equip-cell span.equip-cell-icon { font-size: 32px; line-height: 1; text-align: center; }
 .equip-sub2 { font-size: 9px; color: #8d96c8; }
 #equip-slots { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
 .equip-slots-label { font-size: 8px; color: #4de3ff; letter-spacing: 1px; }
 .equip-slot {
-  cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 8px; color: #ffd24a;
-  background: #0f1440; border: 2px solid #4de3ff; border-radius: 8px; padding: 8px 10px;
+  width: 46px; height: 46px; padding: 0;
+  cursor: pointer; font-size: 22px; line-height: 1; color: #ffd24a;
+  background: #0f1440; border: 2px solid #4de3ff; border-radius: 8px; position: relative;
 }
 .equip-slot:hover { box-shadow: 0 0 12px rgba(77, 227, 255, 0.5); }
-.equip-slot.empty { color: #5a639c; border-color: #3d4a7a; background: #171d42; cursor: default; }
+.equip-slot.empty { font-size: 16px; color: #5a639c; border-color: #3d4a7a; background: #171d42; cursor: default; }
 .equip-slot.empty:hover { box-shadow: none; }
 .equip-slot.jiggle { cursor: pointer; border-color: #ffd24a; color: #ffd24a; animation: jiggle 0.3s ease-in-out 4; }
 @keyframes jiggle { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-7deg) scale(1.07); } 75% { transform: rotate(7deg) scale(1.07); } }

@@ -2,6 +2,13 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Small square slots + hover tooltips, no inline text
+- Grid cells are 68px icon-only squares (click iron = EQUIP, gold ring = worn);
+  name + stats live in a hover tooltip pinned above the cell. No names, no
+  buttons, no clutter — like the reference.
+- Trinket slots are 46px emoji-only squares ("+" when empty, no "wear here");
+  worn slots tooltip name + effect + "click to take off". hequip 30/30.
+
 ## 2026-09-06 — Tabs + owned-only grids + jiggling slots, 4 columns, doll back in frame
 - Out-of-frame fix: the doll row is a real grid now (112px doll + IN HAND),
   sprite capped at 96px — Cosette can't push the hand panel off-stage again.

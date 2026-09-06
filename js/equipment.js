@@ -37,15 +37,6 @@ window.Equipment = (() => {
     try { return window.Accessories && typeof window.Accessories.worn === 'function' ? window.Accessories.worn() : [null, null, null]; } catch (e) { return [null, null, null]; }
   }
 
-  function cellBtn(w) {
-    if (w.equipped) return `<button class="equip-cell-btn equipped" disabled>EQUIPPED</button>`;
-    return `<button class="equip-cell-btn" data-equip="${esc(w.id)}">EQUIP</button>`;
-  }
-  function accBtn(a) {
-    if (a.equipped) return `<button class="equip-cell-btn equipped" disabled>WORN</button>`;
-    return `<button class="equip-cell-btn" data-acc="${esc(a.id)}">WEAR</button>`;
-  }
-
   function render() {
     const grid = $('equip-grid'), hand = $('equip-hand'), slotsEl = $('equip-slots'), tabsEl = $('equip-tabs');
     if (!grid || !hand) return;
@@ -71,25 +62,21 @@ window.Equipment = (() => {
     if (tab === 'weapons') {
       grid.innerHTML = rs.length ? rs.map((w) => (
         `<div class="equip-cell${w.equipped ? ' sel' : ''}">` +
-          `<img class="equip-cell-icon" src="${esc(w.icon || 'assets/m1.png')}" alt="" onerror="this.style.display='none'" />` +
-          `<span class="equip-cell-name">${esc(w.name)}</span>` +
-          `<span class="equip-cell-stats">${esc(statLine(w))}</span>` +
-          cellBtn(w) +
+          `<img class="equip-cell-icon" data-equip="${esc(w.id)}" title="${esc(w.name)} — click to EQUIP" src="${esc(w.icon || 'assets/m1.png')}" alt="" onerror="this.style.display='none'" />` +
+          `<span class="equip-tip"><span class="t-name">${esc(w.name)}</span><br>${esc(statLine(w))}<br>${esc(w.desc)}</span>` +
         `</div>`
       )).join('') : '<div class="equip-sub2">No iron yet… (weapons unreachable)</div>';
     } else {
       const list = accs();
       grid.innerHTML = list.length ? list.map((a) => (
         `<div class="equip-cell${a.equipped ? ' sel' : ''}">` +
-          `<span class="equip-cell-icon" data-acc-icon="${esc(a.id)}" title="click, then a jiggling slot">${esc(a.emoji)}</span>` +
-          `<span class="equip-cell-name">${esc(a.name)}</span>` +
-          `<span class="equip-cell-stats">${esc(a.desc)}</span>` +
-          accBtn(a) +
+          `<span class="equip-cell-icon" data-acc-icon="${esc(a.id)}" title="${esc(a.name)} — click, then a jiggling slot">${esc(a.emoji)}</span>` +
+          `<span class="equip-tip"><span class="t-name">${esc(a.name)}</span><br>${esc(a.desc)}</span>` +
         `</div>`
       )).join('') : '<div class="equip-sub2">no trinkets yet — the 🏪 shop sells them</div>' +
         `<button class="equip-cell-btn" data-shop="1">🏪 SHOP</button>`;
     }
-    // trinket slots: pending icon jiggles the empties; click one to wear it there
+    // trinket slots: small squares, emoji only — pending icon jiggles the empties
     if (slotsEl) {
       const w = worn();
       const list = accs();
@@ -97,9 +84,9 @@ window.Equipment = (() => {
         const a = list.find((x) => x.id === id);
         if (!a) {
           const jig = pendingAcc ? ' jiggle' : '';
-          return `<button class="equip-slot empty${jig}" data-unslot="${i}"${pendingAcc ? '' : ' disabled'}>${pendingAcc ? 'wear here' : 'empty'}</button>`;
+          return `<button class="equip-slot empty${jig}" data-unslot="${i}"${pendingAcc ? '' : ' disabled'}>+</button>`;
         }
-        return `<button class="equip-slot" data-unslot="${i}" title="click to take off">${esc(a.emoji)} ${esc(a.name)}</button>`;
+        return `<button class="equip-slot" data-unslot="${i}" title="${esc(a.name)} — click to take off">${esc(a.emoji)}<span class="equip-tip"><span class="t-name">${esc(a.name)}</span><br>${esc(a.desc)}<br>click to take off</span></button>`;
       }).join('');
     }
   }
