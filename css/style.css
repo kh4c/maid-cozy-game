@@ -118,7 +118,7 @@ canvas { display: block; }
 
 /* ---- Clock: day + time, big and panel-less, top-center ---------------------- */
 #clock-line {
-  position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 5;
+  position: absolute; top: 36px; left: 50%; transform: translateX(-50%); z-index: 5;
   background: none; border: none; padding: 0;
   font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-weight: 300;
   font-size: 27px; letter-spacing: 2px; font-variant-numeric: tabular-nums; color: #fff7e0;
@@ -135,11 +135,11 @@ canvas { display: block; }
   animation: day-banner-in 3.2s ease-out forwards;
 }
 #day-banner .big {
-  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-weight: 300; font-size: 76px; letter-spacing: 6px; color: #fff7e0;
+  font-family: 'Silkscreen', monospace; font-size: 76px; letter-spacing: 4px; color: #ffe9b0;
   text-shadow: 0 0 26px rgba(255, 210, 74, 0.7), 0 3px 6px rgba(0, 0, 0, 0.9);
 }
 #day-banner .small {
-  font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; font-weight: 300; font-size: 22px; letter-spacing: 3px; color: #e8e4ff;
+  font-family: 'Silkscreen', monospace; font-size: 22px; letter-spacing: 2px; color: #e8e4ff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
 }
 #day-dim { /* the world holds its breath while the dawn is announced */
