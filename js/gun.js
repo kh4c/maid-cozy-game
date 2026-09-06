@@ -343,11 +343,11 @@ window.Gun = (() => {
       tr.anchor.set(0.5, 0.5);
       tr.blendMode = 'add';
       tr.tint = 0xffe9a0;
-      tr.scale.set(0.05);
-      tr.alpha = 0.55;
+      tr.scale.set(0.02); // slim wisp, not a second bullet — the 512px spark runs huge
+      tr.alpha = 0.4;
       tr.position.set(b.spr.x, b.spr.y);
       world.addChild(tr);
-      sparks.push({ spr: tr, vx: 0, vy: 0, life: 0, max: 0.14 });
+      sparks.push({ spr: tr, vx: 0, vy: 0, life: 0, max: 0.09 });
       let dead = b.life <= 0;
       if (!dead && window.Enemies) {
         try {

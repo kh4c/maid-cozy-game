@@ -923,7 +923,7 @@ window.Brain = (() => {
   // ---- fallback voice: ONE builder, no hand-written prose ------------------------
   // Healthy runs never speak these (the LLM rewords via announce); they save
   // the news when the model is down. Pinned phrases live here — "Found" +
-  // "Say the word" (idle shiny watch) — pinned in hfound J7; she never asks.
+  // "Leaving them be" (never an ask — no "Say the word" anywhere).
   function fb(event, f) {
     f = f || {};
     if (event === 'found') {
@@ -933,7 +933,7 @@ window.Brain = (() => {
       if (f.species === 'giltboar') return `Found giltboars${where} — taking them!`;
       if ((f.hostile | 0) > 0) return `Found critters${where} — some look angry!${shiny}`;
       if (f.ordered) return `Found critters${where} — engaging as ordered!${shiny}`;
-      return `Found critters${where} — holding fire, watching, master. Say the word.${shiny}`;
+      return `Found critters${where} — just grazers, master. Leaving them be.${shiny}`;
     }
     if (event === 'which-ones') return `Which ones, master? I don't see them — walk me closer or point me at them.`;
     return '';

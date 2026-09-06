@@ -2,6 +2,16 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Slim tracer + grazers never an ask (no "Say the word")
+- **Yes, it was the trail.** `spark.png` is 512×512 — the tracer glow shed every
+  frame at 0.05 scale was a ~26px additive blob, dwarfing the 11px slug. Trail
+  is now a 0.02 wisp (~10px), dimmer, gone in 0.09s. M5 pins it.
+- **The leftover ask is dead.** "Holding fire, watching — Say the word" survived
+  the no-ask patch in softer form; that was the "still waiting for my command".
+  Calm-critter finds now read "just grazers, master. Leaving them be." in both
+  fallback and voice prompt ("never ask, never wait on master for grazers").
+  Grazers are decided, never a question. J7 pins no-ask. 29/29 green.
+
 ## 2026-09-06 — Smaller, faster slugs (ranges kept)
 - Rifle 0.3 → **0.18** slug at **1800px/s** (was 1400); shotgun 0.32 → **0.2** at
   **1500px/s** (was 1100). Lifetimes shortened to match, so reach stays ~846 /
