@@ -30,6 +30,7 @@ window.Brain = (() => {
     try { stopFollow(); } catch (e) {}
     try { objective = null; memoMode = null; leaveSpot = null; followTarget = null; lastSwitchAt = -1e9; searchDone = false; lastRareNote = -1e9; memo = { text: 'No tactical intent yet — treat as casual watch.', from: '', at: -1e9 }; } catch (e) {} // new life: no posture, no grudges, no memory, fresh eyes
     askCount = 0; lastAskAt = -1e9; lastKillWordAt = -1e9; // new life: annoyance clock resets too
+    try { window.Patience && window.Patience.reset && window.Patience.reset(); } catch (e) {} // new life: no grudges, fuse full
     try { memory.events.push(`(new life — ${reason})`); } catch (e) {}
   }
   // note('kill', n) / note('hurt') / note('flee') — called by gun/health/main
@@ -96,6 +97,7 @@ window.Brain = (() => {
         // master told her to work through the rest (any words — regex or [push]
         // tag): memory only, no chatter — her chat reply already answers him.
         // The think prompt carries this, so the tactic KNOWS the rest was overridden.
+        try { window.Patience && window.Patience.resolve && window.Patience.resolve(); } catch (e) {} // master's words ARE the answer
         pushEvent(`master urged her on — working through the rest on his word`);
       }
     } catch (e) { /* memory is cosmetic */ }
@@ -233,6 +235,7 @@ window.Brain = (() => {
     if (!following && !searchDone && !attackOrder) return;
     stopFollow();
     setAttackOrder(false, 'left the pack');
+    try { window.Patience && window.Patience.resolve && window.Patience.resolve(); } catch (e) {} // walking away answers the wait
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       const n = p && p.enemies && p.enemies.nearest;
@@ -475,6 +478,7 @@ window.Brain = (() => {
   // No confirmation step: an order is an order, calm targets or not.
   function orderAttack(text) {
     askCount += 1;
+    try { window.Patience && window.Patience.resolve && window.Patience.resolve(); } catch (e) {} // an order answers the wait
     lastAskAt = performance.now();
     lastKillWordAt = performance.now(); // explicit command: calm packs in reach die
     setAttackOrder(true, 'ordered'); // latch: keep shooting at new spawns too
@@ -607,6 +611,7 @@ window.Brain = (() => {
     coinSeek(dt);      // loose coins — hoover them up whenever it's safe
     objectiveTick(dt); // standing posture — never idle, re-arm the search
     chatterTick(dt);   // long jobs report in — she thinks out loud
+    patienceTick(dt);  // her fuse while awaiting your word — silence ends in HER decision
     if ((window.Health && window.Health.dead) || (window.EditMode && window.EditMode.active)) return;
     let hot = false, near = false;
     try {
@@ -885,6 +890,8 @@ window.Brain = (() => {
       : `*gasps, pointing ${bDir}* Found ${en.total === 1 ? 'a critter' : 'critters'} ${distWord(n.dist)}, to the ${bDir}!${rareNote} ` +
         `${feeling} ${stance}`;
     try { pushEvent(`found ${en.total} critter(s) ${bDir} — best ${best.rarity}`); } catch (e) {}
+    // PATIENCE: the "want them dead?" ask opens her fuse — silence will decide.
+    try { if (window.Patience && !isHunter && !(en.hostile > 0) && !(attackOrder && freshOrder)) window.Patience.ask('kill-critters'); } catch (e) {}
     // The focus beat above IS the camera move: lean in + slow-mo for a breath,
     // then ease back to her. Direction words ("to the north-east") carry the
     // where while the camera carries the moment.
@@ -1101,6 +1108,26 @@ window.Brain = (() => {
   // quota tally, task status, the watch. Never interrupts a fight, never cuts
   // in line ahead of something important (queued news), never backlogs.
   let chatterAcc = 0;
+  // ---- patience: her fuse while a question stands -------------------------------
+  // "Holding fire — want them dead?" opens the meter (see found-pack). Talk to
+  // her or click the field and it refills; a foot-tap at half, and at zero SHE
+  // decides in code — calm critters walk free — voiced like any other news.
+  function patienceTick(dt) {
+    let P = null;
+    try { P = window.Patience; } catch (e) { return; }
+    if (!P) return;
+    try { P.update(dt); } catch (e) {}
+    try {
+      if (P.needsNag()) {
+        P.markNagged();
+        genLine('impatient', {}, `*taps her foot, arms crossed* Master? The critters — dead or not? I'm waiting~`);
+      } else if (P.expired()) {
+        P.resolve();
+        pushEvent('waited on master too long and decided herself — leaving the calm critters be');
+        genLine('decided', {}, `*huffs, lowering her gun* Took you long enough — I decided: we leave the poor things. You're welcome.`);
+      }
+    } catch (e) {}
+  }
   function chatterTick(dt) {
     chatterAcc += dt;
     if (chatterAcc < 55) return;
