@@ -14,7 +14,7 @@ window.Hunter = (() => {
   const COLD_T = 0.35, COLD_SPD = 320;   // straight up off the rail, no steering
   const OVER_T = 0.25, OVER_TURN = 7;    // the 90° tip-over — fast bank onto its dash bearing
   const STRAIGHT_T = 0.45, STRAIGHT_SPD = 420; // the straight dash — dumb iron, running start
-  const SEEK_ACCEL = 700, CRUISE_SPD = 560, TURN = 4.5; // then the seek wakes: re-aims + runs up to cruise
+  const SEEK_ACCEL = 1100, CRUISE_SPD = 560, TURN = 4.5; // then the seek wakes: re-aims + runs up to cruise, faster now
   const LIFE = 3.5, MAX_ALOFT = 3;       // old rockets burst overhead rather than fly forever
   const FUSE_R = 30;      // the nose kisses this close and it all goes up
   const DROP = 70;        // shadow hangs 70px under its feet — the mouth-center rule, no iron above it

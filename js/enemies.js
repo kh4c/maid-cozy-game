@@ -40,6 +40,26 @@ window.Enemies = (() => {
   const LONER_BULK = 1.3;              // extra body over its rolled tier — reads dangerous at a glance
   const LONER_COLOR = 0xff5040;        // hunter-red outline = SPECIES mark (tier shows in size, not ring)
 
+  // Grief doctrine: the pale-ringed lunger — a hunter morph that skips calm
+  // entirely. Born hostile, never mills, never calms: it circles her at orbit
+  // range and every few seconds plants its feet, shudders (the telegraph),
+  // then lunges in a LOCKED straight line — sidestep the dash, never outrun
+  // the circle. One bite per lunge, then it disengages. All tunables, top.
+  const GRIEF_EVERY = 45;                // one shows up about this often (seconds)
+  const GRIEF_MAX = 1;                   // never more than this many lunging her
+  const GRIEF_GRIT = 5;                  // extra HP over its rolled tier — griefs are built meaner
+  const GRIEF_BOUNTY = 14;               // extra coins over its rolled tier — folk pay for the menace
+  const GRIEF_BULK = 1.2;                // extra body over its rolled tier
+  const GRIEF_COLOR = 0xe8e4da;          // bone-pale outline = SPECIES mark on the red body
+  const GRIEF_ORBIT_R = 330;             // the circle it keeps — lunge range, not cuddle range
+  const GRIEF_ORBIT_SPEED = 210;         // outrunnable (she runs 300), but it cuts corners
+  const GRIEF_ORBIT_W = 0.85;            // circle speed, rad/s — clockwise or widdershins per grief
+  const GRIEF_WIND_T = 0.45;             // telegraph linger: planted, shuddering — MOVE
+  const GRIEF_LUNGE_T = 0.7;             // dash duration, locked line, no steering — 0.7s at 560 covers ~390px, straight THROUGH her from orbit edge
+  const GRIEF_LUNGE_SPEED = 560;         // dash speed — outruns her sprint, not her sidestep
+  const GRIEF_DART_EVERY = 3.2;          // seconds between lunges (×0.8–1.2 jitter)
+  const GRIEF_TOUCH = 44;                // bite distance — one heart per lunge, once per lunge
+
   // ---- boss: the DREADBOAR ---------------------------------------------------
   // Dev-spawned (dev panel button), one at a time, never despawns, never
   // calms. A giant dreadboar (own Monster sheet, no ring — bulk IS the
@@ -90,8 +110,10 @@ window.Enemies = (() => {
   let spawnAcc = 0;
   const loners = []; // lone hunters — same member shape, no pack (pack:'lone')
   let lonerAcc = 0, lonerId = 0;
+  let griefAcc = 0, griefId = 0;
 
   let hunterFrames = null; // assets/hunter.png (4x24px) — enemy frames stand in until it exists
+  let griefFrames = null;    // assets/grief.png (4x24px, Monster/creature-sheet, the red one) — the lunger's body
   let giltFrames = null;   // assets/giltboar.png (4x24px, Monster/creature-sheet 7) — swap the file to reskin
   let bossFrames = null;   // assets/dreadboar.png (4x24px, Monster/creature-sheet 4, bulkiest silhouette) — HIS body, no ring, no tint
   async function init(world) {
@@ -103,6 +125,11 @@ window.Enemies = (() => {
       const hSlice = window.Assets.makeSlicer(hLoaded, 24, 24);
       hunterFrames = [hSlice(0, 0), hSlice(1, 0), hSlice(2, 0), hSlice(3, 0)];
     } catch (e) { hunterFrames = null; }
+    try {
+      const grLoaded = await PIXI.Assets.load('assets/grief.png');
+      const grSlice = window.Assets.makeSlicer(grLoaded, 24, 24);
+      griefFrames = [grSlice(0, 0), grSlice(1, 0), grSlice(2, 0), grSlice(3, 0)];
+    } catch (e) { griefFrames = null; }
     try {
       const gLoaded = await PIXI.Assets.load('assets/giltboar.png');
       const gSlice = window.Assets.makeSlicer(gLoaded, 24, 24);
@@ -195,6 +222,75 @@ window.Enemies = (() => {
     world.addChild(view);
     loners.push(m);
     try { if (window.Gun && window.Gun.birthPop) window.Gun.birthPop(m.x, m.y); } catch (e) {} // born the way things die
+  }
+
+  function spawnGrief(px, py, angle, radius) {
+    const world = init._world;
+    const a = (angle === undefined) ? Math.random() * Math.PI * 2 : angle;
+    const r = (radius === undefined) ? SPAWN_R_MIN + Math.random() * (SPAWN_R_MAX - SPAWN_R_MIN) : radius;
+    const view = new Container();
+    const sh = new Graphics();
+    sh.ellipse(0, -2, 13, 5).fill({ color: 0x000000, alpha: 0.3 });
+    const anim = new AnimatedSprite(griefFrames || frames);
+    anim.anchor.set(0.5, 1);
+    anim.animationSpeed = 1 / 6;
+    anim.play();
+    view.addChild(sh, anim);
+    // griefs roll rarity like everything else — tier sets the base, the
+    // species piles grit + bounty + bulk on top. Pale ring always (species).
+    const rar = rollRarity();
+    const sizeMult = rar.size[0] + Math.random() * (rar.size[1] - rar.size[0]);
+    const baseScale = SCALE * sizeMult * GRIEF_BULK;
+    view.scale.set(baseScale);
+    try {
+      const ring = new Graphics();
+      ring.ellipse(0, -12, 14, 14).stroke({ color: GRIEF_COLOR, width: 2, alpha: 0.95 });
+      view.addChild(ring);
+    } catch (e) {}
+    const m = { view, anim, id: 'g' + (++griefId), x: px + Math.cos(a) * r, y: py + Math.sin(a) * r, vx: 0, vy: 0,
+      hostile: true, lastHit: 0, hp: rar.hp + GRIEF_GRIT, flashT: 0, // born ANGRY — no fuse, no calm, ever
+      rarity: rar.key, price: rar.price + GRIEF_BOUNTY, baseScale, lone: true, grief: true,
+      dir: Math.random() * Math.PI * 2, orbit: Math.random() < 0.5 ? -1 : 1, phase: 'orbit', phaseT: 0,
+      dartT: 1.5 + Math.random() * 1.5 }; // the first dart comes quick — that's the grief
+    view.position.set(m.x, m.y);
+    view.zIndex = m.y; // newborns sort by feet from the first frame
+    world.addChild(view);
+    loners.push(m);
+    try { if (window.Gun && window.Gun.birthPop) window.Gun.birthPop(m.x, m.y); } catch (e) {} // born the way things die
+  }
+
+  function updateGrief(m, dt, px, py, now) {
+    if (m.phase === 'wind') { // planted, shuddering — MOVE
+      m.vx = 0; m.vy = 0;
+      m.phaseT -= dt;
+      m.x = (m.wx || m.x) + (Math.random() - 0.5) * 6; // anchored shudder — no drift, reads through y-sort
+      m.y = (m.wy || m.y) + (Math.random() - 0.5) * 6;
+      if (m.phaseT <= 0) { // the line locks HERE — sidestep now, not later
+        m.phase = 'lunge'; m.phaseT = GRIEF_LUNGE_T; m.lunged = false;
+        const lx = px - m.x, ly = py - m.y, ld = Math.hypot(lx, ly) || 1;
+        m.lx = lx / ld; m.ly = ly / ld;
+        try { window.Sound && window.Sound.playSfx && window.Sound.playSfx('combat', 'swing.ogg', { rate: 0.7, volume: 0.7 }); } catch (e) {} // the rush
+      }
+      return;
+    }
+    if (m.phase === 'lunge') { // down the line, no steering
+      m.phaseT -= dt;
+      m.x += m.lx * GRIEF_LUNGE_SPEED * dt;
+      m.y += m.ly * GRIEF_LUNGE_SPEED * dt;
+      m.vx = m.lx * GRIEF_LUNGE_SPEED; m.vy = m.ly * GRIEF_LUNGE_SPEED; // the flip reads the rush
+      if (!m.lunged && Math.hypot(m.x - px, m.y - py) < GRIEF_TOUCH && now - m.lastHit > HIT_CD) {
+        m.lunged = true; // once per dash — no double-tap
+        m.lastHit = now;
+        try { if (window.Health) window.Health.damage(1); } catch (e) {} // the bite lands even in thin mocks
+      }
+      if (m.phaseT <= 0) { m.phase = 'orbit'; m.dartT = GRIEF_DART_EVERY * (0.8 + Math.random() * 0.4); }
+      return;
+    }
+    // orbit — a fast circle at lunge range, clockwise or widdershins per grief
+    m.dir += (m.orbit || 1) * GRIEF_ORBIT_W * dt;
+    steer(m, px + Math.cos(m.dir) * GRIEF_ORBIT_R, py + Math.sin(m.dir) * GRIEF_ORBIT_R, GRIEF_ORBIT_SPEED, dt);
+    m.dartT -= dt;
+    if (m.dartT <= 0) { m.phase = 'wind'; m.phaseT = GRIEF_WIND_T; m.wx = m.x; m.wy = m.y; }
   }
 
   function bossAlive() {
@@ -298,6 +394,29 @@ window.Enemies = (() => {
       spawnLoner(lastPx, lastPy, Math.random() * Math.PI * 2, 450);
       const l = loners[loners.length - 1];
       if (l && !l.boss) l.hostile = true;
+      return true;
+    } catch (e) { return false; }
+  }
+  // dev-panel single: one grief at the ring, already lunging — the mean case
+  function sendGrief() {
+    try {
+      if (!init._world) return false;
+      spawnGrief(lastPx, lastPy, Math.random() * Math.PI * 2, 450);
+      return true;
+    } catch (e) { return false; }
+  }
+  // dev-panel singles: one fresh pack at the ring — critters or gilt, on demand
+  function sendCritters() {
+    try {
+      if (!init._world) return false;
+      spawnPack(lastPx, lastPy, false, Math.random() * Math.PI * 2, 450);
+      return true;
+    } catch (e) { return false; }
+  }
+  function sendGilt() {
+    try {
+      if (!init._world) return false;
+      spawnPack(lastPx, lastPy, true, Math.random() * Math.PI * 2, 450);
       return true;
     } catch (e) { return false; }
   }
@@ -500,6 +619,11 @@ window.Enemies = (() => {
         lonerAcc = 0;
         if (loners.length < LONER_MAX) spawnLoner(px, py);
       }
+      griefAcc += dt; // the grief lunges on its own clock — never more than one
+      if (griefAcc >= GRIEF_EVERY) {
+        griefAcc = 0;
+        if (!loners.some((m) => m.grief)) spawnGrief(px, py);
+      }
     }
 
     for (let gi = groups.length - 1; gi >= 0; gi--) {
@@ -626,6 +750,8 @@ window.Enemies = (() => {
         if (!m.hostile && pd <= LONER_AGGRO) m.hostile = true;
       }
       if (!playerDead && m.hostile) {
+        if (m.grief) { updateGrief(m, dt, px, py, now); } // the lunger runs its own fight
+        else {
         // same ring manners as the pack — a hunter circles for an opening
         const ang = ringSlot(m) + now * 0.3;
         steer(m, px + Math.cos(ang) * ATK_RING, py + Math.sin(ang) * ATK_RING, LONER_SPEED, dt); // the hunt — on from aggro, never off
@@ -633,6 +759,7 @@ window.Enemies = (() => {
         if (pd < ATK_RING && now - m.lastHit > HIT_CD) {
           m.lastHit = now;
           if (window.Health) window.Health.damage(1);
+        }
         }
       } else {
         // unprovoked (or she's down): slow mill around its anchor, like a pack
@@ -749,9 +876,10 @@ window.Enemies = (() => {
   // Loners ride along: same entry shape, pack:'lone', rolled tier rarity.
   // Every entry carries outline (species-aware ring word) — brains and
   // snapshots read e.outline, never guess color from tier.
-  // ring words: SPECIES beats tier — a rare hunter wears a red ring, not blue
+  // ring words: SPECIES beats tier — a rare hunter wears a red ring, not blue;
+  // a grief wears bone-pale, never its tier
   const RING = { common: 'gray', uncommon: 'green', rare: 'blue', epic: 'purple', legendary: 'gold' };
-  function ringWord(m) { try { if (m && m.lone) return 'red'; } catch (e) {} try { if (m && m.gilt) return 'gold'; } catch (e) {} return RING[(m && m.rarity) || 'common'] || 'gray'; }
+  function ringWord(m) { try { if (m && m.grief) return 'pale'; } catch (e) {} try { if (m && m.lone) return 'red'; } catch (e) {} try { if (m && m.gilt) return 'gold'; } catch (e) {} return RING[(m && m.rarity) || 'common'] || 'gray'; }
   const LONE_PACK = { id: 'lone' };
   function nearest(px, py, maxDist) {
     const cap = maxDist || 500;
@@ -794,7 +922,7 @@ window.Enemies = (() => {
   function inView(x, y, cx, cy, hw, hh) { return Math.abs(x - cx) <= hw && Math.abs(y - cy) <= hh; }
   function viewEntry(g, m, px, py) {
     const dx = m.x - px, dy = m.y - py;
-    return { id: m.id || null, x: m.x, y: m.y, dist: Math.hypot(dx, dy), dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2, pack: g.id, species: g.id === 'lone' ? 'hunter' : (g.gilt ? 'giltboar' : 'critter'), outline: ringWord(m) };
+    return { id: m.id || null, x: m.x, y: m.y, dist: Math.hypot(dx, dy), dx, dy, hostile: !!m.hostile, hp: m.hp, rarity: m.rarity || 'common', price: m.price || 2, pack: g.id, species: g.id === 'lone' ? (m.grief ? 'grief' : 'hunter') : (g.gilt ? 'giltboar' : 'critter'), outline: ringWord(m) };
   }
   // senseView(mx,my,cx,cy,hw,hh): SEE — everything on screen, dist from the maid
   function senseView(mx, my, cx, cy, hw, hh) {
@@ -822,30 +950,35 @@ window.Enemies = (() => {
   }
   function priceListText() {
     const ring = { common: 'faint gray outline', uncommon: 'green outline', rare: 'blue outline', epic: 'purple outline', legendary: 'gold outline' };
-    return 'Tiers — EVERY monster rolls one (packs and hunters alike): ' +
+    return 'Tiers — EVERY monster rolls one (packs, hunters and griefs alike): ' +
       RARITY.map((t) => `${t.key} ${t.price}c base, ${t.hp}hp (${ring[t.key] || ''})`).join(' · ') +
-      `. Hunters add +${LONER_BOUNTY}c bounty and +${LONER_GRIT}hp on top (red outline, always alone). Giltboars skip the ladder: fixed ${GILT_PRICE}c, ${GILT_HP}hp (gold outline AND golden body) — the main quarry, no doubt, free-fire. Bigger body = rarer + tougher.`;
+      `. Hunters add +${LONER_BOUNTY}c bounty and +${LONER_GRIT}hp on top (red outline, always alone). Griefs add +${GRIEF_BOUNTY}c bounty and +${GRIEF_GRIT}hp on top (pale outline, always hostile, always alone — it lunges). Giltboars skip the ladder: fixed ${GILT_PRICE}c, ${GILT_HP}hp (gold outline AND golden body) — the main quarry, no doubt, free-fire. Bigger body = rarer + tougher.`;
   }
 
   // ---- bestiary: world knowledge, one source of truth ------------------------
-  // Three SPECIES (critter: harmless pack grazer; hunter: harmful lone invader;
-  // giltboar: golden pack prey, the main quarry), five TIERS rolled by critters
-  // and hunters (gilts skip the ladder — fixed prize). Stats come straight
+  // Four SPECIES (critter: harmless pack grazer; hunter: harmful lone invader;
+  // grief: pale-ringed lone lunger; giltboar: golden pack prey, the main
+  // quarry), five TIERS rolled by critters, hunters and griefs
+  // (gilts skip the ladder — fixed prize). Stats come straight
   // from the tuning constants — retune there, journal + her answers update.
   const CRITTER_LORE = 'Harmless grazers, milling in packs. Folk leave them be.';
   const HUNTER_LORE = 'The red-ringed invader. Harmful, aggressive, and unwelcome — folk hunt it on sight, and so does she.';
+  const GRIEF_LORE = 'The pale-ringed lunger. Always hostile, never calm — it circles you, shudders, then dashes. Sidestep first, shoot second.';
   const GILT_LORE = 'Golden pack prey — the main quarry. Fat, gleaming, worth every bullet; folk raise a cup for a gilt brought home. No doubt about these.';
   const PACK_HABIT = 'Harmless millers in groups of 3-5. They want nothing from anyone — but cornered or shot, the pack panics: the brave lash out, the cowardly bolt.';
   const GILT_HABIT = 'Golden packs of 3-4, slower and bolder than critters — they stand more than they bolt. Calm until shot, and she shoots on sight: killing them is the job.';
   const HUNTER_HABIT = `Harmful and invasive — this one is quarry, not wildlife. Solitary. Mills calmly until provoked (~${LONER_AGGRO}px), then hunts forever; it never calms down. Outrun it (you are faster) or put it down fast. Every hunter rolls a tier, like any monster — shinier ones are tougher and worth more.`;
+  const GRIEF_HABIT = `Harmful and invasive like the hunter, but it never mills and never waits: solitary, born hostile, circling at ~${GRIEF_ORBIT_R}px and every few seconds planting its feet, shuddering, then lunging in a locked straight line at ${GRIEF_LUNGE_SPEED}. Sidestep the dash — never try to outrun the circle. Always hostile: NO doubt, ever. Rolls a tier like any monster — shinier ones are tougher and worth more.`;
   const TIER_HP = RARITY.map((t) => t.hp), TIER_PRICE = RARITY.map((t) => t.price);
   const RANGE = (a, b) => `${a}–${b}`;
   const CRITTER_HP = RANGE(Math.min(...TIER_HP), Math.max(...TIER_HP));
   const CRITTER_BOUNTY = RANGE(Math.min(...TIER_PRICE), Math.max(...TIER_PRICE));
   const HUNTER_HP = RANGE(Math.min(...TIER_HP) + LONER_GRIT, Math.max(...TIER_HP) + LONER_GRIT);
   const HUNTER_BOUNTY = RANGE(Math.min(...TIER_PRICE) + LONER_BOUNTY, Math.max(...TIER_PRICE) + LONER_BOUNTY);
+  const GRIEF_HP_TXT = RANGE(Math.min(...TIER_HP) + GRIEF_GRIT, Math.max(...TIER_HP) + GRIEF_GRIT);
+  const GRIEF_BOUNTY_TXT = RANGE(Math.min(...TIER_PRICE) + GRIEF_BOUNTY, Math.max(...TIER_PRICE) + GRIEF_BOUNTY);
   // journal rows: SPECIES only — tiers are a roll, not a species, so the book
-  // shows three entries and the tier ladder stays one line in her head
+  // shows four entries and the tier ladder stays one line in her head
   function bestiary() {
     const hex = (c) => '#' + (c | 0).toString(16).padStart(6, '0');
     return [
@@ -853,6 +986,8 @@ window.Enemies = (() => {
         hp: CRITTER_HP, bounty: CRITTER_BOUNTY, habit: PACK_HABIT, lore: CRITTER_LORE },
       { key: 'hunter', name: 'Lone hunter', kind: 'Invasive species', icon: 'assets/hunter.png', color: hex(LONER_COLOR),
         hp: HUNTER_HP, bounty: HUNTER_BOUNTY, habit: HUNTER_HABIT, lore: HUNTER_LORE },
+      { key: 'grief', name: 'Grief', kind: 'Lunging species', icon: 'assets/grief.png', color: hex(GRIEF_COLOR),
+        hp: GRIEF_HP_TXT, bounty: GRIEF_BOUNTY_TXT, habit: GRIEF_HABIT, lore: GRIEF_LORE },
       { key: 'giltboar', name: 'Giltboar', kind: 'Prized prey species', icon: 'assets/giltboar.png', color: hex(0xffd24a),
         hp: String(GILT_HP), bounty: String(GILT_PRICE), habit: GILT_HABIT, lore: GILT_LORE },
     ];
@@ -862,16 +997,17 @@ window.Enemies = (() => {
   function bestiaryText() {
     const ladder = RARITY.map((t) => `${t.key} ${t.hp}hp/${t.price}c`).join(' · ');
     return 'Bestiary — the field guide, TRUE of this world (answer questions about monsters from this, in your own voice). ' +
-      `Three species: CRITTER — harmless pack grazer (bounty ${CRITTER_BOUNTY}c, ${CRITTER_HP}hp): ${CRITTER_LORE} ${PACK_HABIT} ` +
+      `Four species: CRITTER — harmless pack grazer (bounty ${CRITTER_BOUNTY}c, ${CRITTER_HP}hp): ${CRITTER_LORE} ${PACK_HABIT} ` +
       `HUNTER — harmful invasive loner (bounty ${HUNTER_BOUNTY}c, ${HUNTER_HP}hp): ${HUNTER_LORE} ${HUNTER_HABIT} ` +
+      `GRIEF — pale-ringed lone lunger, ALWAYS hostile (bounty ${GRIEF_BOUNTY_TXT}c, ${GRIEF_HP_TXT}hp): ${GRIEF_LORE} ${GRIEF_HABIT} ` +
       `GILTBOAR — golden pack prey, the MAIN QUARRY (fixed ${GILT_PRICE}c, ${GILT_HP}hp, gold ring and golden body): ${GILT_LORE} ${GILT_HABIT} ` +
-      `Tiers, rolled by critters and hunters (gilts skip it): ${ladder} — hunters add +${LONER_GRIT}hp and +${LONER_BOUNTY}c on top. ` +
-      `CLOSED WORLD: these three species are EVERYTHING alive here — nothing else exists. No rabbits, deer, wolves, slimes, birds, or anything remembered from elsewhere; anything spotted is a critter, a giltboar or a hunter, possibly misseen.`;
+      `Tiers, rolled by critters, hunters and griefs (gilts skip it): ${ladder} — hunters add +${LONER_GRIT}hp and +${LONER_BOUNTY}c on top, griefs add +${GRIEF_GRIT}hp and +${GRIEF_BOUNTY}c on top. ` +
+      `CLOSED WORLD: these four species are EVERYTHING alive here — nothing else exists. No rabbits, deer, wolves, slimes, birds, or anything remembered from elsewhere; anything spotted is a critter, a giltboar, a hunter or a grief, possibly misseen.`;
   }
 
   // ---- combat card: data-driven, species-extensible ---------------------------
   // The think prompt quotes this instead of hardcoding "3 hits / 95 speed".
-  // Species #3 = one row here + one bestiary entry; no prompt surgery.
+  // Species #4 = one row here + one bestiary entry; no prompt surgery.
   function combatFacts() {
     let dmg = 1, range = 850, wname = 'M1 Rifle', pellets = 1;
     try {
@@ -890,8 +1026,9 @@ window.Enemies = (() => {
       `PACKS: groups of ${GROUP_MIN}-${GROUP_MAX} grazers, ${lo}-${hi}hp (${hits(lo)}-${hits(hi)} hits each), chase at ${HOSTILE_SPEED}. ` +
       `GILTBOARS: golden packs of 3-4, ${GILT_HP}hp (${hits(GILT_HP)} hits each) — main quarry, free-fire in reach even calm. ` +
       `HUNTERS: always alone, ${lo + LONER_GRIT}-${hi + LONER_GRIT}hp (${hits(lo + LONER_GRIT)}-${hits(hi + LONER_GRIT)} hits each), chase at ${LONER_SPEED}. ` +
-      `She runs 300 — she outruns both. Bite = 1 heart at 42px. Open grassland, no cover.\n`;
+      `GRIEFS: always alone, ${lo + GRIEF_GRIT}-${hi + GRIEF_GRIT}hp (${hits(lo + GRIEF_GRIT)}-${hits(hi + GRIEF_GRIT)} hits each), circles at ${GRIEF_ORBIT_R}px then lunges at ${GRIEF_LUNGE_SPEED} — sidestep the dash, never outrun the circle. ` +
+      `She runs 300 — she outruns hunters. Bite = 1 heart at 42px. Open grassland, no cover.\n`;
   }
 
-  return { init, update, hostileCount, playerAttack, damageAt, nearest, snare, sense, senseView, nearestView, priceListText, bestiary, bestiaryText, combatFacts, dismissNear, spawnBoss, bossAlive, swarm, sendOne, combatTelegraph, debugGroups: () => groups };
+  return { init, update, hostileCount, playerAttack, damageAt, nearest, snare, sense, senseView, nearestView, priceListText, bestiary, bestiaryText, combatFacts, dismissNear, spawnBoss, bossAlive, swarm, sendOne, sendGrief, sendCritters, sendGilt, combatTelegraph, debugGroups: () => groups };
 })();

@@ -45,8 +45,9 @@ window.Settings = (() => {
   }
 
   // ---- Dev panel -----------------------------------------------------------
-  // Two tabs: MAIN (gameplay/Live2D sliders) and CHAT (LLM character + params).
-  let tabMain = null, tabChat = null, tabWorld = null;
+  // Four tabs: MAIN (gameplay/Live2D sliders), CHAT (LLM character + params),
+  // WORLD (day/night) and ENEMY (spawn every type + event triggers).
+  let tabMain = null, tabChat = null, tabWorld = null, tabEnemy = null;
   const textControls = []; // { key, el } — text inputs/textareas (autosave debounced)
 
   // Single-line text input or multi-line textarea bound to a settings key.
@@ -71,10 +72,11 @@ window.Settings = (() => {
   }
 
   function selectTab(which) {
-    if (!tabMain || !tabChat || !tabWorld) return;
+    if (!tabMain || !tabChat || !tabWorld || !tabEnemy) return;
     tabMain.style.display = which === 'main' ? 'block' : 'none';
     tabChat.style.display = which === 'chat' ? 'block' : 'none';
     tabWorld.style.display = which === 'world' ? 'block' : 'none';
+    tabEnemy.style.display = which === 'enemy' ? 'block' : 'none';
     const btns = document.querySelectorAll('#devpanel .tabs button');
     btns.forEach((b) => b.classList.toggle('active', b.dataset.tab === which));
   }
@@ -116,10 +118,10 @@ window.Settings = (() => {
     onChange = onChangeFn;
     const panel = document.getElementById('devpanel');
 
-    // tab bar: MAIN | CHAT
+    // tab bar: MAIN | CHAT | WORLD | ENEMY
     const tabRow = document.createElement('div');
     tabRow.className = 'tabs';
-    for (const [id, label] of [['main', 'MAIN'], ['chat', 'CHAT'], ['world', 'WORLD']]) {
+    for (const [id, label] of [['main', 'MAIN'], ['chat', 'CHAT'], ['world', 'WORLD'], ['enemy', 'ENEMY']]) {
       const b = document.createElement('button');
       b.textContent = label;
       b.dataset.tab = id;
@@ -136,7 +138,10 @@ window.Settings = (() => {
     tabWorld = document.createElement('div');
     tabWorld.id = 'devtab-world';
     tabWorld.style.display = 'none';
-    panel.append(tabMain, tabChat, tabWorld);
+    tabEnemy = document.createElement('div');
+    tabEnemy.id = 'devtab-enemy';
+    tabEnemy.style.display = 'none';
+    panel.append(tabMain, tabChat, tabWorld, tabEnemy);
 
     // WORLD tab: day/night + future world toggles
     addSlider('worldTime', 0, 1, 1, tabWorld, 'time of day', (v) => (Number(v) === 1 ? 'night 🌙' : 'day ☀️'));
@@ -161,6 +166,7 @@ window.Settings = (() => {
 
     // Health test buttons: nothing hurts her in-game yet, so Hurt/Heal here
     // (or Health.damage(1) in the console) exercises the faint/respawn loop.
+    // Enemy spawns live on the ENEMY tab — every type, on demand.
     {
       const row = document.createElement('div');
       row.className = 'btns';
@@ -170,10 +176,6 @@ window.Settings = (() => {
       const heal = document.createElement('button');
       heal.textContent = 'Heal ♥+1';
       heal.addEventListener('click', () => window.Health && window.Health.heal(1));
-      const boss = document.createElement('button');
-      boss.textContent = 'Spawn boss 🐗';
-      boss.title = 'One DREADBOAR, off-screen — refuses while one already walks';
-      boss.addEventListener('click', () => { try { window.Enemies && window.Enemies.spawnBoss && window.Enemies.spawnBoss(); } catch (e) {} });
       const drone = document.createElement('button');
       drone.textContent = 'Give drone 🛸';
       drone.title = 'Free Hover Drone deed + slotted — testing skips the till';
@@ -186,16 +188,31 @@ window.Settings = (() => {
       hunter.textContent = 'Give hunter 🚀';
       hunter.title = 'Free Hunter Drone deed + slotted — testing skips the till';
       hunter.addEventListener('click', () => { try { if (window.Hunter && window.Hunter.grant) { window.Hunter.grant(); window.Hunter.equip(); } } catch (e) {} });
-      const swarm = document.createElement('button');
-      swarm.textContent = 'Swarm ⚠';
-      swarm.title = 'Three rings of gilt packs + hunters, 7s apart, closing where she stands — the CAUTION banner, on demand';
-      swarm.addEventListener('click', () => { try { window.Enemies && window.Enemies.swarm && window.Enemies.swarm(); } catch (e) {} });
-      const one = document.createElement('button');
-      one.textContent = 'Send one 🔪';
-      one.title = 'One hunter at the ring, already after her — the small case';
-      one.addEventListener('click', () => { try { window.Enemies && window.Enemies.sendOne && window.Enemies.sendOne(); } catch (e) {} });
-      row.append(hurt, heal, boss, swarm, one, drone, lode, hunter);
+      row.append(hurt, heal, drone, lode, hunter);
       tabMain.appendChild(row);
+    }
+
+    // ENEMY tab: spawn EVERY type on demand — packs, loners, boss, events.
+    {
+      const row = document.createElement('div');
+      row.className = 'btns';
+      const mk = (label, title, fn) => {
+        const b = document.createElement('button');
+        b.textContent = label;
+        b.title = title;
+        b.addEventListener('click', () => { try { fn(); } catch (e) {} });
+        return b;
+      };
+      const E = () => window.Enemies;
+      row.append(
+        mk('Critters 🐾', 'One fresh critter pack at the ring — the doubters', () => E() && E().sendCritters && E().sendCritters()),
+        mk('Gilt pack 🪙', 'One fresh gilt pack at the ring — the quarry', () => E() && E().sendGilt && E().sendGilt()),
+        mk('Send one 🔪', 'One hunter at the ring, already after her — the small case', () => E() && E().sendOne && E().sendOne()),
+        mk('Send grief 💀', 'One grief at the ring, already lunging — the mean case', () => E() && E().sendGrief && E().sendGrief()),
+        mk('Spawn boss 🐗', 'One DREADBOAR, off-screen — refuses while one already walks', () => E() && E().spawnBoss && E().spawnBoss()),
+        mk('Swarm ⚠', 'Three rings of gilt packs + hunters, 7s apart, closing where she stands — the CAUTION banner, on demand', () => E() && E().swarm && E().swarm()),
+      );
+      tabEnemy.appendChild(row);
     }
 
     // CHAT tab: character + LLM params. Applies to the NEXT message sent.
