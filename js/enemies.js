@@ -23,6 +23,8 @@ window.Enemies = (() => {
   const PACK_R = 60;                   // pack milling radius
   const SCALE = 2.75;                  // chunky critters (was 2 — they stacked into a blob)
   const SEP_R = 64;                    // packmates push apart inside this radius
+  const ATK_RING = TOUCH_R + 14;       // attackers hold this ring round her — nobody parks on her center
+  const BOSS_RING = BOSS_TOUCH_R + 20; // even HE keeps a dreadboar-width off her between charges
 
   // ---- lone hunter: the OTHER kind of monster --------------------------------
   // Lone-hunter doctrine: spawns ALONE (never a pack) and mills around calmly
@@ -294,6 +296,27 @@ window.Enemies = (() => {
     return false;
   }
 
+  // dogpile breaker: every attacker owns a personal slot on a ring around
+  // her, and the ring slow-circles — the pack becomes a moving circle, never
+  // a pile. separateCrowd runs the same push across packs AND loners so two
+  // packs can't stack on each other either.
+  function ringSlot(m) { if (m.slot == null) m.slot = Math.random() * Math.PI * 2; return m.slot; }
+  function separateCrowd() {
+    const all = [];
+    try {
+      for (const g of groups) for (const m of g.members) if (m.hostile) all.push(m);
+      for (const m of loners) if (m.hostile && !m.boss) all.push(m);
+    } catch (e) { return; }
+    for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) {
+      const a = all[i], b = all[j];
+      const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+      if (d > 0.01 && d < SEP_R) {
+        const push = (SEP_R - d) * 0.5, nx = dx / d, ny = dy / d;
+        a.x -= nx * push; a.y -= ny * push; b.x += nx * push; b.y += ny * push;
+      }
+    }
+  }
+
   function steer(m, tx, ty, speed, dt) {
     const dx = tx - m.x, dy = ty - m.y;
     const d = Math.hypot(dx, dy) || 1;
@@ -367,9 +390,12 @@ window.Enemies = (() => {
       }
       if (m.chargeT <= 0) { m.mode = 'chase'; m.atkT = BOSS_CHARGE_EVERY * (0.8 + Math.random() * 0.4); }
     } else { // chase — relentless, outrunnable, never calms
-      steer(m, px, py, BOSS_SPEED, dt);
+      // even HE holds a ring: a dreadboar-width off her center with a slow
+      // drift — the body never parks on top of her between charges
+      const ang = ringSlot(m) + now * 0.15;
+      steer(m, px + Math.cos(ang) * BOSS_RING, py + Math.sin(ang) * BOSS_RING, BOSS_SPEED, dt);
       const pd = Math.hypot(m.x - px, m.y - py);
-      if (pd < BOSS_TOUCH_R && now - m.lastHit > HIT_CD) {
+      if (pd < BOSS_RING && now - m.lastHit > HIT_CD) {
         m.lastHit = now;
         if (window.Health) window.Health.damage(1);
       }
@@ -384,6 +410,7 @@ window.Enemies = (() => {
 
   function update(dt, px, py) {
     if (!frames) return;
+    separateCrowd(); // dogpile breaker first — positions, then brains steer
     lastPx = px; lastPy = py; // spawnBoss drops the horror next to her
     if (bossBannerT > 0) { // caution banner countdown
       bossBannerT -= dt;
@@ -473,9 +500,12 @@ window.Enemies = (() => {
 
         if (m.hostile) {
           if (m.brave) {
-            steer(m, px, py, HOSTILE_SPEED, dt);
-            // bite: 1 heart, per-critter cooldown
-            if (pd < TOUCH_R && now - m.lastHit > HIT_CD) {
+            // ring her, don't pile her: personal slot on a bite-edge ring that
+            // slow-circles — bites still land, bodies never camp her center
+            const ang = ringSlot(m) + now * 0.4 * (m.orbit || 1);
+            steer(m, px + Math.cos(ang) * ATK_RING, py + Math.sin(ang) * ATK_RING, HOSTILE_SPEED, dt);
+            // bite: 1 heart, per-critter cooldown — range matches the ring edge
+            if (pd < ATK_RING && now - m.lastHit > HIT_CD) {
               m.lastHit = now;
               if (window.Health) window.Health.damage(1);
             }
@@ -530,9 +560,11 @@ window.Enemies = (() => {
         if (!m.hostile && pd <= LONER_AGGRO) m.hostile = true;
       }
       if (!playerDead && m.hostile) {
-        steer(m, px, py, LONER_SPEED, dt); // the hunt — on from aggro, never off
+        // same ring manners as the pack — a hunter circles for an opening
+        const ang = ringSlot(m) + now * 0.3;
+        steer(m, px + Math.cos(ang) * ATK_RING, py + Math.sin(ang) * ATK_RING, LONER_SPEED, dt); // the hunt — on from aggro, never off
         const pd = Math.hypot(m.x - px, m.y - py);
-        if (pd < TOUCH_R && now - m.lastHit > HIT_CD) {
+        if (pd < ATK_RING && now - m.lastHit > HIT_CD) {
           m.lastHit = now;
           if (window.Health) window.Health.damage(1);
         }
