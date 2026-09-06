@@ -179,7 +179,7 @@ window.Town = (() => {
         window.Health.heal(99); // Wren: chapel rates (free)
         showBubble(npc, line + ' *her hands are warm; the aches close up*');
       }
-      if (window.Patience && window.Patience.hear) window.Patience.hear(); // company — the fuse refills
+
     } catch (e) {}
     return line;
   }

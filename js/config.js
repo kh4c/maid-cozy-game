@@ -58,7 +58,7 @@ window.CONFIG = {
     // Survival brain (separate from chat): aim authority + think cadence.
     aimMode: 'ai',   // she owns the gun — cursor aim removed, always 'ai'
     gunHide: 1,       // 0 = iron always out, 1 = gun appears only while shooting
-    patienceSecs: 15,  // silence she tolerates while awaiting your word (dev panel; 5-120s)
+
     brainInterval: 6,   // seconds between auto thinks while danger is near
     brainTokens: 300,   // max tokens per tactical thought (short + cheap)
     chatSystem: `[Character]

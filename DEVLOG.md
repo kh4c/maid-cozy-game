@@ -2,6 +2,16 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — No-ask critters: she holds and waits, never questions
+- **Fuse deleted.** Calm critters → "Found critters — holding fire, watching,
+  master. Say the word." No question, no meter, no foot-tap, no expiry-decision.
+  She shadows until ordered, told to leave, or the pack moves on.
+- **Removed:** js/patience.js, its script tag + dialog bar + CSS, the dev slider,
+  all hear/refill calls, patienceTick, chat's impatient/decided prompts.
+  Hunters and giltboars already never asked; now nothing does.
+- Guards: hfilter K rewritten (silence never decides/nags/tags/fires, shadow stays
+  live), hpatience retired with its source. 28/28 green.
+
 ## 2026-09-06 — Giltboar: golden main-quarry prey, fewer critters
 - **Third species.** Golden packs of 3-4 (your Monster/creature-sheet 7 as
   assets/giltboar.png — swap the file to reskin), fixed 18c / 8hp, no tier roll,

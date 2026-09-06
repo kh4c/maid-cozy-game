@@ -36,7 +36,7 @@ window.Input = (() => {
   function clickTo(wx, wy) {
     if (!isFinite(wx) || !isFinite(wy)) return;
     clickMove = { x: wx, y: wy, until: performance.now() + CLICK_SECS * 1000 };
-    try { window.Patience && window.Patience.hear && window.Patience.hear(); } catch (e) {} // your hand on the field — she noticed
+
   }
   function manualActive() { return !!clickMove && performance.now() <= clickMove.until; }
   // pushedActive: player-owned feet RIGHT NOW — live click pin, a live

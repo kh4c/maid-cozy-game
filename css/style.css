@@ -93,11 +93,6 @@ canvas { display: block; }
   color: #ffd9a0; font-style: italic; /* *action* subtext highlight */
 }
 
-/* ---- Patience fuse: thin bar inside the dialog, only while awaiting orders -- */
-#patience-wrap { margin-top: 6px; font-size: 11px; color: #ffb3c7; }
-#patience-track { height: 4px; margin-top: 3px; background: rgba(255,255,255,0.15); border-radius: 2px; overflow: hidden; }
-#patience-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff7d9c, #ff3b5c); border-radius: 2px; }
-
 /* ---- Thought box: HER tactical voice (separate from chat dialog) ------------- */
 /* LEFT SIDE, vertically lower — out of the chat/dialog stack entirely, small. */
 #thought-box {

@@ -197,7 +197,7 @@ window.Chat = (() => {
     busy = true;
     clearInterval(typeTimer);
     history.push({ role: 'user', content: text });
-    try { window.Patience && window.Patience.hear && window.Patience.hear(); } catch (e) {} // master's voice — her fuse refills
+
     parseWalk(text); // "go left" walks her at once; she still replies in character
     parseUrge(text); // "keep going / back to work" breaks a voluntary rest — your words over her legs
     // Combat orders ("attack them!", "shoot it") go to the survival brain, not
@@ -375,8 +375,6 @@ window.Chat = (() => {
         resting: `your legs got heavy so YOU chose to pause at low stamina before running dry — a smart breather, not a collapse. Tell master NOW in your own voice: 1 short sentence, in-character, *action* allowed. A little sheepish, framing it as pacing yourself. No numbers.`,
         'money-banter': `master just said to kill ONLY the valuable critters (pick the rich ones, skip the cheap). REFUSE playfully in your own voice: 1 short sentence, in-character, *action* allowed — money is money, every critter pays, you kill them ALL. No numbers.`,
         'which-ones': `master said "those ones / go back" but you see NO pack in reach. ASK which ones they mean in your own voice: 1 short sentence, in-character, *action* allowed — invite them to walk you closer or point you at them.`,
-        impatient: `you asked master a question (kill the calm critters or not?) and they have gone QUIET halfway through your patience. Tap your foot and prompt them NOW in your own voice: 1 short sentence, in-character, *action* allowed — tsundere, still waiting, NO decision yet. No numbers.`,
-        decided: `master left you hanging too long after you asked about the calm critters, so YOU decided: leave them be (harmless grazers — killing them never felt right). Announce the decision NOW in your own voice: 1 short sentence, in-character, *action* allowed — smug, a little scolding, do NOT ask again. No numbers.`,
       };
       // quiet-found doctrine: the counts/tiers below are TRUTH for her head —
       // she only VOICES them when something is rare+. Commons stay plain.
