@@ -2,6 +2,15 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Survivor.io paper doll: paused, sprite middle, IN HAND + grid
+- Fullscreen navy doll (no brown anywhere): her idle sprite framed middle
+  (first 64px frame, 2x pixelated), ✦ IN HAND panel beside her (icon + live
+  stats + blurb), weapon grid along the bottom with per-cell stats + EQUIP /
+  EQUIPPED / 🔒 SHOP. Pixel font throughout, ⏸ PAUSED badge in the head.
+- Opening Equipment (or Shop) FREEZES the ticker — world, brain, camera all
+  hold; I / 🔫 / ✕ / backdrop resumes. hequip rewritten (14/14: hand follows
+  swaps, pause pinned, navy/no-brown pinned). 30/30 green.
+
 ## 2026-09-06 — Wooden-fantasy till: top-docked, pixel font, hover ticks, buy fanfare
 - Panel docks TOP (4vh) so Shop.png breathes below; cells are big squares
   (84px icons, 1:1) on dark wood with gold trim; whole till speaks Press

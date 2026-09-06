@@ -305,27 +305,73 @@ canvas { display: block; }
   font: 16px/1 monospace; padding: 8px 10px;
 }
 #equip-btn:hover { background: rgba(40, 36, 72, 0.95); }
+/* ---- Equipment: survivor.io paper doll (navy, never brown) ------------------- */
 #equip-panel {
-  position: absolute; left: 12px; bottom: 56px; z-index: 9;
-  display: none; width: 340px; max-height: 60vh; overflow-y: auto;
-  background: rgba(20, 18, 34, 0.94); border: 1px solid #3a3560;
-  border-radius: 8px; padding: 10px 12px;
-  font: 12px/1.4 monospace; color: #cfc9ff; user-select: none;
+  position: fixed; inset: 0; z-index: 40;
+  display: none; align-items: flex-start; justify-content: center;
+  padding: 5vh 12px; overflow-y: auto;
+  background: rgba(6, 10, 26, 0.9);
 }
-#equip-panel .title { font-weight: bold; color: #ffd9a0; margin-bottom: 4px; }
-#equip-sub { font-size: 10px; color: #8d86b8; margin-bottom: 8px; }
-.equip-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: flex-start; }
-.equip-icon {
-  width: 40px; height: 40px; flex: none;
-  object-fit: contain; image-rendering: pixelated;
-  border: 2px solid #3a3560; border-radius: 6px;
-  background: rgba(0, 0, 0, 0.4);
+#equip-stage {
+  width: min(560px, 94vw);
+  background: linear-gradient(180deg, #1c2450, #12173a);
+  border: 2px solid #3d4a7a; border-radius: 14px; padding: 14px 16px 18px;
+  font-family: 'Press Start 2P', monospace; font-size: 10px; line-height: 1.7;
+  color: #dfe6ff; user-select: none;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
 }
-.equip-body { flex: 1; display: flex; flex-direction: column; }
-.equip-name { font-weight: bold; font-size: 12px; color: #ffd9a0; }
-.equip-owned { color: #8a6d1f; font-size: 10px; letter-spacing: 1px; }
-.equip-blurb { font-size: 10px; color: #8d86b8; font-style: italic; margin: 2px 0; }
-.equip-stats { color: #e8e2ff; font-size: 11px; }
+#equip-head {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 12px; color: #fff; text-shadow: 2px 2px 0 #0a0e24;
+}
+#equip-paused {
+  flex: 1; font-size: 9px; color: #4de3ff;
+}
+#equip-close {
+  cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 11px; color: #dfe6ff;
+  background: #2a3368; border: 2px solid #3d4a7a; border-radius: 6px; padding: 6px 9px;
+}
+#equip-close:hover { border-color: #4de3ff; color: #fff; }
+#equip-mid { display: flex; gap: 14px; align-items: center; margin: 12px 0 8px; }
+#equip-maid { display: flex; flex-direction: column; align-items: center; flex: none; }
+#equip-maid-frame {
+  width: 128px; height: 128px; overflow: hidden;
+  border: 3px solid #ffd24a; border-radius: 12px; background: #0a0e24;
+}
+#equip-maid-frame img { width: 512px; height: 384px; image-rendering: pixelated; }
+#equip-maid-name { margin-top: 6px; font-size: 9px; color: #ffd9a0; }
+#equip-hand {
+  flex: 1; display: flex; gap: 10px; align-items: center;
+  background: #0f1440; border: 2px solid #4de3ff;
+  border-radius: 10px; padding: 10px 12px;
+}
+.equip-hand-icon { width: 64px; height: 64px; flex: none; object-fit: contain; image-rendering: pixelated; }
+.equip-hand-body { display: flex; flex-direction: column; gap: 3px; }
+.equip-inhand { font-size: 8px; color: #4de3ff; letter-spacing: 1px; }
+.equip-hand-name { font-size: 10px; color: #ffd24a; }
+.equip-hand-stats { font-size: 8px; color: #aeb8e8; }
+.equip-hand-desc { font-size: 8px; color: #8d96c8; font-style: italic; }
+#equip-sub { font-size: 8px; color: #8d96c8; text-align: center; margin-bottom: 10px; }
+#equip-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.equip-cell {
+  aspect-ratio: 1 / 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
+  background: #232c52; border: 2px solid #3d4a7a;
+  border-radius: 10px; padding: 8px 6px;
+  transition: transform 0.12s ease-out, border-color 0.12s, box-shadow 0.12s;
+}
+.equip-cell:hover { transform: translateY(-3px); border-color: #4de3ff; box-shadow: 0 0 14px rgba(77, 227, 255, 0.4); }
+.equip-cell.sel { border-color: #ffd24a; box-shadow: 0 0 14px rgba(255, 210, 74, 0.45); }
+.equip-cell-icon { width: 72px; height: 72px; object-fit: contain; image-rendering: pixelated; }
+.equip-cell-name { font-size: 8px; color: #dfe6ff; text-align: center; }
+.equip-cell-stats { font-size: 7px; color: #8d96c8; text-align: center; }
+.equip-cell-btn {
+  cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 8px; color: #0a0e24;
+  background: #4de3ff; border: none; border-radius: 5px; padding: 7px 8px; width: 100%;
+}
+.equip-cell-btn:hover:not(.equipped) { background: #a5f1ff; }
+.equip-cell-btn.equipped { background: #ffd24a; cursor: default; }
+.equip-sub2 { font-size: 9px; color: #8d96c8; }
 
 /* ---- Combat bar: sense readout + aim/auto/think buttons -------------------- */
 #combat-bar {

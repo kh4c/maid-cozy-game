@@ -66,7 +66,17 @@
   <div id="book-btn" title="Bestiary — the world's monsters">📖</div>
   <div id="book-panel"><div class="title">📖 BESTIARY</div><div id="book-list"></div></div>
   <div id="equip-btn" title="Equipment — her guns, swap iron (I)">🔫</div>
-  <div id="equip-panel"><div class="title">🔫 EQUIPMENT</div><div id="equip-sub">her iron — EQUIP swaps it live, even mid-fight</div><div id="equip-list"></div></div>
+  <div id="equip-panel" style="display:none">
+    <div id="equip-stage">
+      <div id="equip-head"><span>🎒 EQUIPMENT</span><span id="equip-paused">⏸ PAUSED</span><button id="equip-close">✕</button></div>
+      <div id="equip-mid">
+        <div id="equip-maid"><div id="equip-maid-frame"><img src="assets/SG_Maid_Idle.png" alt="Cosette" /></div><span id="equip-maid-name">Cosette</span></div>
+        <div id="equip-hand"></div>
+      </div>
+      <div id="equip-sub">weapons below — EQUIP swaps when you close</div>
+      <div id="equip-grid"></div>
+    </div>
+  </div>
   <div id="chat-row"><input id="chat-input" type="text" placeholder="talk to her… (Enter)" autocomplete="off" maxlength="300" /></div>
 
   <div id="hearts" title="9/9"></div>

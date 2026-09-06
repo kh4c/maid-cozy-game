@@ -1,13 +1,13 @@
-// Equipment panel — the 🔫 button (or I key) opens her iron closet.
-// Every weapon row renders with its sprite, numbers, and an EQUIP button;
-// swapping calls Weapons.equip and the gun in her hands changes live.
-// Rendered fresh on every open so store damage upgrades never go stale.
+// Equipment — survivor.io paper doll (navy, never brown).
+// Opening PAUSES the world (main.js freezes while isOpen): her idle sprite
+// stands middle, the IN HAND panel beside her names the equipped iron, and
+// the weapon grid runs along the bottom. I key / 🔫 / ✕ / backdrop all close.
 window.Equipment = (() => {
   const $ = (id) => document.getElementById(id);
   let open = false;
 
   function esc(s) {
-    return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    return String(s == null ? '' : s).replace(/[&<>\"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[c]));
   }
 
   function statLine(w) {
@@ -16,32 +16,49 @@ window.Equipment = (() => {
     return `${per} · every ${w.cd}s · range ~${w.range}px`;
   }
 
+  function rows() {
+    try { return window.Weapons && typeof window.Weapons.info === 'function' ? window.Weapons.info() : []; } catch (e) { return []; }
+  }
+
+  function cellBtn(w) {
+    if (w.equipped) return `<button class="equip-cell-btn equipped" disabled>EQUIPPED</button>`;
+    if (w.locked) return `<button class="equip-cell-btn" data-shop="1" title="sold in the 🏪 shop">🔒 SHOP</button>`;
+    return `<button class="equip-cell-btn" data-equip="${esc(w.id)}">EQUIP</button>`;
+  }
+
   function render() {
-    const box = $('equip-list');
-    if (!box) return;
-    let rows = [];
-    try { rows = window.Weapons && typeof window.Weapons.info === 'function' ? window.Weapons.info() : []; } catch (e) { rows = []; }
-    if (!rows.length) { box.innerHTML = '<div class="equip-blurb">No iron yet… (weapons unreachable)</div>'; return; }
-    box.innerHTML = rows.map((w) => (
-      '<div class="equip-row">' +
-        `<img class="equip-icon" src="${esc(w.icon || 'assets/m1.png')}" alt="" onerror="this.style.display='none'" />` +
-        '<div class="equip-body">' +
-          `<div class="equip-name">${esc(w.name)}${w.equipped ? ' <span class="equip-owned">EQUIPPED</span>' : ''}</div>` +
-          `<div class="equip-blurb">${esc(w.desc)}</div>` +
-          `<div class="equip-stats">${esc(statLine(w))}</div>` +
-        '</div>' +
-        (w.equipped ? '' : (w.locked
-          ? `<button class="store-buy" data-shop="1" title="sold in the 🏪 shop">🔒 SHOP</button>`
-          : `<button class="store-buy" data-equip="${esc(w.id)}">EQUIP</button>`)) +
-      '</div>'
+    const grid = $('equip-grid'), hand = $('equip-hand');
+    if (!grid || !hand) return;
+    const rs = rows();
+    if (!rs.length) {
+      hand.innerHTML = '<div class="equip-hand-name">no iron…</div>';
+      grid.innerHTML = '<div class="equip-sub2">No iron yet… (weapons unreachable)</div>';
+      return;
+    }
+    const eq = rs.find((w) => w.equipped) || rs[0];
+    hand.innerHTML =
+      `<img class="equip-hand-icon" src="${esc(eq.icon || 'assets/m1.png')}" alt="" onerror="this.style.display='none'" />` +
+      '<div class="equip-hand-body">' +
+        `<div class="equip-inhand">✦ IN HAND</div>` +
+        `<div class="equip-hand-name">${esc(eq.name)}</div>` +
+        `<div class="equip-hand-stats">${esc(statLine(eq))}</div>` +
+        `<div class="equip-hand-desc">${esc(eq.desc)}</div>` +
+      '</div>';
+    grid.innerHTML = rs.map((w) => (
+      `<div class="equip-cell${w.equipped ? ' sel' : ''}">` +
+        `<img class="equip-cell-icon" src="${esc(w.icon || 'assets/m1.png')}" alt="" onerror="this.style.display='none'" />` +
+        `<span class="equip-cell-name">${esc(w.name)}</span>` +
+        `<span class="equip-cell-stats">${esc(statLine(w))}</span>` +
+        cellBtn(w) +
+      `</div>`
     )).join('');
   }
 
   function setOpen(v) {
     open = !!v;
-    if (open) render();
+    if (open) render(); // repaint on every open — upgrades never go stale
     const p = $('equip-panel');
-    if (p) p.style.display = open ? 'block' : 'none';
+    if (p) p.style.display = open ? 'flex' : 'none';
   }
   function toggle() { setOpen(!open); }
 
@@ -51,10 +68,11 @@ window.Equipment = (() => {
     const p = $('equip-panel');
     if (p) p.addEventListener('click', (e) => {
       try {
-        const t = e.target && e.target.dataset ? e.target.dataset : {};
-        if (t.shop && window.Shop && window.Shop.setOpen) { window.Shop.setOpen(true); return; } // 🔒 SHOP jumps to the till
-        const id = t.equip;
-        if (id && window.Weapons && window.Weapons.equip(id)) render(); // swap + repaint tags
+        const t = e.target || {};
+        if (t.id === 'equip-panel' || t.id === 'equip-close') { setOpen(false); return; } // backdrop + ✕ close
+        const d = t.dataset || {};
+        if (d.shop && window.Shop && window.Shop.setOpen) { setOpen(false); window.Shop.setOpen(true); return; } // 🔒 SHOP jumps to the till
+        if (d.equip && window.Weapons && window.Weapons.equip(d.equip)) render(); // swap + repaint tags
       } catch (_) { /* a bad click equips nothing */ }
     });
   }
