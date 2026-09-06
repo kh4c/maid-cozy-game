@@ -250,6 +250,7 @@
     window.Weapons && window.Weapons.init();
     window.Store && window.Store.init();
     window.Bestiary && window.Bestiary.init();
+    window.Equipment && window.Equipment.init();
   } catch (err) {
     reportError('inventory failed: ' + err.message);
   }

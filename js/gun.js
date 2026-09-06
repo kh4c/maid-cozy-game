@@ -19,7 +19,8 @@ window.Gun = (() => {
   let world = null, app = null, camera = null;
   let rig = null, gunSpr = null, flash = null;
   let bullets = [], sparks = [];
-  let texGun, texBullet, texFlash, texSpark;
+  let texGun, texShotgun, texBullet, texFlash, texSpark;
+  let curTex = 'm1'; // rig sprite tracks the equipped row — swaps live, mid-fight
   let cd = 0, recoil = 0, bobT = 0, flashT = 0;
   let shotsFired = 0; // M1 clip: every 8th round the en-bloc pings out
   let holding = false, mouseSX = 0, mouseSY = 0; // mouse in canvas css px
@@ -135,13 +136,20 @@ window.Gun = (() => {
 
   function fire(ax, ay) {
     const mx = px + HOVER_X + ax * 34, my = py + HOVER_Y + ay * 34; // barrel tip
-    const spr = new Sprite(texBullet);
-    spr.anchor.set(0.5, 0.5);
-    spr.scale.set(W('slugScale', 0.3)); // fast needle, not a lobbed slug
-    spr.rotation = Math.atan2(ay, ax);
-    spr.position.set(mx, my);
-    world.addChild(spr);
-    bullets.push({ spr, vx: ax * W('projSpeed', 1400), vy: ay * W('projSpeed', 1400), life: W('projLife', 0.6) });
+    const n = Math.max(1, Math.round(W('pellets', 1) || 1)); // trigger pulls a fan on multi-pellet rows
+    const fan = Number(W('spread', 0)) || 0;
+    const baseA = Math.atan2(ay, ax);
+    for (let i = 0; i < n; i++) {
+      const off = n > 1 ? ((i / (n - 1)) - 0.5) * fan + (Math.random() - 0.5) * 0.05 : 0;
+      const a = baseA + off, dx = Math.cos(a), dy = Math.sin(a);
+      const spr = new Sprite(texBullet);
+      spr.anchor.set(0.5, 0.5);
+      spr.scale.set(W('slugScale', 0.3)); // fast needle, not a lobbed slug
+      spr.rotation = a;
+      spr.position.set(mx, my);
+      world.addChild(spr);
+      bullets.push({ spr, vx: dx * W('projSpeed', 1400), vy: dy * W('projSpeed', 1400), life: W('projLife', 0.6) });
+    }
 
     // muzzle flash: random size + mirror flip, gone in a blink
     flash.position.set(ax * 30 + 6, ay * 30);
@@ -153,15 +161,15 @@ window.Gun = (() => {
 
     recoil = W('recoilMul', 1.5); // kick back + muzzle up, decays in update()
 
-    shotsFired += 1; // M1 clip pings out every 8th round — the reload sound, honest and free
-    if (shotsFired % 8 === 0) {
+    shotsFired += 1; // reload sounds on the row's own clock (M1 clip pings every 8th, pump rack every 6th)
+    if (shotsFired % Math.max(1, W('pingEvery', 8) || 8) === 0) {
       try { const pf = W('ping', null); if (pf) window.Sound.playSfx('combat', pf, { rate: 1 }); } catch (e) {}
     }
 
     // layered shot: WAV body + high snap (row's sfx/rate — slow guns sound deep)
     try { window.Sound.playSfx('combat', W('shotSfx', 'gunshot.wav'), { rate: W('shotRate', 0.55) + Math.random() * 0.1 }); } catch (e) {}
     try { window.Sound.playSfx('combat', 'swing.ogg', { rate: 1.6 + Math.random() * 0.2, volume: 0.3 }); } catch (e) {}
-    if (camera) camera.shake(0.1);
+    if (camera) camera.shake(n > 1 ? 0.18 : 0.1); // thunder kicks harder than needles
   }
 
   // strike: guns spawn a slug, melee swings an arc — same kill accounting
@@ -215,8 +223,9 @@ window.Gun = (() => {
   // ---- lifecycle ------------------------------------------------------------
   async function init(worldContainer, appRef, cam) {
     world = worldContainer; app = appRef; camera = cam;
-    [texGun, texBullet, texFlash, texSpark] = await Promise.all([
+    [texGun, texShotgun, texBullet, texFlash, texSpark] = await Promise.all([
       PIXI.Assets.load('assets/m1.png'),
+      PIXI.Assets.load('assets/shotgun.png'),
       PIXI.Assets.load('assets/bullet.png'),
       PIXI.Assets.load('assets/muzzle.png'),
       PIXI.Assets.load('assets/spark.png'),
@@ -291,6 +300,13 @@ window.Gun = (() => {
     flash.rotation = aim;
 
     if (firing && cd <= 0) { cd = W('cooldown', 0.85); strike(ca, sa); }
+
+    // EQUIP SWAP: the rig sprite follows the weapon row — equip mid-fight and
+    // the iron in her hands changes on the next frame, no re-init.
+    try {
+      const want = W('gunTex', 'm1');
+      if (want !== curTex) { gunSpr.texture = want === 'shotgun' ? texShotgun : texGun; curTex = want; }
+    } catch (e) { /* a missing skin never stops the shooting */ }
 
     // HIDE WHEN RUNNING (dev option gunHide=1): iron only comes out to shoot —
     // latch the trigger and the gun is there, cease and it's gone. Bullets and

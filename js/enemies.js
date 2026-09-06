@@ -578,16 +578,20 @@ window.Enemies = (() => {
   // The think prompt quotes this instead of hardcoding "3 hits / 95 speed".
   // Species #3 = one row here + one bestiary entry; no prompt surgery.
   function combatFacts() {
-    let dmg = 1, range = 850;
+    let dmg = 1, range = 850, wname = 'M1 Rifle', pellets = 1;
     try {
       if (typeof window !== 'undefined' && window.Gun) {
         if (window.Gun.bulletDamage) dmg = window.Gun.bulletDamage() || dmg;
         if (window.Gun.rangePx) range = window.Gun.rangePx() || range;
       }
+      if (typeof window !== 'undefined' && window.Weapons) {
+        if (window.Weapons.activeName) wname = window.Weapons.activeName() || wname;
+        if (window.Weapons.pellets) pellets = window.Weapons.pellets() || pellets;
+      }
     } catch (e) {}
     const lo = Math.min(...RARITY.map((t) => t.hp)), hi = Math.max(...RARITY.map((t) => t.hp));
     const hits = (hp) => `${Math.ceil(hp / dmg)}`;
-    return `Facts: M1 Garand range ~${range}px, auto-fires while [fire] is active, ${dmg} damage per bullet. ` +
+    return `Facts: ${wname} range ~${range}px, auto-fires while [fire] is active, ${dmg} damage per ${pellets > 1 ? `pellet (×${pellets} pellets)` : 'bullet'}. ` +
       `PACKS: groups of ${GROUP_MIN}-${GROUP_MAX} grazers, ${lo}-${hi}hp (${hits(lo)}-${hits(hi)} hits each), chase at ${HOSTILE_SPEED}. ` +
       `GILTBOARS: golden packs of 3-4, ${GILT_HP}hp (${hits(GILT_HP)} hits each) — main quarry, free-fire in reach even calm. ` +
       `HUNTERS: always alone, ${lo + LONER_GRIT}-${hi + LONER_GRIT}hp (${hits(lo + LONER_GRIT)}-${hits(hi + LONER_GRIT)} hits each), chase at ${LONER_SPEED}. ` +

@@ -10,6 +10,7 @@ window.Input = (() => {
     const tag = document.activeElement && document.activeElement.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
     if (e.code === 'KeyP') window.Settings.togglePanel(); // P toggles dev panel
+    if (e.code === 'KeyI' && window.Equipment) window.Equipment.toggle(); // I toggles equipment
     if (e.code === 'KeyE' && window.EditMode.ready) window.EditMode.toggle();      // E toggles UI edit mode
     if (e.code === 'Escape' && window.EditMode.ready && window.EditMode.active) window.EditMode.toggle(); // Esc exits
     if (e.code === 'KeyR' && window.EditMode.ready && window.EditMode.active) window.EditMode.resetLayout(); // R resets UI layout (only while editing)

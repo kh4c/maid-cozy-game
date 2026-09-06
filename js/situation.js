@@ -39,17 +39,18 @@ window.Situation = (() => {
     const dead = !!(H && H.dead);
 
     // weapon
-    let weaponTxt = 'M1 Garand — not loaded';
+    let weaponTxt = 'No weapon loaded';
     let weapon = { has: false, mode: '?', firing: false, bullets: 0 };
     try {
+      const wname = (window.Weapons && window.Weapons.activeName) ? window.Weapons.activeName() : 'M1 Rifle';
       if (window.Gun && typeof window.Gun.status === 'function') {
         const st = window.Gun.status();
         weapon = { has: true, mode: st.mode, firing: !!st.firing, bullets: st.bullets | 0 };
-        weaponTxt = `M1 Garand — aim ${st.mode === 'ai' ? 'AI (maid aims herself, your mouse is OFF)' : 'MOUSE (you aim, she cannot aim)'}, ` +
+        weaponTxt = `${wname} — aim ${st.mode === 'ai' ? 'AI (maid aims herself, your mouse is OFF)' : 'MOUSE (you aim, she cannot aim)'}, ` +
           (st.firing ? 'FIRING now' : 'not firing') + `, ${st.bullets | 0} bullet(s) in flight`;
       } else if (window.Gun) {
         weapon = { has: true, mode: 'mouse', firing: false, bullets: 0 };
-        weaponTxt = 'M1 Garand — aim MOUSE (legacy gun.js, update for AI mode)';
+        weaponTxt = `${wname} — aim MOUSE (legacy gun.js, update for AI mode)`;
       }
     } catch (e) { /* deaf snapshot */ }
 

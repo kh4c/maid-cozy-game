@@ -218,6 +218,37 @@ canvas { display: block; }
 .store-buy:hover:not(.disabled) { background: #ffe08a; }
 .store-buy.disabled { background: #3a3560; color: #8d86b8; cursor: default; }
 
+/* ---- Equipment: 🔫 iron-closet button + big panel (mirrors bestiary) --------- */
+#equip-btn {
+  position: absolute; left: 64px; bottom: 12px; z-index: 9;
+  cursor: pointer; user-select: none;
+  background: rgba(20, 18, 34, 0.9); color: #ffd9a0;
+  border: 1px solid #3a3560; border-radius: 8px;
+  font: 16px/1 monospace; padding: 8px 10px;
+}
+#equip-btn:hover { background: rgba(40, 36, 72, 0.95); }
+#equip-panel {
+  position: absolute; left: 12px; bottom: 56px; z-index: 9;
+  display: none; width: 340px; max-height: 60vh; overflow-y: auto;
+  background: rgba(20, 18, 34, 0.94); border: 1px solid #3a3560;
+  border-radius: 8px; padding: 10px 12px;
+  font: 12px/1.4 monospace; color: #cfc9ff; user-select: none;
+}
+#equip-panel .title { font-weight: bold; color: #ffd9a0; margin-bottom: 4px; }
+#equip-sub { font-size: 10px; color: #8d86b8; margin-bottom: 8px; }
+.equip-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: flex-start; }
+.equip-icon {
+  width: 40px; height: 40px; flex: none;
+  object-fit: contain; image-rendering: pixelated;
+  border: 2px solid #3a3560; border-radius: 6px;
+  background: rgba(0, 0, 0, 0.4);
+}
+.equip-body { flex: 1; display: flex; flex-direction: column; }
+.equip-name { font-weight: bold; font-size: 12px; color: #ffd9a0; }
+.equip-owned { color: #8a6d1f; font-size: 10px; letter-spacing: 1px; }
+.equip-blurb { font-size: 10px; color: #8d86b8; font-style: italic; margin: 2px 0; }
+.equip-stats { color: #e8e2ff; font-size: 11px; }
+
 /* ---- Combat bar: sense readout + aim/auto/think buttons -------------------- */
 #combat-bar {
   position: absolute; top: 88px; left: 12px; z-index: 9;

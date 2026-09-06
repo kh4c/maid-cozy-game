@@ -2,6 +2,18 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Equipment panel + pump shotgun (2nd gun, live swap)
+- **🔫 panel (I key or button).** Big iron closet, left side: every weapon row
+  with its sprite, blurb, and live numbers; EQUIP swaps instantly — even
+  mid-fight, the gun in her hands changes next frame. Store damage upgrades
+  ride each row separately (shotgun keeps its own +1s).
+- **Pump Shotgun:** 2 dmg × 6 pellets in a 0.26rad fan, 1.5s cd, ~385px reach,
+  heavy recoil + harder camera kick, `shotgun_real.wav` + pump-rack every 6th
+  shot. Rifle untouched (4 dmg needle, 0.85s, ~840px, clip-ping every 8th).
+  Snapshot, think combat card, and describe() all name the ACTIVE gun.
+- Guards: W15-W20 (row/sound/range/swap/describe), hequip Q1-Q11 (panel lists,
+  tags, click-swap, bad clicks, I key). 29/29 green (new harness).
+
 ## 2026-09-06 — Gilt country: golden packs outnumber critters 70/30, spawner stocked
 - Spawns flipped from 55/45 to **30% critters / 70% giltboars**, tick 6s → **4s**,
   concurrent packs 2 → **3**. The field stays stocked with her main quarry;
