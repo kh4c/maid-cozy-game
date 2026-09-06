@@ -111,7 +111,14 @@ window.Live2D = (() => {
   // 'beforeModelUpdate', which fires AFTER focus and right BEFORE the vertex
   // bake: our absolute writes are the final word each frame. Smoothing state
   // is owned here (never read back from core) so it actually accumulates.
-  const sm = { breath: 0, bodyX: 0, bodyY: 0, ax: 0, ay: 0, az: 0, eyeY: 0 };
+  const sm = { breath: 0, bodyX: 0, bodyY: 0, ax: 0, ay: 0, az: 0, eyeX: 0, eyeY: 0 };
+  // COMBAT LOOK: gun.js drives this while the trigger is latched — -1 = enemy
+  // screen-left, +1 = screen-right, 0 = release to idle. The overlay portrait
+  // can't turn around, so the head-turn + eye-glance carries "facing".
+  let combatLook = 0, combatLookTarget = 0;
+  function setCombatLook(v) {
+    if (v === -1 || v === 1 || v === 0) combatLookTarget = v; // dead-zone: gun just doesn't call, last side holds
+  }
   let lastIdleAt = 0;
   let lookDown = 0;          // eased 0..1 — how far she's looking down now
   let lookDownTarget = 0;    // what it's easing toward
@@ -150,7 +157,13 @@ window.Live2D = (() => {
     const kd = 1 - Math.exp(-dtMS / 350); // slower ease for the gaze
     lookDown += (lookDownTarget - lookDown) * kd;
 
-    set('ParamAngleX', ease('ax', 0)); // held frontal — no sideways turn
+    // FACE_SIGN: model-rig dependent — flip to -1 if she looks AWAY from the enemy.
+    // (Cubism AngleX/EyeBallX positive = screen-right on the standard maid rig.)
+    const FACE_SIGN = 1;
+    const ck = 1 - Math.exp(-dtMS / 220); // head turns a touch slower than sway — deliberate, not twitchy
+    combatLook += (combatLookTarget - combatLook) * ck;
+    set('ParamAngleX', ease('ax', combatLook * 22 * FACE_SIGN)); // turn toward the enemy while attacking
+    set('ParamEyeBallX', ease('eyeX', combatLook * 0.8 * FACE_SIGN)); // eyes lead the glance
     set('ParamAngleY', ease('ay', hy - lookDown * 22)); // nod sway + look-down glances
     set('ParamAngleZ', ease('az', hz + lookDown * 2));  // tiny tilt as she lowers her head
     set('ParamEyeBallY', ease('eyeY', -lookDown * 0.8));  // eyes follow the downward gaze
@@ -347,6 +360,7 @@ window.Live2D = (() => {
     get exprName() { return currentExpression(); },
     setExpr(n) { setPinned(n); },
     setMood, // chat emotion -> face (neutral default)
+    setCombatLook, // gun -> head: face the enemy while the trigger is latched
     setNight,
     apply: applyFraming,
     // read a param value by name (index-resolved, bypasses the string-ID phantom table)

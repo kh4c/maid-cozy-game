@@ -278,6 +278,22 @@ window.Gun = (() => {
 
     if (firing && cd <= 0) { cd = W('cooldown', 0.85); strike(ca, sa); }
 
+    // FACE THE ENEMY: while the trigger is latched she turns head + eyes to
+    // the target's side (Live2D carries it — the overlay can't turn around).
+    // 30px dead zone: straight above/below holds the last side, no jitter.
+    // Trigger released -> 0, head eases back to idle sway.
+    try {
+      const L2D = window.Live2D;
+      if (L2D && L2D.setCombatLook) {
+        if (!firing) L2D.setCombatLook(0);
+        else {
+          const fdx = aimWX - px;
+          if (fdx < -30) L2D.setCombatLook(-1);
+          else if (fdx > 30) L2D.setCombatLook(1);
+        }
+      }
+    } catch (e) { /* cosmetic */ }
+
     // bullets: fly, splash-check critters, die
     for (let i = bullets.length - 1; i >= 0; i--) {
       const b = bullets[i];
