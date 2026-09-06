@@ -174,7 +174,11 @@ window.Settings = (() => {
       boss.textContent = 'Spawn boss 🐗';
       boss.title = 'One DREADBOAR, off-screen — refuses while one already walks';
       boss.addEventListener('click', () => { try { window.Enemies && window.Enemies.spawnBoss && window.Enemies.spawnBoss(); } catch (e) {} });
-      row.append(hurt, heal, boss);
+      const drone = document.createElement('button');
+      drone.textContent = 'Give drone 🛸';
+      drone.title = 'Free Hover Drone deed + slotted — testing skips the till';
+      drone.addEventListener('click', () => { try { if (window.Pet && window.Pet.grant) { window.Pet.grant(); window.Pet.equip(); } } catch (e) {} });
+      row.append(hurt, heal, boss, drone);
       tabMain.appendChild(row);
     }
 

@@ -44,7 +44,6 @@ window.Pet = (() => {
   }
   function equip() { if (!owned) return false; on = true; save(); return true; }
   function unequip() { on = false; save(); return true; }
-  function toggleEquip() { return equipped() ? (unequip(), false) : equip(); }
   function toggle() { if (equipped()) { unequip(); return true; } return equip(); } // equipment square: always truthy on success (deploy AND dismiss repaint)
   function known(id) { return id === 'drone'; }
 
@@ -155,5 +154,6 @@ window.Pet = (() => {
     flyBullets(wdt);
   }
 
-  return { init, update, buy, equip, unequip, toggleEquip, toggle, known, owns, equipped, price, describe };
+  function grant() { owned = true; save(); return true; } // dev-panel free deed — testing skips the till
+  return { init, update, buy, grant, equip, unequip, toggle, known, owns, equipped, price, describe };
 })();
