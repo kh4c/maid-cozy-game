@@ -184,7 +184,7 @@ window.Settings = (() => {
       lode.addEventListener('click', () => { try { if (window.Lode && window.Lode.grant) { window.Lode.grant(); window.Lode.equip(); } } catch (e) {} });
       const swarm = document.createElement('button');
       swarm.textContent = 'Swarm ⚠';
-      swarm.title = 'Two gilt packs + one hunter, born already after her — the CAUTION banner, on demand';
+      swarm.title = 'A ring of gilt packs + hunters closes around her — the CAUTION banner, on demand';
       swarm.addEventListener('click', () => { try { window.Enemies && window.Enemies.swarm && window.Enemies.swarm(); } catch (e) {} });
       row.append(hurt, heal, boss, swarm, drone, lode);
       tabMain.appendChild(row);

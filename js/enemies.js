@@ -119,11 +119,11 @@ window.Enemies = (() => {
   // giltboars: golden pack prey and her MAIN QUARRY — fixed bounty, no tier
   // roll. Same pack code path, gilded params (the kind flag rides the group).
   const GILT_PRICE = 18, GILT_HP = 8;
-  function spawnPack(px, py, gilt) {
+  function spawnPack(px, py, gilt, angle, radius) {
     const world = init._world;
     const n = gilt ? 3 + ((Math.random() * 2) | 0) : GROUP_MIN + ((Math.random() * (GROUP_MAX - GROUP_MIN + 1)) | 0);
-    const a = Math.random() * Math.PI * 2;
-    const r = SPAWN_R_MIN + Math.random() * (SPAWN_R_MAX - SPAWN_R_MIN);
+    const a = (angle === undefined) ? Math.random() * Math.PI * 2 : angle;
+    const r = (radius === undefined) ? SPAWN_R_MIN + Math.random() * (SPAWN_R_MAX - SPAWN_R_MIN) : radius;
     const anchor = { x: px + Math.cos(a) * r, y: py + Math.sin(a) * r };
     const g = { id: ++gid, gilt: !!gilt, anchor, dir: Math.random() * Math.PI * 2, retarget: 0, members: [], alerted: false };
     for (let i = 0; i < n; i++) {
@@ -162,10 +162,10 @@ window.Enemies = (() => {
     groups.push(g);
   }
 
-  function spawnLoner(px, py) {
+  function spawnLoner(px, py, angle, radius) {
     const world = init._world;
-    const a = Math.random() * Math.PI * 2;
-    const r = SPAWN_R_MIN + Math.random() * (SPAWN_R_MAX - SPAWN_R_MIN);
+    const a = (angle === undefined) ? Math.random() * Math.PI * 2 : angle;
+    const r = (radius === undefined) ? SPAWN_R_MIN + Math.random() * (SPAWN_R_MAX - SPAWN_R_MIN) : radius;
     const view = new Container();
     const sh = new Graphics();
     sh.ellipse(0, -2, 13, 5).fill({ color: 0x000000, alpha: 0.3 });
@@ -265,19 +265,19 @@ window.Enemies = (() => {
     } catch (e) { return false; }
   }
 
-  // dev-panel swarm: two gilt packs + one hunter, ringed close, born ALREADY
-  // after her (the natural alert lines, skipped) — banner + battle mood on.
+  // dev-panel swarm: a RING of gilt packs + hunters closes around her — many
+  // bodies, evenly spaced, on-screen, born ALREADY after her (the natural
+  // alert lines, skipped) — banner + battle mood on.
   function swarm() {
     try {
       const world = init._world;
       if (!world) return false;
-      spawnPack(lastPx, lastPy, true);
-      spawnPack(lastPx, lastPy, true);
-      spawnLoner(lastPx, lastPy);
-      for (const g of groups.slice(-2)) { g.alerted = true; for (const m of g.members) m.hostile = true; }
-      const l = loners[loners.length - 1];
-      if (l && !l.boss) l.hostile = true;
-      bossBanner('⚠ SWARM ⚠', 'THE PACKS COME HUNGRY', BOSS_BANNER_T);
+      const R = 450; // the ring — on-screen all around her, nobody spawns on top of her
+      for (let i = 0; i < 3; i++) spawnPack(lastPx, lastPy, true, (i / 3) * Math.PI * 2 + 0.3, R); // ~9-12 gilts
+      for (let i = 0; i < 2; i++) spawnLoner(lastPx, lastPy, ((i + 0.5) / 2) * Math.PI * 2 + 0.3, R); // hunters in the gaps
+      for (const g of groups.slice(-3)) { g.alerted = true; for (const m of g.members) m.hostile = true; }
+      for (const l of loners.slice(-2)) { if (l && !l.boss) l.hostile = true; }
+      bossBanner('⚠ SWARM ⚠', 'SURROUNDED — THE PACKS CLOSE IN', BOSS_BANNER_T);
       try { window.Sound && window.Sound.setBgmMood && window.Sound.setBgmMood('battle'); } catch (e) {}
       return true;
     } catch (e) { return false; }
@@ -866,5 +866,5 @@ window.Enemies = (() => {
       `She runs 300 — she outruns both. Bite = 1 heart at 42px. Open grassland, no cover.\n`;
   }
 
-  return { init, update, hostileCount, playerAttack, damageAt, nearest, snare, sense, senseView, nearestView, priceListText, bestiary, bestiaryText, combatFacts, dismissNear, spawnBoss, swarm, bossAlive, combatTelegraph, debugGroups: () => groups };
+  return { init, update, hostileCount, playerAttack, damageAt, nearest, snare, sense, senseView, nearestView, priceListText, bestiary, bestiaryText, combatFacts, dismissNear, spawnBoss, bossAlive, swarm, combatTelegraph, debugGroups: () => groups };
 })();
