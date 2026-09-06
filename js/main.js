@@ -107,7 +107,7 @@
   // ("ahh!" over her head on a face-plant — a sprite visual, never dialog),
   // hidden by the loop when its timer runs out.
   let tripBubble = null, tripBg = null, tripTx = null, tripBubbleT = 0;
-  let launchX = 1, launchY = 0; // last run direction — a face-plant throws her along it
+  let launchX = 0, launchY = 0; // leftover trip-slide, eased out over ~0.3s so the fall reads as momentum, not a teleport
   function maidBubble(line) {
     if (!tripBubble) return;
     try {
@@ -327,7 +327,6 @@
     // (control locked — clicks, chat walks AND brain runs all stop) until she
     // catches her breath. Moving into exhaustion is allowed; moving after isn't.
     const wantsMove = (a.x !== 0 || a.y !== 0);
-    if (wantsMove) { const l = Math.hypot(a.x, a.y) || 1; launchX = a.x / l; launchY = a.y / l; } // remember the facing while it exists
     let moved = false;
     if (window.Stamina) {
       try {
@@ -350,7 +349,13 @@
           try { maidBubble('ahh!'); } catch (e) {} // sprite bubble over her head, every trip
           try { window.Sound && window.Sound.playSfx && window.Sound.playSfx('combat', 'hurt_0.ogg', { rate: 0.7, volume: 0.6 }); } catch (e) {}
           try { camera.shake(0.55); } catch (e) {} // the ground hits back — screen takes the fall with her
-          try { view.x += launchX * 46; view.y += launchY * 46; } catch (e) {} // momentum: the fall throws her a step along her facing
+          try { // momentum: she slides a step along her SPRITE facing (left/right ±30°) — never along the run vector
+            let f = 1; try { f = character && character.facing ? character.facing() : 1; } catch (e) {}
+            if (!f) f = 1;
+            const j = (Math.random() - 0.5) * (Math.PI / 3); // ±30° of wobble, like a real stumble
+            const d = 52 + (Math.random() - 0.5) * 20; // a step, give or take — no two face-plants land identical
+            launchX = Math.cos(j) * f * d; launchY = Math.sin(j) * d;
+          } catch (e) { launchX = 0; launchY = 0; }
         }
         if (window.Stamina.justRested) {
           try { window.Brain && window.Brain.note && window.Brain.note('resting'); } catch (e) {}
@@ -373,6 +378,12 @@
     view.x += a.x * s.speed * spdMul * wdt;
     view.y += a.y * s.speed * spdMul * wdt;
     view.zIndex = view.y; // y-sort: whoever stands lower covers whoever stands higher
+    if (launchX !== 0 || launchY !== 0) { // trip-slide: ease the leftover out fast (~12/s) — a decelerating skid, not a hop
+      const k = 1 - Math.exp(-12 * wdt);
+      view.x += launchX * k; view.y += launchY * k;
+      launchX -= launchX * k; launchY -= launchY * k;
+      if (Math.abs(launchX) + Math.abs(launchY) < 0.5) { launchX = 0; launchY = 0; }
+    }
 
     // INFINITE world: no bounds clamping — background chunks stream in around the camera
     // FACE THE ENEMY: trigger latched -> sprite faces the gun's side, not her

@@ -83,7 +83,8 @@ window.Entities = (() => {
     }
 
     root.position.set(0, 0); // infinite world: spawn at origin (chunk 0,0 center-ish)
-    return { view: root, update, applySettings };
+    function facing() { try { return body.scale.x < 0 ? -1 : 1; } catch (e) { return 1; } } // sprite-side: left or right, nothing else
+    return { view: root, update, applySettings, facing };
   }
 
   // Foot dust: world-space puff pool using the user's assets/dust.png.
