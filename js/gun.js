@@ -423,6 +423,6 @@ window.Gun = (() => {
 
   return { init, update, debug, status, aimSide,
     setAimMode, toggleAim, getAimMode,
-    aiAimAt, aiAimDir, aiAimNearest, aiFire, aiCease,
+    aiAimAt, aiAimDir, aiAimNearest, aiFire, aiCease, accountHits,
     bulletDamage: () => W('damage', 4), setDamage, rangePx: () => W('rangePx', 840) };
 })();

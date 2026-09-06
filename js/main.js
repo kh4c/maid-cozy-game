@@ -259,6 +259,13 @@
     reportError('gun failed: ' + err.message);
   }
 
+  // ---- Hover Drone pet (oval hover, engages hostiles/gilt when worn) -----
+  try {
+    window.Pet && await window.Pet.init(world);
+  } catch (err) {
+    reportError('pet failed: ' + err.message);
+  }
+
   // ---- Dev panel --------------------------------------------------------------------
   window.Settings.buildPanel((key) => {
     if (key === 'scale' || key.endsWith('Fps')) character.applySettings();
@@ -476,6 +483,11 @@
     if (window.Gun) {
       try { window.Gun.update(wdt, view.x, view.y); }
       catch (err) { /* a gun hiccup must not kill the loop */ }
+    }
+    // hover drone: oval over her head, peels off to zap hostiles/gilt
+    if (window.Pet) {
+      try { window.Pet.update(wdt, view.x, view.y); }
+      catch (err) { /* a pet hiccup must not kill the loop */ }
     }
     // survival brain: auto-thinks when danger nears (own LLM loop + thought box)
     if (window.Brain) {

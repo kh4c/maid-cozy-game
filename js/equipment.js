@@ -77,10 +77,23 @@ window.Equipment = (() => {
       )).join('') : '<div class="equip-sub2">no trinkets yet — the 🏪 shop sells them</div>' +
         `<button class="equip-cell-btn" data-shop="1">🏪 SHOP</button>`;
     }
-    // trinket slots: small squares stacked beside her, tags not emoji
+    // trinket slots: small squares stacked beside her, tags not emoji.
+    // The pet square rides below them — same column, its own deed.
     if (slotsEl) {
       const w = worn();
       const list = accs();
+      let petHtml = '';
+      try {
+        if (window.Pet && typeof window.Pet.owns === 'function') {
+          if (window.Pet.equipped()) {
+            petHtml = `<button class="equip-slot pet" data-pet="1" title="Hover Drone — click to dismiss">🛸<span class="equip-tip"><span class="t-name">Hover Drone</span><br>${esc(window.Pet.desc())}<br>click to dismiss</span></button>`;
+          } else if (window.Pet.owns()) {
+            petHtml = `<button class="equip-slot pet" data-pet="1" title="Hover Drone — click to deploy">🛸<span class="equip-tip"><span class="t-name">Hover Drone</span><br>${esc(window.Pet.desc())}<br>click to deploy</span></button>`;
+          } else {
+            petHtml = `<button class="equip-slot empty" disabled title="pet slot — drones at 🏪">+</button>`;
+          }
+        }
+      } catch (e) {}
       slotsEl.innerHTML = w.map((id, i) => {
         const a = list.find((x) => x.id === id);
         if (!a) {
@@ -88,7 +101,7 @@ window.Equipment = (() => {
           return `<button class="equip-slot empty${jig}" data-unslot="${i}" title="empty trinket slot"${pendingAcc ? '' : ' disabled'}>+</button>`;
         }
         return `<button class="equip-slot" data-unslot="${i}" title="${esc(a.name)} — click to take off">${esc(a.tag)}<span class="equip-tip"><span class="t-name">${esc(a.name)}</span><br>${esc(a.desc)}<br>click to take off</span></button>`;
-      }).join('');
+      }).join('') + petHtml;
     }
   }
 
@@ -151,6 +164,7 @@ window.Equipment = (() => {
         if (d.equip && window.Weapons && window.Weapons.equip(d.equip)) { tick(); render(); return; } // swap + repaint tags
         if (d.acc && window.Accessories && window.Accessories.equip(d.acc) >= 0) { pendingAcc = null; tick(); render(); return; } // WEAR fills first empty
         if (d.accIcon && ownsAcc(d.accIcon)) { pendingAcc = d.accIcon; tick(); render(); return; } // icon arms the jiggle
+        if (d.pet && window.Pet && window.Pet.toggle && window.Pet.toggle()) { tick(); render(); return; } // 🛸 square: deploy / dismiss
         if (d.unslot !== undefined && d.unslot !== null && d.unslot !== '') {
           const i = Number(d.unslot);
           if (pendingAcc && window.Accessories && window.Accessories.equipTo(pendingAcc, i)) { pendingAcc = null; tick(); render(); return; } // into the jiggling slot
@@ -161,8 +175,8 @@ window.Equipment = (() => {
     if (p) p.addEventListener('mouseover', (e) => { // hover blips like the shop till
       try {
         const t = e.target || {};
-        const hot = t.closest ? t.closest('[data-equip],[data-acc-icon],[data-acc],[data-unslot],[data-tab],[data-shop]') : null;
-        blip(hot && hot.getAttribute ? hot.getAttribute('data-equip') || hot.getAttribute('data-acc-icon') || hot.getAttribute('data-acc') || hot.getAttribute('data-unslot') || hot.getAttribute('data-tab') || 'shop' : null);
+        const hot = t.closest ? t.closest('[data-equip],[data-acc-icon],[data-acc],[data-unslot],[data-tab],[data-shop],[data-pet]') : null;
+        blip(hot && hot.getAttribute ? hot.getAttribute('data-equip') || hot.getAttribute('data-acc-icon') || hot.getAttribute('data-acc') || hot.getAttribute('data-unslot') || hot.getAttribute('data-tab') || hot.getAttribute('data-pet') || 'shop' : null);
       } catch (_) {}
     });
   }

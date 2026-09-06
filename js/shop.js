@@ -48,7 +48,7 @@ window.Shop = (() => {
     return `Close thunder for quarry work. ${stats}. One deed, yours forever — EQUIP it in 🔫 Equipment.`;
   }
 
-  function stock() { // grid order: the iron first, then the trinkets
+  function stock() { // grid order: the iron first, then the trinkets, then the drone
     const cells = [{
       id: 'shotgun', img: 'assets/shotgun.png', emoji: '🔫', name: 'Pump Shotgun',
       price: GUN_PRICE, desc: gunDesc(), owned: ownsShotgun(), soldOut: ownsShotgun(), why: ownsShotgun() ? 'owned' : '',
@@ -59,6 +59,13 @@ window.Shop = (() => {
           cells.push({ id: a.id, img: null, emoji: a.emoji, name: a.name, price: a.price,
             desc: a.desc, owned: a.owned, soldOut: a.owned, why: a.owned ? 'owned' : '' });
         }
+      }
+    } catch (e) {}
+    try { // the pet: deeds persist, worn in the 🎒 pet slot
+      if (window.Pet && typeof window.Pet.owns === 'function') {
+        const owned = window.Pet.owns();
+        cells.push({ id: 'drone', img: 'assets/drone1.png', emoji: '🛸', name: 'Hover Drone',
+          price: window.Pet.price(), desc: window.Pet.desc(), owned, soldOut: owned, why: owned ? 'owned' : '' });
       }
     } catch (e) {}
     return cells;
@@ -81,6 +88,12 @@ window.Shop = (() => {
         const r = window.Accessories.buy(id);
         if (r && r.ok) { toast(`✨ ${r.name} — YOURS! Wear it in 🎒 Equipment.`); flashPanel(); }
         else toast(r && r.why === 'owned' ? 'Already yours — see 🎒 Equipment.' : 'Not enough coins!');
+        render(); return r;
+      }
+      if (window.Pet && typeof window.Pet.known === 'function' && window.Pet.known(id)) {
+        const r = window.Pet.buy();
+        if (r && r.ok) { toast(`🛸 ${r.name} — YOURS! Wear it in the 🎒 pet slot.`); flashPanel(); }
+        else toast(r && r.why === 'owned' ? 'Already yours — see the 🎒 pet slot.' : 'Not enough coins!');
         render(); return r;
       }
     } catch (e) {}
@@ -111,7 +124,7 @@ window.Shop = (() => {
     const bigIcon = c.img
       ? `<img class="shop-big-icon" src="${esc(c.img)}" alt="" onerror="this.style.display='none'" />`
       : `<span class="shop-big-icon">${esc(c.emoji || '?')}</span>`;
-    const state = c.soldOut ? (c.owned || c.why === 'owned' ? 'OWNED — see 🔫 Equipment' : `MAXED (${esc(c.why || 'maxed')})`) : `${c.price}c`;
+    const state = c.soldOut ? (c.owned || c.why === 'owned' ? `OWNED — see ${c.id === 'drone' ? '🎒 pet slot' : '🔫 Equipment'}` : `MAXED (${esc(c.why || 'maxed')})`) : `${c.price}c`;
     const poor = !c.soldOut && coins < c.price;
     detail.innerHTML =
       `${bigIcon}<div class="shop-detail-name">${esc(c.name)}</div>` +
