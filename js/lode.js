@@ -16,7 +16,7 @@ window.Lode = (() => {
   const SPD = 120, FETCH_SPD = 180; // px/s — ONE pace everywhere, the commute only slightly brisker. No easing, no bursts, no teleports
   const FETCH_R = 700;     // spots loose coins this far from its ground point
   const SCOOP_R = 50;      // swallows coins this close (at the ground point)
-  const SNARE_R = 200, SNARE_F = 0.5; // the storm mouth: half speed inside
+  const SNARE_R = 140, SNARE_F = 0.5; // the storm mouth: half speed inside
   const ZAP_CD = 1.0, ZAP_DMG = 1;    // electric tick — polite, not a second rifle
   const LEASH = 900;       // she outruns it this far and it comes home
   const OWN_KEY = 'cosette.lode';
@@ -55,7 +55,7 @@ window.Lode = (() => {
   function known(id) { return id === 'lode'; }
 
   function describe() {
-    return `Lodestone Drone ${PRICE}c (🏪 shop, 🎒 PETS tab): roams the screen on its own, fetches loose coins into her purse, and hangs a storm cone over the field — everything in its 200px mouth moves at half speed and takes 1 electric dmg every second. Kills pay full coins. Owned: ${owned ? 'yes' : 'no'}. Flying: ${equipped() ? 'yes' : 'benched'}.`;
+    return `Lodestone Drone ${PRICE}c (🏪 shop, 🎒 PETS tab): roams the screen on its own, fetches loose coins into her purse, and hangs a storm cone over the field — everything in its 140px mouth moves at half speed and takes 1 electric dmg every second. Kills pay full coins. Owned: ${owned ? 'yes' : 'no'}. Flying: ${equipped() ? 'yes' : 'benched'}.`;
   }
 
   async function init(w) {
