@@ -318,6 +318,7 @@ window.Enemies = (() => {
   }
 
   function steer(m, tx, ty, speed, dt) {
+    if (m.slowT > 0) { m.slowT -= dt; speed *= (m.slowF || 0.5); } // lodestone frost — half speed while it holds
     const dx = tx - m.x, dy = ty - m.y;
     const d = Math.hypot(dx, dy) || 1;
     const k = 1 - Math.exp(-3 * dt); // ease velocity toward desired (no snapping)
@@ -329,6 +330,26 @@ window.Enemies = (() => {
     else if (m.vx > 2) m.view.scale.x = (m.baseScale || SCALE);
     m.view.position.set(m.x, m.y);
     m.view.zIndex = m.y; // y-sort: pack feet decide the cover order
+    if (!(m.flashT > 0)) { // frost tint reads under the hit blink, never over it
+      if (m.slowT > 0) { m.anim.tint = 0x9fd8ff; m.slowTint = true; }
+      else if (m.slowTint) { m.anim.tint = 0xffffff; m.slowTint = false; }
+    }
+  }
+
+  // lodestone frost: everything hostile-or-not inside (x, y, radius) moves at
+  // factor speed while the drone re-applies it every frame. The boss is
+  // immune — a slowed charge lane would trivialize him.
+  function snare(x, y, radius, factor) {
+    try {
+      for (const g of groups) for (const m of g.members) {
+        if (m.boss) continue;
+        if (Math.hypot(m.x - x, m.y - y) < radius) { m.slowT = 0.3; m.slowF = factor; }
+      }
+      for (const m of loners) {
+        if (m.boss) continue;
+        if (Math.hypot(m.x - x, m.y - y) < radius) { m.slowT = 0.3; m.slowF = factor; }
+      }
+    } catch (e) {}
   }
 
   // ---- boss fight: chase / aim (red lane) / charge ---------------------------
@@ -827,5 +848,5 @@ window.Enemies = (() => {
       `She runs 300 — she outruns both. Bite = 1 heart at 42px. Open grassland, no cover.\n`;
   }
 
-  return { init, update, hostileCount, playerAttack, damageAt, nearest, sense, senseView, nearestView, priceListText, bestiary, bestiaryText, combatFacts, dismissNear, spawnBoss, bossAlive, combatTelegraph, debugGroups: () => groups };
+  return { init, update, hostileCount, playerAttack, damageAt, nearest, snare, sense, senseView, nearestView, priceListText, bestiary, bestiaryText, combatFacts, dismissNear, spawnBoss, bossAlive, combatTelegraph, debugGroups: () => groups };
 })();

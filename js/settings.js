@@ -178,7 +178,11 @@ window.Settings = (() => {
       drone.textContent = 'Give drone 🛸';
       drone.title = 'Free Hover Drone deed + slotted — testing skips the till';
       drone.addEventListener('click', () => { try { if (window.Pet && window.Pet.grant) { window.Pet.grant(); window.Pet.equip(); } } catch (e) {} });
-      row.append(hurt, heal, boss, drone);
+      const lode = document.createElement('button');
+      lode.textContent = 'Give lodestone 🧲';
+      lode.title = 'Free Lodestone Drone deed + slotted — testing skips the till';
+      lode.addEventListener('click', () => { try { if (window.Lode && window.Lode.grant) { window.Lode.grant(); window.Lode.equip(); } } catch (e) {} });
+      row.append(hurt, heal, boss, drone, lode);
       tabMain.appendChild(row);
     }
 

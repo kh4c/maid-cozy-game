@@ -293,6 +293,12 @@
   } catch (err) {
     reportError('pet failed: ' + err.message);
   }
+  // ---- Lodestone Drone (fetches coins, slows the field when worn) ----------
+  try {
+    window.Lode && await window.Lode.init(world);
+  } catch (err) {
+    reportError('lode failed: ' + err.message);
+  }
 
   // ---- Dev panel --------------------------------------------------------------------
   window.Settings.buildPanel((key) => {
@@ -515,6 +521,11 @@
     // hover drone: oval over her head, peels off to zap hostiles/gilt
     if (window.Pet) {
       try { window.Pet.update(wdt, view.x, view.y); }
+      catch (err) { /* a pet hiccup must not kill the loop */ }
+    }
+    // lodestone: wide high oval, fetches coins, frosts the field
+    if (window.Lode) {
+      try { window.Lode.update(wdt, view.x, view.y); }
       catch (err) { /* a pet hiccup must not kill the loop */ }
     }
     // survival brain: auto-thinks when danger nears (own LLM loop + thought box)

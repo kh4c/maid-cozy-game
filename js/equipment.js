@@ -94,6 +94,10 @@ window.Equipment = (() => {
             petHtml = `<button class="equip-slot empty" disabled title="pet slot — drones at 🏪">+</button>`;
           }
         }
+        if (window.Lode && typeof window.Lode.owns === 'function' && window.Lode.owns()) { // second square stacks below — own deed, own toggle
+          const dep = window.Lode.equipped();
+          petHtml += `<button class="equip-slot pet" data-pet="2" title="Lodestone Drone — click to ${dep ? 'dismiss' : 'deploy'}">🧲<span class="equip-tip"><span class="t-name">Lodestone Drone</span><br>${esc(window.Lode.describe())}<br>click to ${dep ? 'dismiss' : 'deploy'}</span></button>`;
+        }
       } catch (e) {}
       slotsEl.innerHTML = w.map((id, i) => {
         const a = list.find((x) => x.id === id);
@@ -165,6 +169,7 @@ window.Equipment = (() => {
         if (d.equip && window.Weapons && window.Weapons.equip(d.equip)) { tick(); render(); return; } // swap + repaint tags
         if (d.acc && window.Accessories && window.Accessories.equip(d.acc) >= 0) { pendingAcc = null; tick(); render(); return; } // WEAR fills first empty
         if (d.accIcon && ownsAcc(d.accIcon)) { pendingAcc = d.accIcon; tick(); render(); return; } // icon arms the jiggle
+        if (d.pet === '2' && window.Lode && window.Lode.toggle && window.Lode.toggle()) { tick(); render(); return; } // 🧲 square: deploy / dismiss
         if (d.pet && window.Pet && window.Pet.toggle && window.Pet.toggle()) { tick(); render(); return; } // 🛸 square: deploy / dismiss
         if (d.unslot !== undefined && d.unslot !== null && d.unslot !== '') {
           const i = Number(d.unslot);

@@ -107,6 +107,25 @@ window.Inventory = (() => {
     }
   }
 
+  // the lodestone fetches through here: swallows every loose coin near (x, y)
+  // into the purse — same credit, same counters, quieter clink
+  function scoopAt(x, y, r) {
+    let n = 0;
+    for (let i = drops.length - 1; i >= 0; i--) {
+      const d = drops[i];
+      if (Math.hypot(d.x - x, d.y - y) > r) continue;
+      addCoins(1);
+      try { window.Sound && window.Sound.playSfx('combat', 'coin.ogg', { rate: 1.6, volume: 0.25 }); } catch (e) {}
+      if (d.spr.parent) d.spr.parent.removeChild(d.spr);
+      d.spr.destroy();
+      if (d.sh) { try { if (d.sh.parent) d.sh.parent.removeChild(d.sh); d.sh.destroy(); } catch (e2) {} }
+      drops.splice(i, 1);
+      n++;
+    }
+    if (n > 0) flash();
+    return n;
+  }
+
   function flash() {
     const c = $('store-coins');
     if (c) { c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
@@ -137,5 +156,5 @@ window.Inventory = (() => {
     renderCount();
   }
 
-  return { init, update, drop, state, dropsNear, reset, render, purse, spend, refund: addCoins, magnetR, setMagnetBonus };
+  return { init, update, drop, scoopAt, state, dropsNear, reset, render, purse, spend, refund: addCoins, magnetR, setMagnetBonus };
 })();

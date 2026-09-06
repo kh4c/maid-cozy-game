@@ -69,6 +69,13 @@ window.Shop = (() => {
           price: window.Pet.price(), desc: window.Pet.describe(), owned, soldOut: owned, why: owned ? 'owned' : '' });
       }
     } catch (e) {}
+    try { // the lodestone: second deed, second 🎒 square — fetches coins, slows the field
+      if (window.Lode && typeof window.Lode.owns === 'function') {
+        const owned = window.Lode.owns();
+        cells.push({ id: 'lode', img: 'assets/drone2.png', emoji: '🧲', name: 'Lodestone Drone',
+          price: window.Lode.price(), desc: window.Lode.describe(), owned, soldOut: owned, why: owned ? 'owned' : '' });
+      }
+    } catch (e) {}
     return cells;
   }
 
@@ -94,6 +101,12 @@ window.Shop = (() => {
       if (window.Pet && typeof window.Pet.known === 'function' && window.Pet.known(id)) {
         const r = window.Pet.buy();
         if (r && r.ok) { toast(`🛸 ${r.name} — YOURS! Wear it in the 🎒 pet slot.`); flashPanel(); }
+        else toast(r && r.why === 'owned' ? 'Already yours — see the 🎒 pet slot.' : 'Not enough coins!');
+        render(); return r;
+      }
+      if (window.Lode && typeof window.Lode.known === 'function' && window.Lode.known(id)) {
+        const r = window.Lode.buy();
+        if (r && r.ok) { toast(`🧲 ${r.name} — YOURS! Wear it in the 🎒 pet slot.`); flashPanel(); }
         else toast(r && r.why === 'owned' ? 'Already yours — see the 🎒 pet slot.' : 'Not enough coins!');
         render(); return r;
       }
