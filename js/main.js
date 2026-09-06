@@ -32,7 +32,7 @@
   // Sits ABOVE the world (tiles + critters + maid) but BELOW UI. Night = deep blue
   // wash + soft vignette darkening the screen edges (torch-light feel); day = invisible.
   // Toggled live from the dev panel (WORLD tab).
-  const { Graphics, Sprite, Texture } = PIXI;
+  const { Graphics, Sprite, Texture, Text } = PIXI;
   const nightOverlay = new Graphics();
   app.stage.addChild(nightOverlay);
   // vignette texture: radial gradient (transparent center -> dark edges), generated once
@@ -101,6 +101,22 @@
     reportError('background failed: ' + err.message);
   }
 
+  // trip bubble state: created with the character below, shown by maidBubble()
+  // ("ahh!" over her head on a face-plant — a sprite visual, never dialog),
+  // hidden by the loop when its timer runs out.
+  let tripBubble = null, tripBg = null, tripTx = null, tripBubbleT = 0;
+  function maidBubble(line) {
+    if (!tripBubble) return;
+    try {
+      tripTx.text = line;
+      const tw = tripTx.width || 90, th = tripTx.height || 40;
+      const w = Math.min(240, tw + 56), h = 64; // white oval, text centered
+      tripBg.clear(); tripBg.beginFill(0xffffff, 0.95); tripBg.drawEllipse(w / 2, h / 2, w / 2, h / 2); tripBg.endFill();
+      tripTx.position.set((w - tw) / 2, (h - th) / 2);
+      tripBubbleT = 1.8; // linger, then fade with the loop
+      tripBubble.visible = true;
+    } catch (e) { /* a silent bubble must not break the loop */ }
+  }
   // ---- Foot dust (world-space, under the character's feet) ------------------------
   // Created BEFORE the character so puffs render underneath her. Non-fatal:
   // if the texture fails, the game runs fine without dust.
@@ -122,6 +138,12 @@
     character = window.Entities.createCharacter(idleFrames, runFrames, dieFrames, fallFrames);
     character.applySettings();
     world.addChild(character.view);
+    tripBubble = new Container();
+    tripBg = new Graphics();
+    tripTx = new Text('ahh!', { fontSize: 34, fill: '#3a2a1a' });
+    tripBubble.addChild(tripBg); tripBubble.addChild(tripTx);
+    tripBubble.visible = false;
+    world.addChild(tripBubble);
   } catch (err) {
     reportError('character failed: ' + err.message);
     return;
@@ -307,8 +329,9 @@
           try { window.Brain && window.Brain.note && window.Brain.note('tired'); } catch (e) {}
           try { window.Live2D && window.Live2D.setMood && window.Live2D.setMood('sleepy'); } catch (e) {}
         }
-        if (window.Stamina.justTripped) { // face-plant: she says so, something thuds
+        if (window.Stamina.justTripped) { // face-plant: bubble + thud, never dialog
           try { window.Brain && window.Brain.note && window.Brain.note('trip'); } catch (e) {}
+          try { maidBubble('ahh!'); } catch (e) {} // sprite bubble over her head, every trip
           try { window.Sound && window.Sound.playSfx && window.Sound.playSfx('combat', 'hurt_0.ogg', { rate: 0.7, volume: 0.6 }); } catch (e) {}
           try { camera.shake(0.55); } catch (e) {} // the ground hits back — screen takes the fall with her
         }
@@ -395,6 +418,13 @@
       }
     }
     camera.update(view.x, view.y, dtSec);
+    if (tripBubbleT > 0) { // the "ahh!" floats over her head, then goes away
+      try {
+        tripBubble.position.set(view.x - 60, view.y - 200);
+        tripBubbleT -= wdt;
+        if (tripBubbleT <= 0) tripBubble.visible = false;
+      } catch (e) { tripBubbleT = 0; }
+    }
     updateVignettePos(view); // spotlight tracks the maid, not screen center
 
     if (background) {

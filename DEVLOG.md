@@ -2,11 +2,24 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
-## 2026-09-06 — Trip thud + rarity silence (no more "blue rare")
-- **Face-plant lands.** Tripping now kicks the camera (0.55 shake, between a hurt
-  jolt and the death rattle) and she yelps: "Ahhh—! T-tired legs got me, master…"
-  with its own `trip` voice prompt (the missing EV entry — it used to inherit
-  the found prompt). htrip M2/M7 pin both.
+## 2026-09-06 — Follow lives in kill + trip bubble (no trip talk)
+- **Find = know, not stick.** `foundIt` no longer shadows on every find. FOLLOW
+  now lives in the KILL action only (`killTrack` = hostile self-defense, fresh
+  order/hunt posture, or gilt free-fire): she pins the pack identity and holds
+  it until wiped — pursuit, 10s grace, no target swaps — so nothing slips away
+  mid-fight. A find with no kill behind it gets the camera pan (beat) and lets
+  go: grazers pan in silence; a calm hunter with no orders is named, then
+  released (60s cooldown, walk-away, search re-armed for OTHER groups). Idle
+  still observes; heel still holds. Answers your question directly: yes — a
+  hostile group auto-attacks AND follows until everything in it dies.
+- **Trip = white-oval "ahh!" bubble, no prompt.** The trip voice prompt is
+  deleted (chat EV + brain genLine both gone — trips never enter the dialog).
+  Every face-plant pops a white-oval sprite bubble printing "ahh!" over her
+  head for 1.8s, alongside the shake + hurt grunt. Htapp M3/M7, J5 (skip still
+  pans), J6 (calm hunter named + let go, zero approach legs) pin it. 28/28.
+- **Face-plant lands (superseded above).** Tripping kicked the camera (0.55 shake)
+  and briefly yelped through a `trip` voice prompt — both replaced: the shake
+  stays, the voice is now the white-oval "ahh!" bubble, prompt deleted.
 - **Tiers live in code, never in her mouth.** Found lines, think events, thought
   box, and snapshot entries name species + direction only — no more "blue rare".
   A rare+ pack earns at most the word "shiny", with explicit no-tiers/colors/

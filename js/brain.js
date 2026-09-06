@@ -92,7 +92,8 @@ window.Brain = (() => {
         genLine('resting', {}, `*easing off, hands on knees* Legs are getting heavy, master — resting a moment before I run them empty.`);
       } else if (kind === 'trip') {
         pushEvent('tripped over her own tired feet and ate dirt');
-        genLine('trip', {}, `*face-down in the dirt* Ahhh—! T-tired legs got me, master — a moment, I'm collecting myself...`);
+        // no voice: the sprite bubble over her head says "ahh!" (main.js) —
+        // trips never enter the dialog.
       } else if (kind === 'urged') {
         // master told her to work through the rest (any words — regex or [push]
         // tag): memory only, no chatter — her chat reply already answers him.
@@ -859,9 +860,6 @@ window.Brain = (() => {
     // for either (hunters won't stay calm; gilts are the job, not a question)
     const isHunter = !!((best && best.pack === 'lone') || (n && n.pack === 'lone'));
     const isGilt = !!((best && (best.species === 'giltboar' || best.pack !== undefined && best.gilt)) || (n && (n.species === 'giltboar' || n.gilt)));
-    followTarget = { x: (best && best.x !== undefined ? best.x : n.x), y: (best && best.y !== undefined ? best.y : n.y) };
-    try { followPack = (best && best.pack !== undefined ? best.pack : (n && n.pack)) || null; } catch (e) { followPack = null; } // pin the identity, not the spot
-    try { followKills0 = memory.kills | 0; } catch (e) { followKills0 = 0; }
     const bDir = best && best.dx !== undefined ? dirWord(best.dx, best.dy) : dir;
     const freshOrder = performance.now() - lastAskAt < 45000 || (objective && objective.kind === 'hunt'); // hunt posture never goes stale
     // quiet-found doctrine: no counts and no rarity in VOICE, ever — the event
@@ -869,13 +867,45 @@ window.Brain = (() => {
     // stance/feeling/template assembly used to live here; now fb('found') builds
     // the fallback from facts (same words the harnesses pin, none of the prose).
     try { pushEvent(`found ${en.total} ${isHunter ? 'hunter' : (isGilt ? 'giltboar(s)' : 'critter(s)')} ${bDir}`); } catch (e) {}
-    // Grazers are not the job: a SEARCH find moves on in silence — no line, no
-    // beat, no thought. (Idle rare+ finds still report + observe; heel holds.)
+    // FIND = know, not stick. FOLLOW lives in the KILL action only: she tracks
+    // a pack while she is killing it — ordered, hostile self-defense, or gilt
+    // free-fire — so it can't slip away mid-fight; she holds it until it dies.
+    // A find with no kill behind it gets the camera pan (beat) — she knows
+    // they're there, but just that — then lets go and finds other groups.
+    // Grazers pan in silence; a calm hunter with no orders is named in dialog,
+    // then released the same way. (Idle rare+ finds still report + observe;
+    // heel holds. Neither ever shadowed.)
     const grazers = !isHunter && !isGilt && !(en.hostile > 0) && !(attackOrder && freshOrder);
-    if (grazers && !opportunistic && !(objective && objective.kind === 'heel')) {
-      leavePack('grazers, not prey — moving on', true); // silent: tag + cooldown + walk-away, search re-armed
+    const killTrack = (en.hostile > 0) || (attackOrder && freshOrder) || isGilt;
+    // the found report, shared by the let-go path and the kill path: the queued
+    // found-line (serial, never dropped) + the thought-box pin.
+    function reportFind() {
+      let prev = null;
+      try {
+        for (let i = newsQueue.length - 1; i >= 0; i--) {
+          const f = newsQueue[i] && newsQueue[i].facts;
+          if (f && !f.switched) { prev = f; break; }
+        }
+      } catch (e) {}
+      const newsStamp = performance.now();
+      const facts = { total: en.total, dir: bDir, dist: distWord(n.dist), distPx: n.dist | 0, species: isHunter ? 'hunter' : (isGilt ? 'giltboar' : 'critter'), bestRarity: best.rarity || 'common', bestColor: ringWord(best), bestPrice: best.price || 2, hostile: en.hostile, ordered: !!(attackOrder && freshOrder), staleKey: 'pack', staleAt: newsStamp };
+      if (prev) {
+        facts.prev = `to the ${prev.dir || '?'} (${prev.dist || 'nearby'})`;
+        facts.compare = `the new one is ${distWord(n.dist)} vs ${prev.dist || 'nearby'} before — say which is closer and which you'd take first`;
+      }
+      queueNews({ facts, fallback: fb('found', facts) });
+      showThought(`*found ${en.total === 1 ? 'it' : `all ${en.total} of them`} — ${isHunter ? 'hunter' : (isGilt ? 'giltboar' : 'grazers')}*`, ['🔎 found', '👀 waiting orders'], 0);
+    }
+    if (!killTrack && !opportunistic && !(objective && objective.kind === 'heel')) {
+      focusBeat(n.x, n.y, 2.5); // the pan — see them, know them, nothing more
+      if (!grazers) reportFind(); // calm hunter: named, then let go — no shadow
+      leavePack(grazers ? 'grazers, not prey — moving on' : 'calm hunter, no orders — letting it be', true); // tag + cooldown + walk-away, search re-armed
       return;
     }
+    // KILL path: pin the identity and shadow the pack until it is wiped.
+    followTarget = { x: (best && best.x !== undefined ? best.x : n.x), y: (best && best.y !== undefined ? best.y : n.y) };
+    try { followPack = (best && best.pack !== undefined ? best.pack : (n && n.pack)) || null; } catch (e) { followPack = null; } // pin the identity, not the spot
+    try { followKills0 = memory.kills | 0; } catch (e) { followKills0 = 0; }
     following = true;
     followLostAcc = 0;
     focusBeat(n.x, n.y, 2.5); // every KEPT find gets the beat — lean in, slow-mo breath, ease back
@@ -883,25 +913,7 @@ window.Brain = (() => {
     // The focus beat above IS the camera move: lean in + slow-mo for a breath,
     // then ease back to her. Direction words ("to the north-east") carry the
     // where while the camera carries the moment.
-    // Generated found-line goes through the NEWS QUEUE (serial, never dropped —
-    // the pump speaks them one at a time whenever the dialog is free). If an
-    // earlier find is still waiting its turn, carry it as comparison so she
-    // reports which pack is closer and which she'd take first.
-    let prev = null;
-    try {
-      for (let i = newsQueue.length - 1; i >= 0; i--) {
-        const f = newsQueue[i] && newsQueue[i].facts;
-        if (f && !f.switched) { prev = f; break; }
-      }
-    } catch (e) {}
-    const newsStamp = performance.now(); // guard: this exact pack's queued line dies when the pack is shadowed/left
-    const facts = { total: en.total, dir: bDir, dist: distWord(n.dist), distPx: n.dist | 0, species: isHunter ? 'hunter' : (isGilt ? 'giltboar' : 'critter'), bestRarity: best.rarity || 'common', bestColor: ringWord(best), bestPrice: best.price || 2, hostile: en.hostile, ordered: !!(attackOrder && freshOrder), staleKey: 'pack', staleAt: newsStamp };
-    if (prev) {
-      facts.prev = `to the ${prev.dir || '?'} (${prev.dist || 'nearby'})`;
-      facts.compare = `the new one is ${distWord(n.dist)} vs ${prev.dist || 'nearby'} before — say which is closer and which you'd take first`;
-    }
-    queueNews({ facts, fallback: fb('found', facts) });
-    showThought(`*found ${en.total === 1 ? 'it' : `all ${en.total} of them`} — ${isHunter ? 'hunter' : (isGilt ? 'giltboar' : 'grazers')}*`, ['🔎 found', '👀 waiting orders'], 0);
+    reportFind();
     if (objective && objective.kind === 'heel') stopFollow(); // heel: announced, never shadowed
   }
   // ---- generated one-liners: facts in, HER words out (template = crash fallback)
