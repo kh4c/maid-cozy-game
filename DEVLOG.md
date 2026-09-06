@@ -2,6 +2,24 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — No tracer, true muzzle flash, default finding, never found twice
+- **Trail deleted, not shrunk.** The wisp still looked bad because the problem
+  was structural: a glow shed per bullet per frame (shotgun = 6 pellets × 60fps
+  of additive sprites) is a fat rope at ANY scale. No more shed — slug + muzzle
+  + hit sparks carry the shot. M5 pins the deletion.
+- **Flash was mid-barrel.** It sat 30px out with a +6 x-bias; the muzzle tip is
+  ~75px (64px sprite × 1.8, grip at 0.35). Flash now sits at 74px on-axis, and
+  slugs spawn at the tip (70px) instead of mid-barrel (34px) — no more bullet
+  appearing behind its own flash.
+- **Default is finding.** Boot, respawn, and stop all land on FIND — she
+  searches from the first frame, HUD opens on 🔎 finding. Think steers freely
+  while master is silent (`objectiveMaster` flag); master's words lock the
+  posture and think is held. Q2/Q3b/Q5 + A/I pins updated.
+- **One group is never found twice.** `reportedPacks` keys on the spawn-unique
+  pack id (loners key on member id); re-seen groups are tracked or let go in
+  silence — no second pan, no second line. Cleared on new life. J8 proves it:
+  same hunter re-seen past cooldown gets nothing. 29/29 green.
+
 ## 2026-09-06 — Slim tracer + grazers never an ask (no "Say the word")
 - **Yes, it was the trail.** `spark.png` is 512×512 — the tracer glow shed every
   frame at 0.05 scale was a ~26px additive blob, dwarfing the 11px slug. Trail

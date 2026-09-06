@@ -135,7 +135,7 @@ window.Gun = (() => {
   }
 
   function fire(ax, ay) {
-    const mx = px + HOVER_X + ax * 34, my = py + HOVER_Y + ay * 34; // barrel tip
+    const mx = px + HOVER_X + ax * 70, my = py + HOVER_Y + ay * 70; // muzzle tip: 64px sprite x1.8, grip at 0.35
     const n = Math.max(1, Math.round(W('pellets', 1) || 1)); // trigger pulls a fan on multi-pellet rows
     const fan = Number(W('spread', 0)) || 0;
     const baseA = Math.atan2(ay, ax);
@@ -151,8 +151,8 @@ window.Gun = (() => {
       bullets.push({ spr, vx: dx * W('projSpeed', 1400), vy: dy * W('projSpeed', 1400), life: W('projLife', 0.6) });
     }
 
-    // muzzle flash: random size + mirror flip, gone in a blink
-    flash.position.set(ax * 30 + 6, ay * 30);
+    // muzzle flash sits ON the muzzle tip (64px sprite x1.8, grip at 0.35 -> ~75px), gone in a blink
+    flash.position.set(ax * 74, ay * 74);
     flash.rotation = Math.atan2(ay, ax);
     flash.scale.set(0.13 + Math.random() * 0.08);
     flash.scale.y *= Math.random() < 0.5 ? 1 : -1;
@@ -310,7 +310,7 @@ window.Gun = (() => {
 
     // HIDE WHEN RUNNING (dev option gunHide=1): iron only comes out to shoot —
     // latch the trigger and the gun is there, cease and it's gone. Bullets and
-    // tracers live on the world layer, so fired shots keep flying while hidden.
+    // Bullets live on the world layer, so fired shots keep flying while hidden.
     try {
       const hide = window.Settings && Number(window.Settings.settings.gunHide) === 1;
       rig.visible = hide ? !!firing : true;
@@ -338,16 +338,8 @@ window.Gun = (() => {
       b.life -= dt;
       b.spr.x += b.vx * dt;
       b.spr.y += b.vy * dt;
-      // tracer trail: shed a short-lived glow at the tail every frame
-      const tr = new Sprite(texSpark);
-      tr.anchor.set(0.5, 0.5);
-      tr.blendMode = 'add';
-      tr.tint = 0xffe9a0;
-      tr.scale.set(0.02); // slim wisp, not a second bullet — the 512px spark runs huge
-      tr.alpha = 0.4;
-      tr.position.set(b.spr.x, b.spr.y);
-      world.addChild(tr);
-      sparks.push({ spr: tr, vx: 0, vy: 0, life: 0, max: 0.09 });
+      // No tracer trail — shedding a glow per bullet per frame (6 pellets x 60fps)
+      // built a fat additive rope no scale could slim. Slug + muzzle + hit sparks only.
       let dead = b.life <= 0;
       if (!dead && window.Enemies) {
         try {

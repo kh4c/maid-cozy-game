@@ -29,7 +29,7 @@ window.Brain = (() => {
     attackOrder = false; // new life: gun down
     try { stopFollow(); } catch (e) {}
     try { stopStroll(); } catch (e) {} // new life: legs stop too — no march carries over
-    try { objective = null; memoMode = null; leaveSpot = null; followTarget = null; lastSwitchAt = -1e9; searchDone = false; lastRareNote = -1e9; memo = { text: 'No tactical intent yet — treat as casual watch.', from: '', at: -1e9 }; } catch (e) {} // new life: no posture, no grudges, no memory, fresh eyes
+    try { objective = { kind: 'find' }; objectiveMaster = false; searchDone = false; memoMode = null; leaveSpot = null; followTarget = null; try { reportedPacks.clear(); } catch (e2) {} lastSwitchAt = -1e9; lastRareNote = -1e9; memo = { text: 'Eyes open — finding, master.', from: '', at: -1e9 }; } catch (e) {} // new life: back to finding, no grudges, no memory, fresh eyes
     askCount = 0; lastAskAt = -1e9; lastKillWordAt = -1e9; // new life: annoyance clock resets too
      try { memory.events.push(`(new life — ${reason})`); } catch (e) {}
   }
@@ -214,7 +214,7 @@ window.Brain = (() => {
   // Chat understands natural language, so IT summarizes what master wants into
   // a standing memo; the tactical brain reads it every think and obeys the
   // spirit of it. Expires with the life (resetMemory), replaceable any time.
-  let memo = { text: 'No tactical intent yet — treat as casual watch.', from: '', at: -1e9 };
+  let memo = { text: 'Eyes open — finding, master.', from: '', at: -1e9 }; // boot default is FINDING, not idle watch
   // Negation-aware: "don't kill / do not shoot / stop / no more /
   // stand down / come here / rest" always wins over attack words — telling
   // her NOT to kill must never latch hunting mode on. ("Leave them / not
@@ -284,11 +284,11 @@ window.Brain = (() => {
     // coins", "keep killing until 200") are just HUNT: no purse-watching,
     // no counting, no finish line — she kills everything, the purse fills.
     const qm = t.match(/(\d+)\s*coins?/);
-    if (qm && /(until|earn|quota|till|to\s+\d+\s*coins)/.test(t) && /(until|earn|make|get|reach|quota|till|keep)/.test(t)) { setObjective({ kind: 'hunt' }); memoMode = 'hunt'; }
-    else if (HEEL_RE.test(t)) { setObjective({ kind: 'heel' }); memoMode = 'heel'; }
-    else if (/(keep|continue)\s+\w*\s*(killing|hunting)/.test(t) || /hunt\s+them/.test(t)) { setObjective({ kind: 'hunt' }); memoMode = 'hunt'; }
-    else if (/(find|look for|search)/.test(t) && !objective && !wantsAttack(t)) {
-      setObjective({ kind: 'find' });
+    if (qm && /(until|earn|quota|till|to\s+\d+\s*coins)/.test(t) && /(until|earn|make|get|reach|quota|till|keep)/.test(t)) { setObjective({ kind: 'hunt' }); objectiveMaster = true; memoMode = 'hunt'; }
+    else if (HEEL_RE.test(t)) { setObjective({ kind: 'heel' }); objectiveMaster = true; memoMode = 'heel'; }
+    else if (/(keep|continue)\s+\w*\s*(killing|hunting)/.test(t) || /hunt\s+them/.test(t)) { setObjective({ kind: 'hunt' }); objectiveMaster = true; memoMode = 'hunt'; }
+    else if (/(find|look for|search)/.test(t) && (!objective || !objectiveMaster) && !wantsAttack(t)) {
+      setObjective({ kind: 'find' }); objectiveMaster = true;
       memoMode = 'find';
       note('find goal: report everything, hold fire');
     }
@@ -435,13 +435,13 @@ window.Brain = (() => {
     const chips = [];
     const num = (v, d) => { const n = parseFloat(v); return Number.isFinite(n) ? n : d; };
     try {
-      // [mode:find|hunt|heel] — posture only. Honored ONLY from idleness
-      // (no standing mode): once any posture stands, only master's words
-      // change it. The tactician proposes; the master disposes.
+      // [mode:find|hunt|heel] — posture only. Honored while no MASTER posture
+      // stands (boot default, think-set, post-stop finding): the tactician
+      // proposes freely until master speaks — then master owns it, think held.
       for (const m of reply.matchAll(/\[mode\s*:\s*(find|hunt|heel)\]/gi)) {
         try {
           const w = String(m[1]).toLowerCase();
-          if (!objective) { setObjective({ kind: w }); chips.push(`🧭 mode-${w}`); }
+          if (!objective || !objectiveMaster) { setObjective({ kind: w }); chips.push(`🧭 mode-${w}`); }
           else if (objective.kind === w) chips.push(`🧭 mode-${w}`);
           else { note(`think wanted mode ${w} but ${objective.kind} stands — master owns posture`); chips.push('🧭 mode-held'); }
         } catch (e) {}
@@ -738,6 +738,7 @@ window.Brain = (() => {
   let followTarget = null; // last seen pos of the followed pack (recallable)
   let followPack = null;   // pack id she's shadowing — identity over proximity, she doesn't swap targets
   let followKills0 = 0; // kill count when the shadow started — wiped = kills since
+  let reportedPacks = new Set(); // groups already found once — a group is never found twice (voice or pan)
   const FOLLOW_DIST = 280;  // shadow at this range (the flinch stands down for calm packs she shadows)
   const OBSERVE_DIST = 340; // observing a calm pack: stand off, watch, wait for orders
   const RANK = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 };
@@ -877,6 +878,12 @@ window.Brain = (() => {
     // heel holds. Neither ever shadowed.)
     const grazers = !isHunter && !isGilt && !(en.hostile > 0) && !(attackOrder && freshOrder);
     const killTrack = (en.hostile > 0) || (attackOrder && freshOrder) || isGilt;
+    // One group is NEVER found twice: pack ids (++gid) are unique per spawn, so
+    // a re-seen group is tracked or let go in silence — no second pan, no line.
+    // Loners share pack 'lone', so they key on member id instead.
+    const packId = (best && best.pack !== undefined ? best.pack : (n && n.pack));
+    const foundKey = packId === 'lone' ? ('lone:' + ((best && best.id) || (n && n.id) || '?')) : ('pack:' + packId);
+    const alreadyFound = reportedPacks.has(foundKey);
     // the found report, shared by the let-go path and the kill path: the queued
     // found-line (serial, never dropped) + the thought-box pin.
     function reportFind() {
@@ -895,10 +902,11 @@ window.Brain = (() => {
       }
       queueNews({ facts, fallback: fb('found', facts) });
       showThought(`*found ${en.total === 1 ? 'it' : `all ${en.total} of them`} — ${isHunter ? 'hunter' : (isGilt ? 'giltboar' : 'grazers')}*`, ['🔎 found', '👀 waiting orders'], 0);
+      try { reportedPacks.add(foundKey); } catch (e) {} // named once — this group never gets a second found
     }
     if (!killTrack && !opportunistic && !(objective && objective.kind === 'heel')) {
-      focusBeat(n.x, n.y, 2.5); // the pan — see them, know them, nothing more
-      if (!grazers) reportFind(); // calm hunter: named, then let go — no shadow
+      if (!alreadyFound) focusBeat(n.x, n.y, 2.5); // the pan — once per group, never twice
+      if (!grazers && !alreadyFound) reportFind(); // calm hunter: named once, then let go — no shadow
       leavePack(grazers ? 'grazers, not prey — moving on' : 'calm hunter, no orders — letting it be', true); // tag + cooldown + walk-away, search re-armed
       return;
     }
@@ -908,12 +916,12 @@ window.Brain = (() => {
     try { followKills0 = memory.kills | 0; } catch (e) { followKills0 = 0; }
     following = true;
     followLostAcc = 0;
-    focusBeat(n.x, n.y, 2.5); // every KEPT find gets the beat — lean in, slow-mo breath, ease back
+    if (!alreadyFound) focusBeat(n.x, n.y, 2.5); // every KEPT find gets the beat — once; re-acquired mid-fight resumes silent
 
     // The focus beat above IS the camera move: lean in + slow-mo for a breath,
     // then ease back to her. Direction words ("to the north-east") carry the
     // where while the camera carries the moment.
-    reportFind();
+    if (!alreadyFound) reportFind(); // named once — a re-acquired pack resumes the fight in silence
     if (objective && objective.kind === 'heel') stopFollow(); // heel: announced, never shadowed
   }
   // ---- generated one-liners: facts in, HER words out (template = crash fallback)
@@ -1063,7 +1071,8 @@ window.Brain = (() => {
   // after every wiped pack (heel holds instead), and hunt authorizes fire
   // without expiry. An explicit stop or death drops it.
   // Hierarchy: latest explicit command > standing posture > defaults.
-  let objective = null; // { kind: 'find' } | { kind: 'hunt' } | { kind: 'heel' } — standing posture, master's or think's
+  let objective = { kind: 'find' }; // DEFAULT is finding: she searches from boot, stands until master says stop
+  let objectiveMaster = false; // true once MASTER sets a posture — think steers defaults freely, never master orders
   function purseNow() {
     try { return (window.Inventory && window.Inventory.state ? window.Inventory.state().coins : 0) | 0; } catch (e) { return 0; }
   }
@@ -1088,7 +1097,7 @@ window.Brain = (() => {
       // FIND is locate + report + shadow — it does NOT arm the trigger.
       searchDone = false;
       note('standing posture: find');
-      genLine('posture-find', {}, `*salutes* Eyes open, master — I'll find them and report back. No shooting till you say so!`);
+      genLine('posture-find', {}, `*salutes* Eyes open, master — I'll find them and report back. Grazers get left be, quarry falls!`);
       return;
     }
     if (objective.kind === 'heel') {
@@ -1109,9 +1118,10 @@ window.Brain = (() => {
   }
   function clearObjective() {
     if (!objective) return;
-    objective = null;
+    objective = { kind: 'find' }; objectiveMaster = false; // stop drops the latch but never idles her — default is finding
+    searchDone = false;
     setAttackOrder(false, 'posture cleared'); // hunt posture was holding the trigger — release it
-    note('standing objective dropped — master said stop');
+    note('standing objective dropped — back to finding');
   }
   function objectiveTick(dt) {
     if (!objective) return;
