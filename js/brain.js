@@ -744,9 +744,6 @@ window.Brain = (() => {
     } catch (e) {}
     return best || (en && en.nearest) || null;
   }
-  function packValue(en) {
-    try { return (en.list || []).reduce((s, e) => s + ((e.price | 0) || 0), 0); } catch (e) { return 0; }
-  }
   // her feeling about hunting THIS pack — appetite scales with shininess.
   // Hunters wear red rings whatever the tier, so the color words go lone-aware.
   function huntingFeeling(best) {
@@ -849,7 +846,7 @@ window.Brain = (() => {
         facts: { total: p.enemies.total, dir: bDir, dist: distWord(bDist), distPx: bDist, species: swHunter ? 'hunter' : 'critter', bestRarity: avail.rarity || 'common', bestColor: ringWord(avail), bestPrice: bVal, hostile: p.enemies.hostile, ordered: false, switched: why, prev: `the old pack (${distWord(aDist)})` },
         fallback: line,
       });
-      showThought(`*switching shadow — ${why}*`, ['🔎 better pack', `💰 ~${packValue(p)}`], 0);
+      showThought(`*switching shadow — ${why}*`, ['🔎 better pack'], 0);
     } catch (e) {}
   }
   function foundIt(en, opportunistic) {
@@ -884,7 +881,7 @@ window.Brain = (() => {
       ? `*gasps, pointing ${bDir}* Found a hunter — red ring, ${distWord(n.dist)}, to the ${bDir}!${rareNote} ${feeling} ${stance}`
       : `*gasps, pointing ${bDir}* Found ${en.total === 1 ? 'a critter' : 'critters'} ${distWord(n.dist)}, to the ${bDir}!${rareNote} ` +
         `${feeling} ${stance}`;
-    try { pushEvent(`found ${en.total} critter(s) ${bDir} — best ${best.rarity} (~${packValue(en)} coins)`); } catch (e) {}
+    try { pushEvent(`found ${en.total} critter(s) ${bDir} — best ${best.rarity}`); } catch (e) {}
     // The focus beat above IS the camera move: lean in + slow-mo for a breath,
     // then ease back to her. Direction words ("to the north-east") carry the
     // where while the camera carries the moment.
@@ -906,7 +903,7 @@ window.Brain = (() => {
       facts.compare = `the new one is ${distWord(n.dist)} vs ${prev.dist || 'nearby'} before — say which is closer and which you'd take first`;
     }
     queueNews({ facts, fallback: line });
-    showThought(`*found ${en.total === 1 ? 'it' : `all ${en.total} of them`} — best is ${best.rarity}*`, ['🔎 found', `💰 ~${packValue(en)}`, '👀 waiting orders'], 0);
+    showThought(`*found ${en.total === 1 ? 'it' : `all ${en.total} of them`} — best is ${best.rarity}*`, ['🔎 found', '👀 waiting orders'], 0);
     if (objective && objective.kind === 'heel') stopFollow(); // heel: announced, never shadowed
   }
   // ---- generated one-liners: facts in, HER words out (template = crash fallback)
