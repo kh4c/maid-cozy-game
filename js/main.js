@@ -252,6 +252,7 @@
     window.Shop && window.Shop.init();
     window.Bestiary && window.Bestiary.init();
     window.Equipment && window.Equipment.init();
+    window.Accessories && window.Accessories.init(); // deeds + loadout, then hearts resize
   } catch (err) {
     reportError('inventory failed: ' + err.message);
   }
@@ -350,7 +351,8 @@
     } else {
       moved = wantsMove;
     }
-    const spdMul = (window.Store && typeof window.Store.speedMult === 'function') ? window.Store.speedMult() : 1;
+    const spdMul = ((window.Store && typeof window.Store.speedMult === 'function') ? window.Store.speedMult() : 1) *
+      ((window.Accessories && typeof window.Accessories.speedMult === 'function') ? window.Accessories.speedMult() : 1); // Swift Boots ride along
     // STOP AND SHOOT: trigger latched -> plant feet, no strafing while firing.
     // (Flee still works: legs run only when the trigger is released — [cease] to run.)
     try { if (window.Gun && window.Gun.status && window.Gun.status().firing) { a.x = 0; a.y = 0; moved = false; } } catch (e) {}

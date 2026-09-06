@@ -3,9 +3,11 @@
 // Nothing damages her yet except the P-panel Hurt button (and the console:
 // Health.damage(1)) — future hazards/enemies call the same API.
 window.Health = (() => {
-  const MAX = 9;
+  const BASE_MAX = 9;
+  let bonusMax = 0; // Heart Locket while worn — apply() resizes the frame
+  function max() { return BASE_MAX + bonusMax; }
   const RESPAWN_MS = 5000;
-  let hp = MAX;
+  let hp = BASE_MAX;
   let dead = false;
 
   // Combat feel, all cosmetic: random hurt thump at a random pitch, a camera
@@ -28,9 +30,9 @@ window.Health = (() => {
     const el = document.getElementById('hearts');
     if (!el) return;
     let s = '';
-    for (let i = 0; i < MAX; i++) s += heartImg(i < hp);
+    for (let i = 0; i < max(); i++) s += heartImg(i < hp);
     el.innerHTML = s;
-    el.title = hp + '/' + MAX;
+    el.title = hp + '/' + max();
   }
 
   function flash() {
@@ -77,7 +79,7 @@ window.Health = (() => {
   function respawn() {
     if (!dead) return;
     dead = false;
-    hp = MAX;
+    hp = max();
     try { window.Stamina && window.Stamina.reset && window.Stamina.reset(); } catch (e) {}
     try { window.Inventory && window.Inventory.reset && window.Inventory.reset(); } catch (e) {}
     render();
@@ -100,12 +102,19 @@ window.Health = (() => {
 
   function heal(n) {
     if (dead) return hp; // she has to sleep it off — respawn handles it
-    hp = Math.min(MAX, hp + (Math.abs(Math.round(Number(n))) || 1));
+    hp = Math.min(max(), hp + (Math.abs(Math.round(Number(n))) || 1));
     render();
     return hp;
   }
 
+  function setBonusMax(n) { // Heart Locket: +2 while worn, 0 when taken off
+    bonusMax = Math.max(0, Math.round(Number(n)) || 0);
+    hp = Math.min(hp, max());
+    render();
+    return max();
+  }
+
   function init() { render(); }
 
-  return { init, damage, heal, shakeAmount, get hp() { return hp; }, get dead() { return dead; }, get max() { return MAX } };
+  return { init, damage, heal, setBonusMax, shakeAmount, get hp() { return hp; }, get dead() { return dead; }, get max() { return max(); } };
 })();

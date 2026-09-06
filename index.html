@@ -36,6 +36,7 @@
 <script src="js/town.js"></script>
 <script src="js/bestiary.js"></script>
 <script src="js/equipment.js"></script>
+<script src="js/accessories.js"></script>
 </head>
 <body>
 <!-- stage-wrap holds the canvas (appended by main.js) + scene-anchored UI.
@@ -70,9 +71,10 @@
     <div id="equip-stage">
       <div id="equip-head"><span>🎒 EQUIPMENT</span><span id="equip-paused">⏸ PAUSED</span><button id="equip-close">✕</button></div>
       <div id="equip-mid">
-        <div id="equip-maid"><div id="equip-maid-frame"><img src="assets/SG_Maid_Idle.png" alt="Cosette" /></div><span id="equip-maid-name">Cosette</span></div>
+        <div id="equip-maid"><div id="equip-maid-frame"><canvas id="equip-sprite" width="128" height="128"></canvas></div><span id="equip-maid-name">Cosette</span></div>
         <div id="equip-hand"></div>
       </div>
+      <div id="equip-slots"></div>
       <div id="equip-sub">weapons below — EQUIP swaps when you close</div>
       <div id="equip-grid"></div>
     </div>

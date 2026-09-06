@@ -126,8 +126,7 @@ window.Store = (() => {
   function isOpen() { return open; }
 
   function describe() {
-    const bits = STOCK.map((s) => `${s.icon} ${s.name} ${s.price}c`);
-    return `Store (🛒 button): spends her persistent purse on ${bits.join(' · ')}. Owned upgrades: tank+${levels.stamina * 25} stamina, +${levels.damage} damage, +${levels.magnet * 40}px magnet, ×${speedMult().toFixed(2)} speed.`;
+    return `Store (her owned muscles, not a shop — everything buyable lives in the 🏪 Shop now): keeps her persistent upgrade levels — tank+${levels.stamina * 25} stamina, +${levels.damage} damage, +${levels.magnet * 40}px magnet, ×${speedMult().toFixed(2)} speed.`;
   }
 
   function init() {

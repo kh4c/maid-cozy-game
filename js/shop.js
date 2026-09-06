@@ -2,8 +2,8 @@
 // Grid cells on the left (hover or click a cell to inspect it), detail pane on
 // the right with description, price, and the BUY button; every cell also has
 // its own small buy button below it. Stock: the pump shotgun (persistent
-// unlock deed — Equipment shows 🔒 until bought) + all Store upgrades
-// (same backend, same purse, same levels).
+// unlock deed — Equipment shows 🔒 until bought) + 3 equipable accessories
+// (same purse, deeds persist, worn in the 3 🎒 slots).
 window.Shop = (() => {
   const $ = (id) => document.getElementById(id);
   const KEY = 'cosette.shop';
@@ -48,17 +48,16 @@ window.Shop = (() => {
     return `Close thunder for quarry work. ${stats}. One deed, yours forever — EQUIP it in 🔫 Equipment.`;
   }
 
-  function stock() { // grid order: the iron first, then the muscles
+  function stock() { // grid order: the iron first, then the trinkets
     const cells = [{
       id: 'shotgun', img: 'assets/shotgun.png', emoji: '🔫', name: 'Pump Shotgun',
       price: GUN_PRICE, desc: gunDesc(), owned: ownsShotgun(), soldOut: ownsShotgun(), why: ownsShotgun() ? 'owned' : '',
     }];
     try {
-      if (window.Store && typeof window.Store.items === 'function') {
-        for (const s of window.Store.items()) {
-          cells.push({ id: s.id, img: null, emoji: s.icon, name: s.name, price: s.price,
-            desc: s.desc + (s.cap > 1 ? ` (${s.owned}/${s.cap} owned)` : ''),
-            owned: false, soldOut: s.soldOut, why: s.why });
+      if (window.Accessories && typeof window.Accessories.list === 'function') {
+        for (const a of window.Accessories.list()) {
+          cells.push({ id: a.id, img: null, emoji: a.emoji, name: a.name, price: a.price,
+            desc: a.desc, owned: a.owned, soldOut: a.owned, why: a.owned ? 'owned' : '' });
         }
       }
     } catch (e) {}
@@ -78,10 +77,10 @@ window.Shop = (() => {
       return { ok: true };
     }
     try {
-      if (window.Store && typeof window.Store.buy === 'function') {
-        const r = window.Store.buy(id);
-        if (r && r.ok) { const c = stock().find((x) => x.id === id); toast(`${c ? c.name : id} bought!`); flashPanel(); }
-        else toast(r && r.why === 'maxed' ? 'Sold out!' : 'Not enough coins!');
+      if (window.Accessories && typeof window.Accessories.known === 'function' && window.Accessories.known(id)) {
+        const r = window.Accessories.buy(id);
+        if (r && r.ok) { toast(`✨ ${r.name} — YOURS! Wear it in 🎒 Equipment.`); flashPanel(); }
+        else toast(r && r.why === 'owned' ? 'Already yours — see 🎒 Equipment.' : 'Not enough coins!');
         render(); return r;
       }
     } catch (e) {}
@@ -131,14 +130,16 @@ window.Shop = (() => {
   function isOpen() { return open; }
 
   function describe() {
-    return `Shop (🏪 button, Marta in town opens it): spends her persistent purse — pump shotgun ${GUN_PRICE}c (persistent unlock, EQUIP in 🔫 Equipment), full heal 30c, tank/magnet/legs/damage upgrades. Shotgun owned: ${ownsShotgun() ? 'yes' : 'not yet'}.`;
+    let gear = 'none';
+    try { gear = window.Accessories && typeof window.Accessories.describe === 'function' ? window.Accessories.describe() : gear; } catch (e) {}
+    return `Shop (🏪 button, Marta in town opens it): spends her persistent purse — pump shotgun ${GUN_PRICE}c (persistent unlock, EQUIP in 🎒 Equipment) + 3 equipable accessories (worn in the 3 🎒 slots). Shotgun owned: ${ownsShotgun() ? 'yes' : 'not yet'}. ${gear}`;
   }
 
   function init() {
     load();
     const btn = $('store-btn'); // 🛒 opens the till now (old list panel retired)
     if (btn) {
-      btn.title = 'Shop — spend coins on the shotgun and upgrades';
+      btn.title = 'Shop — the shotgun deed and equipable trinkets';
       btn.addEventListener('click', (e) => { try { e.stopPropagation(); } catch (_) {} toggle(); });
     }
     const o = $('shop-overlay');

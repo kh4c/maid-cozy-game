@@ -228,11 +228,11 @@ canvas { display: block; }
 }
 #shop-panel {
   width: min(920px, 94vw);
-  background: linear-gradient(180deg, #4a3220, #33200f);
-  border: 3px solid #8a6a3a; outline: 2px solid #ffd24a; outline-offset: -8px;
-  border-radius: 12px; padding: 16px 20px 20px;
+  background: linear-gradient(180deg, #1c2450, #12173a);
+  border: 2px solid #3d4a7a;
+  border-radius: 14px; padding: 16px 20px 20px;
   font-family: 'Press Start 2P', monospace; font-size: 10px; line-height: 1.7;
-  color: #f0e0c0; user-select: none; position: relative;
+  color: #dfe6ff; user-select: none; position: relative;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
 }
 #shop-panel.sold-flash { animation: sold-flash 0.5s ease-out; }
@@ -240,17 +240,17 @@ canvas { display: block; }
 #shop-head {
   display: flex; align-items: center; gap: 12px;
   font-size: 13px; font-weight: bold; color: #ffd24a; margin-bottom: 6px;
-  text-shadow: 2px 2px 0 #2a1a08;
+  text-shadow: 2px 2px 0 #0a0e24;
 }
 #shop-coins { flex: 1; font-size: 10px; color: #ffe08a; }
 #shop-close {
-  cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 11px; color: #ffd24a;
-  background: #5a3a1c; border: 2px solid #8a6a3a; border-radius: 6px; padding: 6px 9px;
+  cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 11px; color: #dfe6ff;
+  background: #2a3368; border: 2px solid #3d4a7a; border-radius: 6px; padding: 6px 9px;
 }
-#shop-close:hover { background: #7a4e24; border-color: #ffd24a; }
+#shop-close:hover { background: #343e7d; border-color: #4de3ff; color: #fff; }
 #shop-toast {
   min-height: 20px; text-align: center; font-size: 10px; color: #ffe08a;
-  text-shadow: 1px 1px 0 #2a1a08; opacity: 0; margin-bottom: 4px;
+  text-shadow: 1px 1px 0 #0a0e24; opacity: 0; margin-bottom: 4px;
 }
 #shop-toast.show { opacity: 1; animation: toast-pop 0.3s ease-out; }
 @keyframes toast-pop { 0% { transform: scale(0.85); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
@@ -262,39 +262,39 @@ canvas { display: block; }
 .shop-cell {
   aspect-ratio: 1 / 1;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
-  background: #2a1d12; border: 2px solid #6b4a2f;
+  background: #232c52; border: 2px solid #3d4a7a;
   border-radius: 10px; padding: 10px 6px; cursor: pointer;
   transition: transform 0.12s ease-out, border-color 0.12s, box-shadow 0.12s, background 0.12s;
 }
 .shop-cell:hover, .shop-cell.sel {
   transform: translateY(-4px) scale(1.03);
-  border-color: #ffd24a; background: #3a2614;
+  border-color: #ffd24a; background: #2b3563;
   box-shadow: 0 0 18px rgba(255, 210, 74, 0.45);
 }
 .shop-cell-icon { width: 84px; height: 84px; object-fit: contain; image-rendering: pixelated; font-size: 56px; }
-.shop-cell-name { color: #ffd9a0; font-size: 9px; width: 100%; text-align: left; }
+.shop-cell-name { color: #dfe6ff; font-size: 9px; width: 100%; text-align: left; }
 .shop-cell-buy {
   cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 9px; color: #1a1206;
   background: #ffd24a; border: none; border-radius: 5px; padding: 7px 8px; width: 100%;
 }
 .shop-cell-buy:hover:not(.disabled) { background: #ffe08a; }
-.shop-cell-buy.disabled { background: #4a3a26; color: #8d7a5a; cursor: default; }
+.shop-cell-buy.disabled { background: #2a3368; color: #5a639c; cursor: default; }
 #shop-detail {
   width: 260px; flex: none; display: flex; flex-direction: column;
-  align-items: center; gap: 10px; text-align: center;
-  background: #241708; border: 2px solid #8a6a3a;
+  align-items: flex-start; gap: 10px; text-align: left;
+  background: #0f1440; border: 2px solid #3d4a7a;
   border-radius: 10px; padding: 16px 12px;
 }
-.shop-big-icon { width: 110px; height: 110px; object-fit: contain; image-rendering: pixelated; font-size: 72px; }
-.shop-detail-name { font-weight: bold; font-size: 11px; color: #ffd24a; text-shadow: 1px 1px 0 #2a1a08; }
-.shop-detail-desc { font-size: 9px; color: #d8c49a; }
+.shop-big-icon { width: 110px; height: 110px; object-fit: contain; image-rendering: pixelated; font-size: 72px; align-self: center; }
+.shop-detail-name { font-weight: bold; font-size: 11px; color: #ffd24a; text-shadow: 1px 1px 0 #0a0e24; }
+.shop-detail-desc { font-size: 9px; color: #aeb8e8; }
 .shop-detail-price { font-size: 12px; color: #fff; }
 .shop-buy-big {
   cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 10px; color: #1a1206;
   background: #ffd24a; border: none; border-radius: 6px; padding: 11px 14px; width: 100%;
 }
 .shop-buy-big:hover:not(.disabled) { background: #ffe08a; box-shadow: 0 0 14px rgba(255, 210, 74, 0.6); }
-.shop-buy-big.disabled { background: #4a3a26; color: #8d7a5a; cursor: default; }
+.shop-buy-big.disabled { background: #2a3368; color: #5a639c; cursor: default; }
 
 /* ---- Equipment: 🔫 iron-closet button + big panel (mirrors bestiary) --------- */
 #equip-btn {
@@ -338,7 +338,7 @@ canvas { display: block; }
   width: 128px; height: 128px; overflow: hidden;
   border: 3px solid #ffd24a; border-radius: 12px; background: #0a0e24;
 }
-#equip-maid-frame img { width: 512px; height: 384px; image-rendering: pixelated; }
+#equip-maid-frame img, #equip-sprite { width: 128px; height: 128px; image-rendering: pixelated; display: block; }
 #equip-maid-name { margin-top: 6px; font-size: 9px; color: #ffd9a0; }
 #equip-hand {
   flex: 1; display: flex; gap: 10px; align-items: center;
@@ -371,7 +371,18 @@ canvas { display: block; }
 }
 .equip-cell-btn:hover:not(.equipped) { background: #a5f1ff; }
 .equip-cell-btn.equipped { background: #ffd24a; cursor: default; }
+.equip-cell span.equip-cell-icon { font-size: 44px; line-height: 72px; text-align: center; }
 .equip-sub2 { font-size: 9px; color: #8d96c8; }
+#equip-slots { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.equip-slots-label { font-size: 8px; color: #4de3ff; letter-spacing: 1px; }
+.equip-slot {
+  cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 8px; color: #ffd24a;
+  background: #0f1440; border: 2px solid #4de3ff; border-radius: 8px; padding: 8px 10px;
+}
+.equip-slot:hover { box-shadow: 0 0 12px rgba(77, 227, 255, 0.5); }
+.equip-slot.empty { color: #5a639c; border-color: #3d4a7a; background: #171d42; cursor: default; }
+.equip-slot.empty:hover { box-shadow: none; }
+.equip-acc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 8px; }
 
 /* ---- Combat bar: sense readout + aim/auto/think buttons -------------------- */
 #combat-bar {

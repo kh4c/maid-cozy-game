@@ -34,7 +34,8 @@ window.Inventory = (() => {
 
   // critters call drop(x, y, n) when they die
   async function drop(x, y, n) {
-    const count = Math.max(1, Math.round(Number(n) || 1));
+    const greed = (window.Accessories && typeof window.Accessories.coinMult === 'function') ? window.Accessories.coinMult() : 1; // Greedy Charm
+    const count = Math.max(1, Math.round((Number(n) || 1) * greed));
     try {
       const t = await ensureTex();
       for (let i = 0; i < count; i++) {
