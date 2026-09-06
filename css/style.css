@@ -231,7 +231,7 @@ canvas { display: block; }
   background: linear-gradient(180deg, #1c2450, #12173a);
   border: 2px solid #3d4a7a;
   border-radius: 14px; padding: 16px 20px 20px;
-  font-family: 'Press Start 2P', monospace; font-size: 10px; line-height: 1.7;
+  font-family: 'VT323', monospace; font-size: 14px; line-height: 1.5;
   color: #dfe6ff; user-select: none; position: relative;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
 }
@@ -239,17 +239,17 @@ canvas { display: block; }
 @keyframes sold-flash { 0% { box-shadow: 0 0 60px rgba(255, 210, 74, 0.9); } 100% { box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7); } }
 #shop-head {
   display: flex; align-items: center; gap: 12px;
-  font-size: 13px; font-weight: bold; color: #ffd24a; margin-bottom: 6px;
+  font-size: 18px; font-weight: bold; color: #ffd24a; margin-bottom: 6px;
   text-shadow: 2px 2px 0 #0a0e24;
 }
-#shop-coins { flex: 1; font-size: 10px; color: #ffe08a; }
+#shop-coins { flex: 1; font-size: 14px; color: #ffe08a; }
 #shop-close {
-  cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 11px; color: #dfe6ff;
+  cursor: pointer; font-family: 'VT323', monospace; font-size: 15px; color: #dfe6ff;
   background: #2a3368; border: 2px solid #3d4a7a; border-radius: 6px; padding: 6px 9px;
 }
 #shop-close:hover { background: #343e7d; border-color: #4de3ff; color: #fff; }
 #shop-toast {
-  min-height: 20px; text-align: center; font-size: 10px; color: #ffe08a;
+  min-height: 20px; text-align: center; font-size: 14px; color: #ffe08a;
   text-shadow: 1px 1px 0 #0a0e24; opacity: 0; margin-bottom: 4px;
 }
 #shop-toast.show { opacity: 1; animation: toast-pop 0.3s ease-out; }
@@ -272,9 +272,9 @@ canvas { display: block; }
   box-shadow: 0 0 18px rgba(255, 210, 74, 0.45);
 }
 .shop-cell-icon { width: 84px; height: 84px; object-fit: contain; image-rendering: pixelated; font-size: 56px; }
-.shop-cell-name { color: #dfe6ff; font-size: 9px; width: 100%; text-align: left; }
+.shop-cell-name { color: #dfe6ff; font-size: 13px; width: 100%; text-align: left; }
 .shop-cell-buy {
-  cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 9px; color: #1a1206;
+  cursor: pointer; font-family: 'VT323', monospace; font-size: 13px; color: #1a1206;
   background: #ffd24a; border: none; border-radius: 5px; padding: 7px 8px; width: 100%;
 }
 .shop-cell-buy:hover:not(.disabled) { background: #ffe08a; }
@@ -286,11 +286,11 @@ canvas { display: block; }
   border-radius: 10px; padding: 16px 12px;
 }
 .shop-big-icon { width: 110px; height: 110px; object-fit: contain; image-rendering: pixelated; font-size: 72px; align-self: center; }
-.shop-detail-name { font-weight: bold; font-size: 11px; color: #ffd24a; text-shadow: 1px 1px 0 #0a0e24; }
-.shop-detail-desc { font-size: 9px; color: #aeb8e8; }
-.shop-detail-price { font-size: 12px; color: #fff; }
+.shop-detail-name { font-weight: bold; font-size: 15px; color: #ffd24a; text-shadow: 1px 1px 0 #0a0e24; }
+.shop-detail-desc { font-size: 13px; color: #aeb8e8; }
+.shop-detail-price { font-size: 17px; color: #fff; }
 .shop-buy-big {
-  cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 10px; color: #1a1206;
+  cursor: pointer; font-family: 'VT323', monospace; font-size: 14px; color: #1a1206;
   background: #ffd24a; border: none; border-radius: 6px; padding: 11px 14px; width: 100%;
 }
 .shop-buy-big:hover:not(.disabled) { background: #ffe08a; box-shadow: 0 0 14px rgba(255, 210, 74, 0.6); }
@@ -316,19 +316,19 @@ canvas { display: block; }
   width: min(560px, 94vw);
   background: linear-gradient(180deg, #1c2450, #12173a);
   border: 2px solid #3d4a7a; border-radius: 14px; padding: 14px 16px 18px;
-  font-family: 'Press Start 2P', monospace; font-size: 10px; line-height: 1.7;
+  font-family: 'VT323', monospace; font-size: 14px; line-height: 1.5;
   color: #dfe6ff; user-select: none;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
 }
 #equip-head {
   display: flex; align-items: center; gap: 12px;
-  font-size: 12px; color: #fff; text-shadow: 2px 2px 0 #0a0e24;
+  font-size: 17px; color: #fff; text-shadow: 2px 2px 0 #0a0e24;
 }
 #equip-paused {
-  flex: 1; font-size: 9px; color: #4de3ff;
+  flex: 1; font-size: 13px; color: #4de3ff;
 }
 #equip-close {
-  cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 11px; color: #dfe6ff;
+  cursor: pointer; font-family: 'VT323', monospace; font-size: 15px; color: #dfe6ff;
   background: #2a3368; border: 2px solid #3d4a7a; border-radius: 6px; padding: 6px 9px;
 }
 #equip-close:hover { border-color: #4de3ff; color: #fff; }
@@ -339,7 +339,7 @@ canvas { display: block; }
   border: 3px solid #ffd24a; border-radius: 12px; background: #0a0e24;
 }
 #equip-maid-frame img, #equip-sprite { width: 96px; height: 96px; image-rendering: pixelated; display: block; }
-#equip-maid-name { margin-top: 6px; font-size: 9px; color: #ffd9a0; }
+#equip-maid-name { margin-top: 6px; font-size: 13px; color: #ffd9a0; }
 #equip-hand {
   flex: 1; display: flex; gap: 10px; align-items: center;
   background: #0f1440; border: 2px solid #4de3ff;
@@ -347,18 +347,18 @@ canvas { display: block; }
 }
 .equip-hand-icon { width: 64px; height: 64px; flex: none; object-fit: contain; image-rendering: pixelated; }
 .equip-hand-body { display: flex; flex-direction: column; gap: 3px; }
-.equip-inhand { font-size: 8px; color: #4de3ff; letter-spacing: 1px; }
-.equip-hand-name { font-size: 10px; color: #ffd24a; }
-.equip-hand-stats { font-size: 8px; color: #aeb8e8; }
-.equip-hand-desc { font-size: 8px; color: #8d96c8; font-style: italic; }
+.equip-inhand { font-size: 12px; color: #4de3ff; letter-spacing: 1px; }
+.equip-hand-name { font-size: 14px; color: #ffd24a; }
+.equip-hand-stats { font-size: 12px; color: #aeb8e8; }
+.equip-hand-desc { font-size: 12px; color: #8d96c8; font-style: italic; }
 #equip-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
 .equip-tab {
-  flex: 1; cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 9px; color: #8d96c8;
+  flex: 1; cursor: pointer; font-family: 'VT323', monospace; font-size: 13px; color: #8d96c8;
   background: #171d42; border: 2px solid #3d4a7a; border-radius: 8px; padding: 9px 10px;
 }
 .equip-tab:hover { color: #dfe6ff; border-color: #4de3ff; }
 .equip-tab.sel { color: #0a0e24; background: #ffd24a; border-color: #ffd24a; }
-#equip-sub { font-size: 8px; color: #8d96c8; text-align: center; margin-bottom: 10px; }
+#equip-sub { font-size: 12px; color: #8d96c8; text-align: center; margin-bottom: 10px; }
 #equip-grid { display: grid; grid-template-columns: repeat(4, 68px); gap: 10px; justify-content: start; }
 .equip-cell {
   width: 68px; height: 68px;
@@ -375,21 +375,21 @@ span.equip-cell-icon { font-size: 32px; line-height: 1; cursor: pointer; }
   display: none; position: absolute; bottom: calc(100% + 8px); left: 50%;
   transform: translateX(-50%); width: max-content; max-width: 190px;
   background: #0f1440; border: 2px solid #4de3ff; border-radius: 8px;
-  padding: 8px 10px; font-family: 'Press Start 2P', monospace; font-size: 8px;
+  padding: 8px 10px; font-family: 'VT323', monospace; font-size: 12px;
   line-height: 1.7; color: #dfe6ff; text-align: left; z-index: 5; pointer-events: none;
 }
 .equip-tip .t-name { color: #ffd24a; }
 .equip-cell:hover .equip-tip, .equip-slot:hover .equip-tip { display: block; }
 .equip-cell-btn {
-  cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 8px; color: #0a0e24;
+  cursor: pointer; font-family: 'VT323', monospace; font-size: 12px; color: #0a0e24;
   background: #4de3ff; border: none; border-radius: 5px; padding: 7px 8px; width: 100%;
 }
 .equip-cell-btn:hover:not(.equipped) { background: #a5f1ff; }
 .equip-cell-btn.equipped { background: #ffd24a; cursor: default; }
 .equip-cell span.equip-cell-icon { font-size: 32px; line-height: 1; text-align: center; }
-.equip-sub2 { font-size: 9px; color: #8d96c8; }
+.equip-sub2 { font-size: 13px; color: #8d96c8; }
 #equip-slots { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
-.equip-slots-label { font-size: 8px; color: #4de3ff; letter-spacing: 1px; }
+.equip-slots-label { font-size: 12px; color: #4de3ff; letter-spacing: 1px; }
 .equip-slot {
   width: 46px; height: 46px; padding: 0;
   cursor: pointer; font-size: 22px; line-height: 1; color: #ffd24a;
