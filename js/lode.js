@@ -1,7 +1,8 @@
 // Lode — the 🧲 Lodestone Drone. A 🏪 shop deed (350c) flown from the 🎒 PETS tab.
 // No leash, no loop: it wanders the screen at one fixed pace (nearby dreams,
-// never a dash, nev...[truncated]
-// it hangs a storm cone — narrow at the rotor, wide on the grass — drawn
+// never a dash, never a blink) and only commutes for loose coins — and it
+// never loses her screen: fall too far behind and it flies home first at a
+// catch-up gear, coins later. Under it hangs a storm cone — narrow at the
 // slightly from the side (flattened mouth ellipse, not a top-down circle).
 // Everything inside the mouth is SLOWED to half speed AND zapped for 1dmg
 // every second (payouts ride the scout-proven damageAt → accountHits path).
@@ -14,11 +15,14 @@ window.Lode = (() => {
   const DROP = 70;         // altitude: the ground point hangs 70px under its feet
   const ROAM_X = 380, ROAM_Y = 260; // drift box half-extents around her — the screen, not her heels
   const SPD = 180, FETCH_SPD = 260; // px/s — ONE pace everywhere, the commute only slightly brisker. No easing, no bursts, no teleports
+  const CATCH_SPD = 340; // the follow gear — beats her 300 run, so it always gains. Only flies when it lost her screen
+  const FOLLOW_FAR = 450, FOLLOW_NEAR = 250; // hysteresis: fly home past 450, dream again inside 250 — no flapping at the line
   const FETCH_R = 700;     // spots loose coins this far from its ground point
   const SCOOP_R = 50;      // swallows coins this close (at the ground point)
   const SNARE_R = 140, SNARE_F = 0.5; // the storm mouth: half speed inside
   const ZAP_CD = 1.0, ZAP_DMG = 1;    // electric tick — polite, not a second rifle
   const LEASH = 600;       // she outruns it this far and it comes home — it follows, not just visits
+  let far = false; // behind her screen — flying home, not dreaming
   const OWN_KEY = 'cosette.lode';
 
   let world = null, spr = null, cone = null;
@@ -142,6 +146,8 @@ window.Lode = (() => {
     try { dead = !!(window.Health && window.Health.dead); } catch (e) {}
     if (!dx && !dy) { dx = px; dy = py - 100; } // first frame: above her, never flying in from origin
     const gx = dx, gy = dy + DROP;
+    const behind = Math.hypot(px - dx, (py - 100) - dy); // how far off her screen it fell
+    if (behind > FOLLOW_FAR) far = true; else if (behind < FOLLOW_NEAR) far = false; // hysteresis — no flapping at the line
     // a loose coin is a commute; otherwise dream a new drift every few seconds
     let tx = null, ty = 0, fetching = false;
     if (!dead) {
@@ -158,8 +164,9 @@ window.Lode = (() => {
       tx = roamTx; ty = roamTy;
     }
     if (tx === null) { tx = px; ty = py - 100; } // dead or dreamless: hold above her
-    if (!dead && Math.hypot(dx - px, dy - py) > LEASH) { tx = px; ty = py - 100; } // she outran it — it walks home at the same pace, never blinks over
-    const spd = fetching ? FETCH_SPD : SPD;
+    if (far) { tx = px; ty = py - 100; fetching = false; } // lost her screen — fly home first, coins later
+    else if (!dead && Math.hypot(dx - px, dy - py) > LEASH) { tx = px; ty = py - 100; } // backstop: she outran everything — come home
+    const spd = fetching ? FETCH_SPD : (far ? CATCH_SPD : SPD);
     const mdx = tx - dx, mdy = ty - dy, mdist = Math.hypot(mdx, mdy);
     if (mdist > 1) { const step = Math.min(mdist, spd * wdt); dx += mdx / mdist * step; dy += mdy / mdist * step; }
     const nx = dx, ny = dy + DROP;

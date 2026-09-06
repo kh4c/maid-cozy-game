@@ -168,6 +168,26 @@ window.Gun = (() => {
     if (camera) camera.shake(0.22); // TNT thud
   }
 
+  // Birth pop — the TNT cubes, minus the thud. Things arrive the way they leave.
+  function birthPop(x, y) {
+    try {
+      const base = (typeof texCube !== 'undefined' && texCube && texCube.valid !== false) ? texCube : texSpark;
+      for (let i = 0; i < 14; i++) { // a hello, not a bang — fewer cubes than the 22-cube death
+        const a = Math.random() * Math.PI * 2;
+        const sp = 80 + Math.random() * 220;
+        const s = new Sprite(base);
+        s.anchor.set(0.5, 0.5);
+        s.tint = TNT_TINTS[(Math.random() * TNT_TINTS.length) | 0];
+        s.scale.set(0.4 + Math.random() * 0.5);
+        s.rotation = Math.random() * Math.PI * 2;
+        s.position.set(x + (Math.random() - 0.5) * 8, y + (Math.random() - 0.5) * 8);
+        world.addChild(s);
+        sparks.push({ spr: s, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 120,
+          life: 0, max: 0.4 + Math.random() * 0.35, g: 900, spin: (Math.random() - 0.5) * 20 });
+      }
+    } catch (e) { /* a quiet birth still walks */ }
+  }
+
   function fire(ax, ay) {
     const mx = px + HOVER_X + ax * 70, my = py + HOVER_Y + ay * 70; // muzzle tip: 64px sprite x1.8, grip at 0.35
     const n = Math.max(1, Math.round(W('pellets', 1) || 1)); // trigger pulls a fan on multi-pellet rows
@@ -500,6 +520,6 @@ window.Gun = (() => {
 
   return { init, update, debug, status, aimSide,
     setAimMode, toggleAim, getAimMode,
-    aiAimAt, aiAimDir, aiAimNearest, aiFire, aiCease, accountHits, trailStep, trailDone, blip, flashRead,
+    aiAimAt, aiAimDir, aiAimNearest, aiFire, aiCease, accountHits, trailStep, trailDone, blip, flashRead, birthPop,
     bulletDamage: () => W('damage', 4), setDamage, rangePx: () => W('rangePx', 840) };
 })();

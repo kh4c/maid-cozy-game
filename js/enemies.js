@@ -158,6 +158,7 @@ window.Enemies = (() => {
         gilt: !!gilt, // golden quarry flag — entries, rings, and her trigger read this
         brave: Math.random() < (gilt ? 0.8 : 0.6), // gilts stand more — a satisfying fight; the rest bolt
         orbit: Math.random() < 0.5 ? 1 : -1 }); // milling circle direction
+      try { if (window.Gun && window.Gun.birthPop) window.Gun.birthPop(anchor.x + ox, anchor.y + oy); } catch (e) {} // born the way things die — TNT cubes, no thud
     }
     groups.push(g);
   }
@@ -193,6 +194,7 @@ window.Enemies = (() => {
     m.ax = m.x; m.ay = m.y; // anchor it mills around until provoked
     world.addChild(view);
     loners.push(m);
+    try { if (window.Gun && window.Gun.birthPop) window.Gun.birthPop(m.x, m.y); } catch (e) {} // born the way things die
   }
 
   function bossAlive() {
@@ -255,6 +257,7 @@ window.Enemies = (() => {
     view.zIndex = m.y; // newborns sort by feet from the first frame
       world.addChild(view);
       loners.push(m);
+      try { if (window.Gun && window.Gun.birthPop) window.Gun.birthPop(m.x, m.y); } catch (e) {} // the horror arrives cubically too
       bossTele = new Graphics(); // the red lane, drawn during aim, cleared after
       bossTele.zIndex = -400; // paint lies on the dirt, under every foot
       world.addChild(bossTele);
