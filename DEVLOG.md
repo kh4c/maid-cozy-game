@@ -2,6 +2,17 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Silent skip: grazers get no line and no camera, just the walk
+- **No "found what", no investigation.** A search find of calm critters now moves
+  on in full silence — no Found line, no focus beat, no thought-box flicker.
+  Only the feet speak: tag the pack (wanders off), 60s spot cooldown (no
+  re-find), walk-away legs, search re-armed for the next group.
+- The skip returns before the beat/voice/shadow setup, so quarry finds keep all
+  three (J1/P1 prove the gilt beat + line). Idle rare+ still reports + observes;
+  heel still announces + holds; hunt/orders/hostiles untouched.
+- Guards: find-path harnesses assert silence now; shadow/switch/pan/beat guards
+  run on gilt fixtures; L (sticky pursuit) too. 28/28 green.
+
 ## 2026-09-06 — Skip grazers: search finds move on, never shadow critters
 - **Camera pans, she sees grazers, she keeps walking.** A search find of calm
   critters (no fresh order) now says "Found critters — not our prey, moving on."

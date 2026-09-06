@@ -851,10 +851,7 @@ window.Brain = (() => {
   function foundIt(en, opportunistic) {
     searchDone = true;
     stopStroll();
-    following = true;
-    followLostAcc = 0;
     const n = en.nearest;
-    focusBeat(n.x, n.y, 2.5); // EVERY find gets the beat — lean in, slow-mo breath, ease back
     const dir = dirWord(n.dx, n.dy);
     const best = bestPrize(en) || n;
     // species check FIRST — a lone hunter is named hunter, never "critters",
@@ -872,17 +869,16 @@ window.Brain = (() => {
     // stance/feeling/template assembly used to live here; now fb('found') builds
     // the fallback from facts (same words the harnesses pin, none of the prose).
     try { pushEvent(`found ${en.total} ${isGilt ? 'giltboar(s)' : 'critter(s)'} ${bDir} — best ${best.rarity}`); } catch (e) {}
-    // Grazers are not the job: a SEARCH find says so once and keeps walking —
-    // no shadow, no wait. (Idle rare+ finds still report + observe; heel holds.)
+    // Grazers are not the job: a SEARCH find moves on in silence — no line, no
+    // beat, no thought. (Idle rare+ finds still report + observe; heel holds.)
     const grazers = !isHunter && !isGilt && !(en.hostile > 0) && !(attackOrder && freshOrder);
     if (grazers && !opportunistic && !(objective && objective.kind === 'heel')) {
-      const stamp = performance.now();
-      const facts = { total: en.total, dir: bDir, dist: distWord(n.dist), distPx: n.dist | 0, species: 'critter', bestRarity: best.rarity || 'common', bestColor: ringWord(best), bestPrice: best.price || 0, hostile: 0, ordered: false, skipped: true, staleKey: 'pack', staleAt: stamp };
-      queueNews({ facts, fallback: fb('found', facts) });
-      showThought(`*grazers — not our prey*`, ['🔎 moving on'], 0);
-      leavePack('grazers, not prey — moving on', true); // silent: the line above is the voice; tag + cooldown + walk-away, search re-armed
+      leavePack('grazers, not prey — moving on', true); // silent: tag + cooldown + walk-away, search re-armed
       return;
     }
+    following = true;
+    followLostAcc = 0;
+    focusBeat(n.x, n.y, 2.5); // every KEPT find gets the beat — lean in, slow-mo breath, ease back
 
     // The focus beat above IS the camera move: lean in + slow-mo for a breath,
     // then ease back to her. Direction words ("to the north-east") carry the
@@ -915,8 +911,7 @@ window.Brain = (() => {
   // ---- fallback voice: ONE builder, no hand-written prose ------------------------
   // Healthy runs never speak these (the LLM rewords via announce); they save
   // the news when the model is down. Pinned phrases live here — "Found" +
-  // "moving on" (search skip) + "Say the word" (idle shiny watch) —
-  // pins in hfound/hfilter/hposture; she never asks.
+  // "Say the word" (idle shiny watch) — pinned in hfound J7; she never asks.
   function fb(event, f) {
     f = f || {};
     if (event === 'found') {
@@ -926,7 +921,6 @@ window.Brain = (() => {
       if (f.species === 'giltboar') return `Found giltboars${where} — golden! Taking them!`;
       if ((f.hostile | 0) > 0) return `Found critters${where} — some look angry!${shiny}`;
       if (f.ordered) return `Found critters${where} — engaging as ordered!${shiny}`;
-      if (f.skipped) return `Found critters${where} — not our prey, moving on.${shiny}`;
       return `Found critters${where} — holding fire, watching, master. Say the word.${shiny}`;
     }
     if (event === 'which-ones') return `Which ones, master? I don't see them — walk me closer or point me at them.`;
