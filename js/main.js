@@ -138,7 +138,7 @@
     background.setNight(nightOn()); // boot texture matches WORLD-tab default (night)
     world.addChild(background.layer);
     world.sortableChildren = true; // y-sort: feet decide who covers whom
-    background.layer.zIndex = -1000; // dirt always at the bottom
+    background.layer.zIndex = -1e9; // dirt below ANY reachable feet — actors sort by y, and far-north feet (y < -1000) used to sink under the ground and vanish
     document.getElementById('bg-status').textContent = 'bg ✓';
   } catch (err) {
     reportError('background failed: ' + err.message);
@@ -439,6 +439,7 @@
     view.x += a.x * s.speed * spdMul * wdt;
     view.y += a.y * s.speed * spdMul * wdt;
     view.zIndex = view.y; // y-sort: whoever stands lower covers whoever stands higher
+    try { if (dust && dust.layer) dust.layer.zIndex = view.y - 1; } catch (e) {} // her dust stays under HER feet, wherever she roams
     if (launchX !== 0 || launchY !== 0) { // trip-slide: ease the leftover out fast (~12/s) — a decelerating skid, not a hop
       const k = 1 - Math.exp(-12 * wdt);
       view.x += launchX * k; view.y += launchY * k;
