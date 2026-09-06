@@ -18,7 +18,8 @@ window.Gun = (() => {
 
   let world = null, app = null, camera = null;
   let rig = null, gunSpr = null, flash = null;
-  let bullets = [], sparks = [];
+  let bullets = [], sparks = [], dmgNums = [];
+  const DMG_MAX = 24, DMG_LIFE = 0.7; // floating numbers: rise + fade, capped so shotguns can't flood
   let texGun, texShotgun, texBullet, texFlash, texSpark, texCube;
   let curTex = 'm1'; // rig sprite tracks the equipped row — swaps live, mid-fight
   let cd = 0, recoil = 0, bobT = 0, flashT = 0;
@@ -225,8 +226,26 @@ window.Gun = (() => {
       if (res && res.hits > 0) accountHits(res, ix, iy);
     } catch (e) {}
   }
+  // damage numbers: one Silkscreen pop per connect — white for chips,
+  // gold for the killing blow. Rises ~40px over 0.7s, then gone.
+  function spawnDmg(x, y, dmg, killed) {
+    try {
+      if (dmgNums.length >= DMG_MAX) { const old = dmgNums.shift(); world.removeChild(old.txt); old.txt.destroy(); }
+      const txt = new PIXI.Text(String(dmg), {
+        fontFamily: 'Silkscreen, monospace', fontSize: killed ? 24 : 17,
+        fill: killed ? '#ffd24a' : '#ffffff', stroke: '#1a1030', strokeThickness: 4, align: 'center',
+      });
+      txt.anchor.set(0.5, 0.5);
+      txt.position.set(x + (Math.random() - 0.5) * 16, y - 26);
+      txt.zIndex = 1e9 + 10; // over slugs, over heads — always readable
+      world.addChild(txt);
+      dmgNums.push({ txt, life: 0 });
+    } catch (e) { /* a missing number never stops the shooting */ }
+  }
+
   // shared kill accounting: pops, counters, loot, hit sounds, shake
   function accountHits(res, hx, hy) {
+    if (res && res.pops) for (const p of res.pops) spawnDmg(p.x, p.y, p.dmg, p.killed);
     for (const p of res.deaths) burst(p.x, p.y - 14, 12, true); // kill pop
     burst(hx, hy, 6, false);                                    // hit sparks
     try {
@@ -393,6 +412,16 @@ window.Gun = (() => {
       if (dead) { world.removeChild(b.spr); b.spr.destroy(); bullets.splice(i, 1); }
     }
 
+    // damage numbers: float up, fade out
+    for (let i = dmgNums.length - 1; i >= 0; i--) {
+      const d = dmgNums[i];
+      d.life += dt;
+      const t = d.life / DMG_LIFE;
+      if (t >= 1) { world.removeChild(d.txt); d.txt.destroy(); dmgNums.splice(i, 1); continue; }
+      d.txt.y -= 55 * dt;
+      d.txt.alpha = 1 - t;
+    }
+
     // sparks: fly out, drag, shrink, fade
     for (let i = sparks.length - 1; i >= 0; i--) {
       const p = sparks[i];
@@ -412,7 +441,7 @@ window.Gun = (() => {
 
   // test/inspection hook
   function debug() {
-    return { bullets: bullets.length, sparks: sparks.length, holding,
+    return { bullets: bullets.length, sparks: sparks.length, nums: dmgNums.length, holding,
       aimMode, aiFiring: performance.now() < aiFireUntil, recoil: +recoil.toFixed(2) };
   }
 

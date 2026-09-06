@@ -624,7 +624,7 @@ window.Enemies = (() => {
   function damageAt(px, py, radius, dmg) {
     const world = init._world;
     let hits = 0, kills = 0, hunterKills = 0;
-    const deaths = [];
+    const deaths = [], pops = []; // pops: one floating number per connect — gun.js renders them
     for (let gi = groups.length - 1; gi >= 0; gi--) {
       const g = groups[gi];
       let alerted = false;
@@ -635,6 +635,7 @@ window.Enemies = (() => {
         alerted = true;
         m.hp -= dmg;
         m.flashT = 0.18; // flicker on any non-lethal connect
+        pops.push({ x: m.x, y: m.y, dmg, killed: m.hp <= 0 });
         if (m.hp <= 0) {
           deaths.push({ x: m.x, y: m.y, value: m.price || 2 }); // appraisal pays out
           world.removeChild(m.view);
@@ -654,6 +655,7 @@ window.Enemies = (() => {
       hits++;
       m.hp -= dmg;
       m.flashT = 0.18; // flicker on any non-lethal connect
+      pops.push({ x: m.x, y: m.y, dmg, killed: m.hp <= 0 });
       if (m.hp <= 0) {
         deaths.push({ x: m.x, y: m.y, value: m.price || 2 }); // the hunter's bounty — or a boss purse
         if (m.boss) bossDown(m); // bar off, telegraph gone, SLAIN banner
@@ -663,7 +665,7 @@ window.Enemies = (() => {
         hunterKills++; // routed to the HUNTER counter, never the critter one
       }
     }
-    return { hits, kills, deaths, hunterKills };
+    return { hits, kills, deaths, hunterKills, pops };
   }
 
   // how many critters are currently engaged — drives the battle music.
