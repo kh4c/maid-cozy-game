@@ -180,7 +180,7 @@ window.Brain = (() => {
       // An ORDER is a latch, not a clock: fresh = the order is standing
       // (attackOrder) AND not stale (45s) — or a hunt posture (never stale).
       // Stop clears attackOrder → the gun stops even if the ask was 5s ago.
-      const fresh = attackOrder && (performance.now() - lastAskAt < 45000 || (objective && objective.kind === 'hunt')); // hunt posture never goes stale; find/heel never authorize
+      const fresh = attackOrder && (performance.now() - lastAskAt < 45000 || (objective && (objective.kind === 'hunt' || objective.kind === 'coins'))); // hunt/quota postures never go stale; find/heel never authorize
       // money is money: calm + in reach + (fresh words or hunt mode) means fire — whatever the price tag says, whichever critter. No choosing.
       // Main-quarry exception: a calm GILTBOAR in reach needs no orders — golden body, free-fire.
       const gilt = !!(en.nearest.species && en.nearest.species === 'giltboar');
@@ -281,10 +281,13 @@ window.Brain = (() => {
     }
     // Standing postures — hunt-family words always commit (even over find);
     // FIND only fills a vacancy; HEEL always holds. Quota words ("earn 300
-    // coins", "keep killing until 200") are just HUNT: no purse-watching,
-    // no counting, no finish line — she kills everything, the purse fills.
+    // coins", "keep killing until 200") are a COINS job: hunt standing + purse
+    // watched, stands down + reports when filled.
     const qm = t.match(/(\d+)\s*coins?/);
-    if (qm && /(until|earn|quota|till|to\s+\d+\s*coins)/.test(t) && /(until|earn|make|get|reach|quota|till|keep)/.test(t)) { setObjective({ kind: 'hunt' }); objectiveMaster = true; memoMode = 'hunt'; }
+    if (qm && /(until|earn|quota|till|to\s+\d+\s*coins)/.test(t) && /(until|earn|make|get|reach|quota|till|keep)/.test(t)) {
+      const target = Math.max(1, parseInt(qm[1], 10));
+      if (!(target === lastQuotaDone.target && performance.now() - lastQuotaDone.at < 120000)) { setObjective({ kind: 'coins', target }); objectiveMaster = true; memoMode = 'hunt'; }
+    }
     else if (HEEL_RE.test(t)) { setObjective({ kind: 'heel' }); objectiveMaster = true; memoMode = 'heel'; }
     else if (/(keep|continue)\s+\w*\s*(killing|hunting)/.test(t) || /hunt\s+them/.test(t)) { setObjective({ kind: 'hunt' }); objectiveMaster = true; memoMode = 'hunt'; }
     else if (/(find|look for|search)/.test(t) && (!objective || !objectiveMaster) && !wantsAttack(t)) {
@@ -1084,6 +1087,7 @@ window.Brain = (() => {
   // Hierarchy: latest explicit command > standing posture > defaults.
   let objective = { kind: 'find' }; // DEFAULT is finding: she searches from boot, stands until master says stop
   let objectiveMaster = false; // true once MASTER sets a posture — think steers defaults freely, never master orders
+  let lastQuotaDone = { target: 0, at: -1e9 }; // finished quota — its echoes are ignored ~2 min
   function purseNow() {
     try { return (window.Inventory && window.Inventory.state ? window.Inventory.state().coins : 0) | 0; } catch (e) { return 0; }
   }
@@ -1119,8 +1123,18 @@ window.Brain = (() => {
       genLine('posture-heel', {}, `*settles in place* Staying put, master — I'll call out what I see, but I'm not chasing anything.`);
       return;
     }
-    // HUNT (quota words like "earn 300" land here too): standing authorization
-    // for everything. No counting, no finish line — stop is the only off-ramp.
+    if (objective.kind === 'coins') {
+      // QUOTA: standing hunt + a number. She kills everything (money is money)
+      // and the purse is watched — filled means stand down + report.
+      setAttackOrder(true, 'standing quota');
+      lastAskAt = performance.now();
+      searchDone = false;
+      note(`standing objective set: earn ${objective.target} coins`);
+      genLine('posture-quota', {}, `*cracks her knuckles* ${objective.target} coins? Quota accepted — I'll keep hunting till the purse says ${objective.target}, master!`);
+      return;
+    }
+    // HUNT: standing authorization for everything. No finish line — stop is
+    // the only off-ramp.
     setAttackOrder(true, 'standing hunt');
     lastAskAt = performance.now();
     searchDone = false;
@@ -1141,6 +1155,21 @@ window.Brain = (() => {
       // a standing posture never idles: re-arm the search after every wiped
       // pack — except heel, which holds position instead of looking.
       if (objective.kind === 'heel') return;
+      if (objective.kind === 'coins') {
+        // quota fill: purse hit the number — stand down, report, back to finding.
+        const purse = purseNow();
+        if (purse >= objective.target) {
+          const done = objective.target;
+          lastQuotaDone = { target: done, at: performance.now() };
+          objective = { kind: 'find' }; objectiveMaster = false;
+          searchDone = false;
+          setAttackOrder(false, 'quota filled');
+          stopFollow(); stopStroll();
+          note(`quota filled — purse at ${purse}, standing down`);
+          sayUnlessBusy('quota-filled', { coins: purse }, `*counts coins, grinning* ${done} coins! Quota filled, master — standing down.`);
+          return;
+        }
+      }
       if (!following) {
         searchDone = false;
         if (!strollDir && window.Stamina && window.Stamina.canMove()) beginStroll();
@@ -1152,6 +1181,10 @@ window.Brain = (() => {
     if (!objective) return 'No standing posture — one pack at a time, defaults apply.';
     if (objective.kind === 'find') return `FIND critters — locate + announce + shadow each pack; HOLD fire on calm packs (this posture arms nothing); hostiles still self-defend; re-arm the search after every wipe/loss; stands until master says stop. If several packs are visible, compare DISTANCE and recommend which to take first — master picks, you hold.`;
     if (objective.kind === 'heel') return `HEEL — hold position: announce packs that walk into view but NEVER chase or shadow them; HOLD fire on calm packs; hostiles still self-defend; stands until master says otherwise.`;
+    if (objective.kind === 'coins') {
+      const purse = purseNow(), need = Math.max(0, objective.target - purse);
+      return `EARN ${objective.target} COINS — purse now ${purse}, ${need} to go. This OVERRIDES the defaults: keep finding + killing pack after pack until filled; do NOT stop after one group; freshness never expires while the quota stands. When filled: stand down, report, stop firing.`;
+    }
     return 'HUNT — keep finding + killing pack after pack until master says stop; overrides one-pack defaults; re-arm the search after every wipe; authorization never expires while it stands.';
   }
   function getObjectiveText() {
@@ -1159,6 +1192,7 @@ window.Brain = (() => {
     if (!objective) return '';
     if (objective.kind === 'find') return `find critters — locate + report + shadow, HOLD fire unless master orders or they turn hostile.`;
     if (objective.kind === 'heel') return `heel — holding position, announcing only, never chasing.`;
+    if (objective.kind === 'coins') return `earn ${objective.target} coins — purse now ${purseNow()}, keep hunting till filled.`;
     return 'hunting — kill every pack in reach until told to stop.';
   }
 
