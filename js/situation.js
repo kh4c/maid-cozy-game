@@ -86,6 +86,7 @@ window.Situation = (() => {
           : st.autoRest
             ? `stamina ${st.v}/${st.max} — RESTING by her own choice (legs parked at a quarter, auto resumes shortly; only master's direct orders move her right now)`
             : `stamina ${st.v}/${st.max}${st.pct < 0.3 ? ' (running low — tired legs may trip if she keeps running)' : ''}`;
+        staminaTxt += ' — HERS: the above is the MAID\'s legs, never master\'s (he has no stamina; never tell him to rest, never ask about his stamina)';
       }
     } catch (e) { /* deaf snapshot */ }
 
@@ -94,7 +95,7 @@ window.Situation = (() => {
     const night = !!(window.Settings && Number(window.Settings.settings.worldTime) === 1);
     lines.push(`Time: ${night ? 'NIGHT — dark out, visibility is poorer, the field feels different' : 'daytime — clear light over the field'}.`);
     lines.push(`Position: world (${p.x}, ${p.y}) — infinite grassland, no walls or cover.`);
-    lines.push(`Health: ${hp}/${max}${dead ? ' — FAINTED (no actions possible until respawn)' : ''}.`);
+    lines.push(`Health: ${hp}/${max} — HERS, the maid's body (master has no health bar)${dead ? '; FAINTED (no actions possible until respawn)' : ''}.`);
     lines.push(staminaTxt);
     lines.push(`Weapon: ${weaponTxt}.`);
     if (!enemies || enemies.total === 0) {
