@@ -88,7 +88,7 @@ window.Equipment = (() => {
       const list = pets();
       grid.innerHTML = list.length ? list.map((p) => (
         `<div class="equip-cell${p.equipped ? ' sel' : ''}">` +
-          `<img class="equip-cell-icon" data-pet-equip="${esc(p.id)}" title="${esc(p.name)} — click to ${p.equipped ? 'bench' : 'fly'}" src="${esc(p.img)}" alt="" onerror="this.style.display='none'" />` +
+          `<span class="equip-cell-icon strip-crop" data-pet-equip="${esc(p.id)}" title="${esc(p.name)} — click to ${p.equipped ? 'bench' : 'fly'}"><img src="${esc(p.img)}" alt="" onerror="this.style.display='none'" /></span>` +
           `<span class="equip-tip"><span class="t-name">${esc(p.name)}</span><br>${esc(p.desc)}<br>click to ${p.equipped ? 'bench' : 'fly'}</span>` +
         `</div>`
       )).join('') : '<div class="equip-sub2">no drones yet — the 🏪 shop builds them</div>' +

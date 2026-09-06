@@ -1,6 +1,6 @@
 // Lode — the 🧲 Lodestone Drone. A 🏪 shop deed (350c) flown from the 🎒 PETS tab.
-// No leash, no loop: it roams the screen on its own (new drift every few
-// seconds, eased, never teleported) and only commutes for loose coins. Under
+// No leash, no loop: it wanders the screen at one fixed pace (nearby dreams,
+// never a dash, nev...[truncated]
 // it hangs a storm cone — narrow at the rotor, wide on the grass — drawn
 // slightly from the side (flattened mouth ellipse, not a top-down circle).
 // Everything inside the mouth is SLOWED to half speed AND zapped for 1dmg
@@ -13,7 +13,7 @@ window.Lode = (() => {
   const LODE_SCALE = 1.5, ANIM_SPD = 0.35;               // same rotor flicker
   const DROP = 70;         // altitude: the ground point hangs 70px under its feet
   const ROAM_X = 380, ROAM_Y = 260; // drift box half-extents around her — the screen, not her heels
-  const ROAM_EASE = 2.5, FETCH_EASE = 5; // drift lazy, commute purposeful
+  const SPD = 120, FETCH_SPD = 180; // px/s — ONE pace everywhere, the commute only slightly brisker. No easing, no bursts, no teleports
   const FETCH_R = 700;     // spots loose coins this far from its ground point
   const SCOOP_R = 50;      // swallows coins this close (at the ground point)
   const SNARE_R = 200, SNARE_F = 0.5; // the storm mouth: half speed inside
@@ -26,7 +26,7 @@ window.Lode = (() => {
   let t = 0, zd = 0, zapFlash = 0;
   let dx = 0, dy = 0; // smoothed air feet; ground point is (dx, dy + DROP)
   let rot = 0, lx = null, ly = null; // nose heading + last feet (art faces UP, so heading aims the nose)
-  let roamTx = null, roamTy = 0, roamT = 0; // the current drift, and when to dream a new one
+  let roamTx = null, roamTy = 0; // the current dream — nearby, so it wanders instead of crossing
   let owned = false, on = false;     // the deed + the tab
 
   function load() {
@@ -151,18 +151,17 @@ window.Lode = (() => {
       } catch (e) {}
     }
     if (!fetching && !dead) {
-      roamT -= wdt;
-      if (roamTx === null || roamT <= 0 || Math.hypot(roamTx - dx, roamTy - dy) < 50) {
-        roamTx = px + (Math.random() * 2 - 1) * ROAM_X; // anywhere on the screen around her
-        roamTy = py + (Math.random() * 2 - 1) * ROAM_Y - 100;
-        roamT = 2.5 + Math.random() * 2;
+      if (roamTx === null || Math.hypot(roamTx - dx, roamTy - dy) < 12) {
+        roamTx = Math.max(px - ROAM_X, Math.min(px + ROAM_X, dx + (Math.random() * 2 - 1) * 240)); // nearby dreams only — wander, never cross
+        roamTy = Math.max(py - 100 - ROAM_Y, Math.min(py - 100 + ROAM_Y, dy + (Math.random() * 2 - 1) * 180));
       }
       tx = roamTx; ty = roamTy;
     }
     if (tx === null) { tx = px; ty = py - 100; } // dead or dreamless: hold above her
-    if (!dead && Math.hypot(dx - px, dy - py) > LEASH) { tx = px; ty = py - 100; } // she outran it — come home
-    const k = 1 - Math.exp(-(fetching ? FETCH_EASE : ROAM_EASE) * wdt);
-    dx += (tx - dx) * k; dy += (ty - dy) * k;
+    if (!dead && Math.hypot(dx - px, dy - py) > LEASH) { tx = px; ty = py - 100; } // she outran it — it walks home at the same pace, never blinks over
+    const spd = fetching ? FETCH_SPD : SPD;
+    const mdx = tx - dx, mdy = ty - dy, mdist = Math.hypot(mdx, mdy);
+    if (mdist > 1) { const step = Math.min(mdist, spd * wdt); dx += mdx / mdist * step; dy += mdy / mdist * step; }
     const nx = dx, ny = dy + DROP;
     spr.position.set(dx, dy);
     if (sh) { sh.position.set(nx, ny); sh.zIndex = ny; } // the mouth center — sorted with the grass, below the iron

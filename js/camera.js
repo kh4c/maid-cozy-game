@@ -13,9 +13,14 @@ window.Camera = (() => {
   const ZOOM_CALM = 1;      // leaning in close on quiet grass
   const ZOOM_COMBAT = 0.8;  // the fight breathes out — ~25% more field on screen
   const ZOOM_EASE = 2.2;    // eased both ways, never a snap-cut
+  const ZOOM_HOLD = 4;      // the lens stays out this long after the last hostile drops
+  let combatOn = false, holdT = 0; // live combat flag + the linger timer
   let zoom = 1, zoomT = 1;  // eased scale + where it's headed
   let baseX = 0, baseY = 0; // follow position at scale 1 — zoom maps on top, never inside the math
-  function setCombat(on) { zoomT = on ? ZOOM_COMBAT : ZOOM_CALM; }
+  function setCombat(on) {
+    combatOn = !!on;
+    if (combatOn) holdT = ZOOM_HOLD; // every combat frame re-arms the linger
+  }
   function getZoom() { return zoom; }
   function create(worldContainer, app) {
     const cfg = window.CONFIG;
@@ -97,7 +102,10 @@ window.Camera = (() => {
         baseY += (Math.random() * 2 - 1) * mag;
       }
       // combat zoom maps on top: ease the scale, then pin the container so the
-      // screen center shows the same world point at every zoom (no drift)
+      // screen center shows the same world point at every zoom (no drift).
+      // The hold keeps the lens out after the fight — it leans back in late.
+      if (holdT > 0) holdT -= dtSec;
+      zoomT = (combatOn || holdT > 0) ? ZOOM_COMBAT : ZOOM_CALM;
       zoom += (zoomT - zoom) * Math.min(1, ZOOM_EASE * dtSec);
       if (Math.abs(zoom - zoomT) < 0.002) zoom = zoomT;
       try {

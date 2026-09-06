@@ -24,8 +24,9 @@ window.Inventory = (() => {
   let drops = [];        // { spr, sh, x, y, vx, vy, t, settled, phase }
   let tex = null;
   // coin-suck juice: rapid pickups climb a pitch ladder (resets after a gap),
-  // and every credit pops a gold ring + rising spark where it died
-  let fx = [];             // { x, y, t, big }
+  // and every credit pops blink particles — a few gold dots that flutter
+  // and blink out. No rings, no clutter.
+  let fx = [];             // blink particles: { x, y, t }
   let fxG = null;
   let suckClock = 0, streak = 0, lastSuck = -10;
   const STREAK_WINDOW = 1.2; // seconds between credits to keep climbing
@@ -36,7 +37,8 @@ window.Inventory = (() => {
     lastSuck = suckClock;
     const rate = (big ? 1 : 1.5) + Math.min(streak, 10) * 0.07; // the ladder: each quick coin sings higher
     try { window.Sound && window.Sound.playSfx('combat', 'coin.ogg', { rate, volume: big ? 0.5 : 0.28 }); } catch (e) {}
-    fx.push({ x, y, t: 0, big });
+    const n = big ? 5 : 3;
+    for (let i = 0; i < n; i++) fx.push({ x: x + (Math.random() - 0.5) * 14, y: y + (Math.random() - 0.5) * 10, t: -Math.random() * 0.15 });
   }
   function combo() { return streak; }
 
@@ -122,7 +124,7 @@ window.Inventory = (() => {
         try { d.sh.scale.set(k, k); } catch (e2) {}
       }
     }
-    // suck fx: one shared Graphics, redrawn — gold rings pop + a spark rises, then gone
+    // suck fx: blink particles — gold dots flutter up, blinking hard, then gone
     suckClock += dt;
     try {
       if (!fxG && window.InventoryLayer) {
@@ -135,10 +137,10 @@ window.Inventory = (() => {
         for (let i = fx.length - 1; i >= 0; i--) {
           const f = fx[i];
           f.t += dt;
-          if (f.t > 0.5) { fx.splice(i, 1); continue; }
-          const rr = (f.big ? 8 : 5) + f.t * 70, al = 0.55 * (1 - f.t * 2);
-          fxG.circle(f.x, f.y, rr).stroke({ color: 0xffd24a, width: 2, alpha: al });
-          fxG.circle(f.x, f.y - f.t * 60, f.big ? 3 : 2).fill({ color: 0xfff2b0, alpha: al });
+          if (f.t > 0.45) { fx.splice(i, 1); continue; }
+          if (f.t < 0) continue; // staggered in — not every dot is born at once
+          const blink = Math.sin(f.t * 40) > 0 ? 1 : 0.25; // the flutter — on/off, no fade curves
+          fxG.circle(f.x, f.y - f.t * 30, 2).fill({ color: 0xffe9b0, alpha: blink * (1 - f.t / 0.45) });
         }
       }
     } catch (e) { /* a missed glint sucks nothing */ }

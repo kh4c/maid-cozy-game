@@ -265,6 +265,24 @@ window.Enemies = (() => {
     } catch (e) { return false; }
   }
 
+  // dev-panel swarm: two gilt packs + one hunter, ringed close, born ALREADY
+  // after her (the natural alert lines, skipped) — banner + battle mood on.
+  function swarm() {
+    try {
+      const world = init._world;
+      if (!world) return false;
+      spawnPack(lastPx, lastPy, true);
+      spawnPack(lastPx, lastPy, true);
+      spawnLoner(lastPx, lastPy);
+      for (const g of groups.slice(-2)) { g.alerted = true; for (const m of g.members) m.hostile = true; }
+      const l = loners[loners.length - 1];
+      if (l && !l.boss) l.hostile = true;
+      bossBanner('⚠ SWARM ⚠', 'THE PACKS COME HUNGRY', BOSS_BANNER_T);
+      try { window.Sound && window.Sound.setBgmMood && window.Sound.setBgmMood('battle'); } catch (e) {}
+      return true;
+    } catch (e) { return false; }
+  }
+
   function bossDown(m) {
     try {
       const world = init._world;
@@ -848,5 +866,5 @@ window.Enemies = (() => {
       `She runs 300 — she outruns both. Bite = 1 heart at 42px. Open grassland, no cover.\n`;
   }
 
-  return { init, update, hostileCount, playerAttack, damageAt, nearest, snare, sense, senseView, nearestView, priceListText, bestiary, bestiaryText, combatFacts, dismissNear, spawnBoss, bossAlive, combatTelegraph, debugGroups: () => groups };
+  return { init, update, hostileCount, playerAttack, damageAt, nearest, snare, sense, senseView, nearestView, priceListText, bestiary, bestiaryText, combatFacts, dismissNear, spawnBoss, swarm, bossAlive, combatTelegraph, debugGroups: () => groups };
 })();

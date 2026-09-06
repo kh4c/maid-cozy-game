@@ -114,10 +114,14 @@ window.Shop = (() => {
     return { ok: false, why: 'no stock' };
   }
 
+  function iconFor(cls, c) { // drone strips are 4 frames wide — crop the icon to frame 1
+    if (!c.img) return `<span class="${cls}">${esc(c.emoji || '?')}</span>`;
+    const img = `<img src="${esc(c.img)}" alt="" onerror="this.style.display='none'" />`;
+    return (c.id === 'drone' || c.id === 'lode') ? `<span class="${cls} strip-crop">${img}</span>` : img.replace('<img', `<img class="${cls}"`);
+  }
+
   function cellHtml(c, coins) {
-    const icon = c.img
-      ? `<img class="shop-cell-icon" src="${esc(c.img)}" alt="" onerror="this.style.display='none'" />`
-      : `<span class="shop-cell-icon">${esc(c.emoji || '?')}</span>`;
+    const icon = iconFor('shop-cell-icon', c);
     const state = c.soldOut ? (c.owned || c.why === 'owned' ? 'OWNED' : 'MAX') : `${c.price}c`;
     const poor = !c.soldOut && coins < c.price;
     return `<div class="shop-cell${sel === c.id ? ' sel' : ''}" data-cell="${esc(c.id)}">` +
@@ -135,9 +139,7 @@ window.Shop = (() => {
     if (coinsEl) coinsEl.textContent = `purse: ${coins}c`;
     grid.innerHTML = cells.map((c) => cellHtml(c, coins)).join('');
     const c = cells.find((x) => x.id === sel) || cells[0];
-    const bigIcon = c.img
-      ? `<img class="shop-big-icon" src="${esc(c.img)}" alt="" onerror="this.style.display='none'" />`
-      : `<span class="shop-big-icon">${esc(c.emoji || '?')}</span>`;
+    const bigIcon = iconFor('shop-big-icon', c);
     const state = c.soldOut ? (c.owned || c.why === 'owned' ? `OWNED — see ${c.id === 'drone' ? '🎒 pet slot' : '🔫 Equipment'}` : `MAXED (${esc(c.why || 'maxed')})`) : `${c.price}c`;
     const poor = !c.soldOut && coins < c.price;
     detail.innerHTML =
