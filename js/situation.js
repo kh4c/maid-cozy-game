@@ -79,11 +79,13 @@ window.Situation = (() => {
     try {
       if (window.Stamina) {
         const st = window.Stamina.state();
-        staminaTxt = st.exhausted
+        staminaTxt = st.tripped
+          ? `stamina ${st.v}/${st.max} — TRIPPED, face-down in the grass eating dirt, legs unlock in a beat`
+          : st.exhausted
           ? `stamina ${st.v}/${st.max} — EXHAUSTED, legs locked, cannot move until she catches her breath (slow)`
           : st.autoRest
             ? `stamina ${st.v}/${st.max} — RESTING by her own choice (legs parked at a quarter, auto resumes shortly; only master's direct orders move her right now)`
-            : `stamina ${st.v}/${st.max}${st.pct < 0.3 ? ' (running low — she will want to rest soon)' : ''}`;
+            : `stamina ${st.v}/${st.max}${st.pct < 0.3 ? ' (running low — tired legs may trip if she keeps running)' : ''}`;
       }
     } catch (e) { /* deaf snapshot */ }
 

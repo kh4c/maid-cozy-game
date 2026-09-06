@@ -118,8 +118,8 @@
   // ---- Character -----------------------------------------------------------------
   let character;
   try {
-    const { idleFrames, runFrames, dieFrames } = await window.Assets.loadSheets();
-    character = window.Entities.createCharacter(idleFrames, runFrames, dieFrames);
+    const { idleFrames, runFrames, dieFrames, fallFrames } = await window.Assets.loadSheets();
+    character = window.Entities.createCharacter(idleFrames, runFrames, dieFrames, fallFrames);
     character.applySettings();
     world.addChild(character.view);
   } catch (err) {
@@ -288,11 +288,20 @@
         // pushed = player-owned feet (click pin / player chat order): may drain
         // past quarter to empty. Auto legs park at 1/4 and resume at ~half.
         const pushed = !!(window.Input && window.Input.pushedActive && window.Input.pushedActive());
-        window.Stamina.update(wdt, wantsMove, pushed);
+        // urged = bare "keep going!" window (no direction): she works on his word —
+        // and in the orange zone that word ALWAYS ends face-down. Directed pushes
+        // (click pin / pushed order) risk only the stumble chance.
+        let urged = false;
+        try { urged = pushed && window.Input && window.Input.directedPush && !window.Input.directedPush(); } catch (e) {}
+        window.Stamina.update(wdt, wantsMove, pushed, urged);
         if (wantsMove && !window.Stamina.canMove(pushed)) { a.x = 0; a.y = 0; } // parked or out
         if (window.Stamina.justExhausted) {
           try { window.Brain && window.Brain.note && window.Brain.note('tired'); } catch (e) {}
           try { window.Live2D && window.Live2D.setMood && window.Live2D.setMood('sleepy'); } catch (e) {}
+        }
+        if (window.Stamina.justTripped) { // face-plant: she says so, something thuds
+          try { window.Brain && window.Brain.note && window.Brain.note('trip'); } catch (e) {}
+          try { window.Sound && window.Sound.playSfx && window.Sound.playSfx('combat', 'hurt_0.ogg', { rate: 0.7, volume: 0.6 }); } catch (e) {}
         }
         if (window.Stamina.justRested) {
           try { window.Brain && window.Brain.note && window.Brain.note('resting'); } catch (e) {}
@@ -320,7 +329,9 @@
       const g = window.Gun;
       if (g && g.status && g.status().firing && g.aimSide) face = g.aimSide() | 0;
     } catch (e) { /* keep movement facing */ }
-    character.update(a, !!(window.Health && window.Health.dead), face);
+    let down = false;
+    try { down = !!(window.Stamina && window.Stamina.tripped); } catch (e) {} // face-down: fall anim holds
+    character.update(a, !!(window.Health && window.Health.dead), face, down);
     if (window.Enemies) {
       try { window.Enemies.update(wdt, view.x, view.y); }
       catch (err) { /* one bad tick must not kill the loop */ }

@@ -89,6 +89,9 @@ window.Brain = (() => {
       } else if (kind === 'resting') {
         pushEvent('parked at a quarter tank to rest her legs');
         genLine('resting', {}, `*easing off, hands on knees* Legs are getting heavy, master — resting a moment before I run them empty.`);
+      } else if (kind === 'trip') {
+        pushEvent('tripped over her own tired feet and ate dirt');
+        genLine('trip', {}, `*face-down in the grass, legs still running* Tired legs! Master — a moment, I'm collecting myself...`);
       } else if (kind === 'urged') {
         // master told her to work through the rest (any words — regex or [push]
         // tag): memory only, no chatter — her chat reply already answers him.

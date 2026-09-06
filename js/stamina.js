@@ -12,6 +12,12 @@ window.Stamina = (() => {
   const REST_UNTIL = 50;    // exhausted until the tank climbs back to here
   const AUTO_REST_AT = 25;  // auto-run parks HERE (1/4) — only pushed legs go lower
   const AUTO_RESUME_AT = 55;// auto-run resumes here (hysteresis, no flicker)
+  // ORANGE ZONE (matches the bar's 'low' line): tired legs stumble. Chance per
+  // second while running down here; urged (pushed) legs ALWAYS eat dirt.
+  const TRIP_PCT = 0.30;   // below this fraction of the tank, every step can trip
+  const TRIP_CHANCE = 0.10;// per second of orange running -> a fall every ~10s of pushing it
+  const FALL_SECS = 2.2;   // face-down time: fall anim plays once, legs locked
+  const TRIP_GRACE = 3.0;  // no-trip window after getting up (no chain face-plants)
 
   let v = MAX;
   let exhausted = false;
@@ -20,12 +26,20 @@ window.Stamina = (() => {
   let justExhausted = false; // edge flag for one-shot UI/sfx hooks
   let justRecovered = false; // edge flag: the tick breath was caught — speak once
   let justRested = false;    // edge flag: the tick auto-run parked at 1/4 — speak once
+  let tripped = false, tripT = 0, graceT = 0; // fall state: down timer + post-fall grace
+  let justTripped = false; // edge flag: the tick she ate dirt — anim + line once
 
-  function update(dt, moving, pushed) {
+  function update(dt, moving, pushed, urged) {
     justExhausted = false;
     justRecovered = false;
     justRested = false;
-    const wantGo = moving && !exhausted && !(autoRest && !pushed);
+    justTripped = false;
+    if (graceT > 0) graceT -= dt;
+    if (tripped) { // face-down: the fall plays, then she gets up with a no-trip grace
+      tripT -= dt;
+      if (tripT <= 0) { tripped = false; graceT = TRIP_GRACE; }
+    }
+    const wantGo = moving && !exhausted && !tripped && !(autoRest && !pushed);
     if (wantGo) {
       stillFor = 0; // moving resets the regen cooldown
       v -= DRAIN * dt;
@@ -35,6 +49,12 @@ window.Stamina = (() => {
         if (!autoRest) { autoRest = true; justRested = true; }
       }
       if (v <= 0) { v = 0; exhausted = true; autoRest = false; justExhausted = true; }
+      else if (graceT <= 0 && v / MAX < TRIP_PCT) {
+        // ORANGE ZONE: tired legs stumble — small chance per second, but a bare
+        // URGE (master's "keep going!", no direction) ALWAYS eats dirt: she obeys
+        // on his word and falls on his word. Directed pushes risk only the chance.
+        if (urged || Math.random() < TRIP_CHANCE * dt) { tripped = true; tripT = FALL_SECS; justTripped = true; }
+      }
     } else {
       stillFor += dt; // standing still — cooldown ticks
       const delay = exhausted ? EMPTY_DELAY : REST_DELAY;
@@ -58,11 +78,11 @@ window.Stamina = (() => {
 
   // Anything that wants to move must pass this — exhausted stops everything;
   // autoRest stops AUTO legs only (pushed legs walk her down to empty).
-  function canMove(pushed) { return !exhausted && !(autoRest && !pushed); }
-  function state() { return { v: Math.round(v), max: MAX, exhausted, autoRest, pct: v / MAX }; }
+  function canMove(pushed) { return !exhausted && !tripped && !(autoRest && !pushed); }
+  function state() { return { v: Math.round(v), max: MAX, exhausted, autoRest, tripped, pct: v / MAX }; }
 
   function setMax(m) { MAX = Math.max(50, Math.round(Number(m) || MAX)); if (v > MAX) v = MAX; } // store-bought tank
-  function reset() { v = MAX; exhausted = false; autoRest = false; stillFor = 0; justExhausted = false; justRecovered = false; justRested = false; } // new life = fresh legs
+  function reset() { v = MAX; exhausted = false; autoRest = false; stillFor = 0; tripped = false; tripT = 0; graceT = 0; justExhausted = false; justRecovered = false; justRested = false; justTripped = false; } // new life = fresh legs
   // kick: master's "get back to work!" — drops a voluntary rest latch so auto
   // legs flow again (under pushed cover if a push window is live). Never
   // touches true exhaustion — empty legs stay locked till they recover.
@@ -74,5 +94,5 @@ window.Stamina = (() => {
     update(0, false);
   }
 
-  return { init, update, canMove, state, reset, kick, setMax, get exhausted() { return exhausted; }, get justExhausted() { return justExhausted; }, get justRecovered() { return justRecovered; }, get justRested() { return justRested; }, get value() { return v; } };
+  return { init, update, canMove, state, reset, kick, setMax, get exhausted() { return exhausted; }, get tripped() { return tripped; }, get justTripped() { return justTripped; }, get justExhausted() { return justExhausted; }, get justRecovered() { return justRecovered; }, get justRested() { return justRested; }, get value() { return v; } };
 })();

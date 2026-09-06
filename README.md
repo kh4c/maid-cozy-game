@@ -88,12 +88,12 @@ Stack: **[pixi-live2d5](https://github.com/omniwaifu/pixi-live2d5)** (PixiJS v8 
 | `js/chat.js` | Local-LLM chat persona: dialog box, walk/push tags, intent memos, `say()` for unprompted lines; machinery stripper keeps tags out of dialog |
 | `js/situation.js` | Live auto-snapshot (pos/HP/gun/enemies/stamina/purse/**Bestiary**) feeding chat + brain; species-aware outline words |
 | `js/brain.js` | Survival brain: auto-think loop, thought box, hunting latch, keep-distance, stroll, found-and-follow; prompts quote live combat/price cards |
-| `js/weapons.js` | Weapon registry (rifle entry #1: slow 0.85s cadence, 4 dmg; future guns/melee = one row, persists `cosette.weapon`) |
+| `js/weapons.js` | Weapon registry (rifle entry #1: slow 0.85s cadence, 4 dmg, real rifle crack + M1 clip-ping every 8th round; future guns/melee = one row, persists `cosette.weapon`) |
 | `js/gun.js` | Hover gun rig: always AI aim, recoil/flash/tracers, slug-or-melee strike, split kill counters; reads `Weapons` live, exposes `bulletDamage`/`rangePx` |
 | `js/enemies.js` | **Single source of world truth**: critter packs + lone hunters, tier rolls, red-ring species rule, `bestiary()`/`bestiaryText()`/`priceListText()`/`combatFacts()` |
 | `js/bestiary.js` | 📖 journal panel: renders species entries fresh from `Enemies.bestiary()` |
 | `js/health.js` | 9 hearts, faint lock, hooks into brain/stamina/inventory |
-| `js/stamina.js` | 100pt movement tank, exhaustion lock, rest recovery |
+| `js/stamina.js` | 100pt movement tank, exhaustion lock, rest recovery, **orange-zone trips**: tired legs stumble by chance, bare urges always face-plant (fall anim, legs lock) |
 | `js/inventory.js` | Coin drops, magnet pickup, persistent purse (`cosette.coins`) + spend |
 | `js/store.js` | 🛒 shop panel: heal/tank/damage/magnet/speed stock, persistent levels (`cosette.store`) |
 | `js/effects.js` | Sun glow + dust particles (beams disabled) |
@@ -108,3 +108,4 @@ Stack: **[pixi-live2d5](https://github.com/omniwaifu/pixi-live2d5)** (PixiJS v8 
 - PixiJS v8's `ticker.deltaTime` is **frame-units** (1 at 60fps), not seconds — the loop uses `deltaMS / 1000`, clamped to 50ms.
 - Idle sheet: 256×192, 9 opaque frames @ 64×64. Run sheet: 256×128, 7 opaque frames @ 64×64.
 - Electron ≥ 41 renamed `protocol.registerSchemesAsStandard` → `registerSchemesAsPrivileged`; `electron-main.js` guards both so it runs on old or new Electron.
+- Gun audio: rifle/shotgun/pistol/chaingun shots © Michel Baradari (apollo-music.de), CC-BY 3.0 via OpenGameArt; reload bits (pump, chamber spin, clicks) via Mixkit free license.

@@ -5,12 +5,16 @@
 // on trigger the gun calls damageAt() in an arc in front instead of spawning
 // a slug. Active id persists (cosette.weapon). Store damage upgrades ride
 // setActiveDamage on top of the row's base.
+// Staged for the next rows (all real, all in assets/sfx): shotgun_real.wav,
+// pistol_real.wav, chaingun_real.wav (OGA, CC-BY 3.0 Michel Baradari — credited
+// in README); pump_shotgun.mp3, reload_spin.mp3, clip_click.mp3, release_click.mp3,
+// gameshot_alt.mp3 (Mixkit license, free). Next gun = one TABLE row + art.
 window.Weapons = (() => {
   const KEY = 'cosette.weapon';
   const TABLE = {
     rifle: { name: 'M1 Rifle', kind: 'gun', desc: 'Slow trigger, fast needle — one loud word at a time.',
       cd: 0.85, dmg: 4, base: 4, speed: 1400, life: 0.6, slug: 0.3, recoil: 1.5,
-      sfx: 'gunshot.wav', rate: 0.55 },
+      sfx: 'rifle_real.wav', rate: 1.0, ping: 'clip_click.mp3' },
   };
   let active = 'rifle';
 
@@ -40,6 +44,7 @@ window.Weapons = (() => {
   function recoilMul() { return row().recoil || 1; }
   function shotSfx() { return row().sfx || 'gunshot.wav'; }
   function shotRate() { return row().rate == null ? 0.55 : row().rate; }
+  function ping() { return row().ping || null; } // M1 clip-ping every 8th round (gun.js)
   function meleeReach() { return row().reach || 90; }
   function meleeArc() { return row().arc || 70; }
   function describe() {
@@ -51,5 +56,5 @@ window.Weapons = (() => {
   function init() { load(); }
 
   return { init, register, equip, activeId, list, kind, cooldown, damage, baseDamage, setActiveDamage,
-    projSpeed, projLife, rangePx, slugScale, recoilMul, shotSfx, shotRate, meleeReach, meleeArc, describe };
+    projSpeed, projLife, rangePx, slugScale, recoilMul, shotSfx, shotRate, ping, meleeReach, meleeArc, describe };
 })();

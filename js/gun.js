@@ -21,6 +21,7 @@ window.Gun = (() => {
   let bullets = [], sparks = [];
   let texGun, texBullet, texFlash, texSpark;
   let cd = 0, recoil = 0, bobT = 0, flashT = 0;
+  let shotsFired = 0; // M1 clip: every 8th round the en-bloc pings out
   let holding = false, mouseSX = 0, mouseSY = 0; // mouse in canvas css px
   let px = 0, py = 0;                            // her feet (world), set each frame
 
@@ -151,6 +152,11 @@ window.Gun = (() => {
     flashT = 0.05;
 
     recoil = W('recoilMul', 1.5); // kick back + muzzle up, decays in update()
+
+    shotsFired += 1; // M1 clip pings out every 8th round — the reload sound, honest and free
+    if (shotsFired % 8 === 0) {
+      try { const pf = W('ping', null); if (pf) window.Sound.playSfx('combat', pf, { rate: 1 }); } catch (e) {}
+    }
 
     // layered shot: WAV body + high snap (row's sfx/rate — slow guns sound deep)
     try { window.Sound.playSfx('combat', W('shotSfx', 'gunshot.wav'), { rate: W('shotRate', 0.55) + Math.random() * 0.1 }); } catch (e) {}

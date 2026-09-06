@@ -145,6 +145,7 @@ window.Settings = (() => {
     addSlider('idleFps', 1, 30, 1);
     addSlider('runFps', 1, 30, 1);
     addSlider('dieFps', 1, 30, 1);
+    addSlider('fallFps', 1, 30, 1);
     addSlider('scale', 1, 4, 0.5);
     addSlider('sunray', 0, 1, 0.05);
     addSlider('maxTilt', 0, 1.2, 0.05);

@@ -24,18 +24,21 @@ window.Assets = (() => {
 
   async function loadSheets() {
     const cfg = window.CONFIG.sheets;
-    const [idleBase, runBase, dieBase] = await Promise.all([
+    const [idleBase, runBase, dieBase, fallBase] = await Promise.all([
       loadBaseTexture(cfg.idle.url),
       loadBaseTexture(cfg.run.url),
       loadBaseTexture(cfg.die.url),
+      loadBaseTexture(cfg.fall.url),
     ]);
     cfg.idle._base = idleBase;
     cfg.run._base = runBase;
     cfg.die._base = dieBase;
+    cfg.fall._base = fallBase;
     return {
       idleFrames: sliceFrames(cfg.idle),
       runFrames: sliceFrames(cfg.run),
       dieFrames: sliceFrames(cfg.die),
+      fallFrames: sliceFrames(cfg.fall),
     };
   }
 

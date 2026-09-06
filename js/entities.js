@@ -2,7 +2,7 @@
 window.Entities = (() => {
   const { Container, AnimatedSprite, Graphics } = PIXI;
 
-  function createCharacter(idleFrames, runFrames, dieFrames) {
+  function createCharacter(idleFrames, runFrames, dieFrames, fallFrames) {
     const settings = window.Settings.settings;
 
     // root: world position + overall scale. body: flip/tilt only —
@@ -22,12 +22,16 @@ window.Entities = (() => {
     }
     const idleAnim = makeAnim(idleFrames);
     const runAnim = makeAnim(runFrames);
-    // death anim: plays ONCE and holds the last (fallen) frame — loop off
+    // death anim: plays ONCE and holds the last (fallen) frame — loop off.
+    // fall anim (tripped, SG_Maid_fall 4x2): same treatment, one level below death.
     const dieAnim = dieFrames ? makeAnim(dieFrames) : null;
     if (dieAnim) dieAnim.loop = false;
+    const fallAnim = fallFrames ? makeAnim(fallFrames) : null;
+    if (fallAnim) fallAnim.loop = false;
     body.addChild(idleAnim);
     body.addChild(runAnim);
     if (dieAnim) body.addChild(dieAnim);
+    if (fallAnim) body.addChild(fallAnim);
 
     let currentAnim = null; // only restart playback on state CHANGE
     function setAnimation(anim) {
@@ -35,6 +39,7 @@ window.Entities = (() => {
       idleAnim.visible = (idleAnim === anim);
       runAnim.visible = (runAnim === anim);
       if (dieAnim) dieAnim.visible = (dieAnim === anim);
+      if (fallAnim) fallAnim.visible = (fallAnim === anim);
       anim.gotoAndPlay(0);
       currentAnim = anim;
     }
@@ -45,16 +50,21 @@ window.Entities = (() => {
       idleAnim.animationSpeed = 1 / Math.max(0.5, settings.idleFps);
       runAnim.animationSpeed = 1 / Math.max(0.5, settings.runFps);
       if (dieAnim) dieAnim.animationSpeed = 1 / Math.max(0.5, settings.dieFps ?? 8);
+      if (fallAnim) fallAnim.animationSpeed = 1 / Math.max(0.5, settings.fallFps ?? 8);
     }
 
     // a: current input axis; dead: fainted — play the die sheet, hold the fall;
-    // face: attack override from the gun (-1 enemy-left, +1 enemy-right) — while
-    // the trigger is latched she faces the enemy, not her feet. 0/undefined =
-    // no override, flip by movement as before. Art faces right at +scale.
-    function update(a, dead, face) {
+    // face: attack override from the gun (-1 enemy-left, +1 enemy-right);
+    // down: tripped — fall anim plays once and holds her down (below death).
+    function update(a, dead, face, down) {
       if (dead && dieAnim) {
         body.rotation = 0;
         setAnimation(dieAnim);
+        return;
+      }
+      if (down && fallAnim) {
+        body.rotation = 0;
+        setAnimation(fallAnim);
         return;
       }
       if (face === -1) body.scale.x = -Math.abs(body.scale.x);
