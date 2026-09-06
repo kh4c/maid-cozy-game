@@ -6,7 +6,7 @@ window.Pet = (() => {
   const { Sprite, AnimatedSprite } = PIXI;
   // tuning — all game-feel, one number each
   const PRICE = 250;
-  const HOVER_RX = 80, HOVER_RY = 34, HOVER_Y = -100; // oval above her head
+  const HOVER_RX = 120, HOVER_RY = 52, HOVER_Y = -100; // oval above her head — wide patrol, never a perfect circle
   const HOVER_WX = 1.5, HOVER_WY = 2.2;               // lissajous pair — a hover, never a perfect circle
   const PET_SCALE = 1.5, ANIM_SPD = 0.35;             // rotor flicker
   const SEE_R = 520;      // it guards HER circle, not its own
@@ -152,7 +152,7 @@ window.Pet = (() => {
       }
       spr.rotation = rot;
     } catch (e) {}
-    spr.zIndex = dy; // y-sort: it hangs above her head, covered like anyone standing there
+    spr.zIndex = Math.max(dy, py + 3); // it flies — over her head always, honest y-sort everywhere else
     if (tgt && tgt.x !== undefined && cd <= 0 && !dead) {
       if (Math.hypot(tgt.x - dx, tgt.y - dy) < PET_SPD * PET_LIFE) { cd = PET_CD; pew(tgt.x, tgt.y - 10); }
     }
