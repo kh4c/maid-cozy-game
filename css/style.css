@@ -218,64 +218,83 @@ canvas { display: block; }
 .store-buy:hover:not(.disabled) { background: #ffe08a; }
 .store-buy.disabled { background: #3a3560; color: #8d86b8; cursor: default; }
 
-/* ---- Shop: 🏪 fullscreen till (Shop.png covers the screen) ------------------ */
+/* ---- Shop: 🏪 wooden-fantasy till, panel docked TOP over Shop.png ------------ */
 #shop-overlay {
   position: fixed; inset: 0; z-index: 40;
-  display: flex; align-items: center; justify-content: center;
-  background-image: linear-gradient(rgba(8, 6, 18, 0.66), rgba(8, 6, 18, 0.66)), url('../assets/Shop.png');
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 4vh 12px; overflow-y: auto;
+  background-image: linear-gradient(rgba(8, 6, 18, 0.5), rgba(8, 6, 18, 0.5)), url('../assets/Shop.png');
   background-size: cover; background-position: center;
 }
 #shop-panel {
-  width: min(860px, 92vw); max-height: 86vh; overflow-y: auto;
-  background: rgba(20, 18, 34, 0.96); border: 2px solid #6b5a2e;
-  border-radius: 12px; padding: 14px 16px;
-  font: 12px/1.4 monospace; color: #cfc9ff; user-select: none;
+  width: min(920px, 94vw);
+  background: linear-gradient(180deg, #4a3220, #33200f);
+  border: 3px solid #8a6a3a; outline: 2px solid #ffd24a; outline-offset: -8px;
+  border-radius: 12px; padding: 16px 20px 20px;
+  font-family: 'Press Start 2P', monospace; font-size: 10px; line-height: 1.7;
+  color: #f0e0c0; user-select: none; position: relative;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
 }
+#shop-panel.sold-flash { animation: sold-flash 0.5s ease-out; }
+@keyframes sold-flash { 0% { box-shadow: 0 0 60px rgba(255, 210, 74, 0.9); } 100% { box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7); } }
 #shop-head {
   display: flex; align-items: center; gap: 12px;
-  font-size: 16px; font-weight: bold; color: #ffd9a0; margin-bottom: 10px;
+  font-size: 13px; font-weight: bold; color: #ffd24a; margin-bottom: 6px;
+  text-shadow: 2px 2px 0 #2a1a08;
 }
-#shop-coins { flex: 1; font-size: 12px; color: #fff; }
+#shop-coins { flex: 1; font-size: 10px; color: #ffe08a; }
 #shop-close {
-  cursor: pointer; font: 14px/1 monospace; color: #1a1730;
-  background: #ffd24a; border: none; border-radius: 5px; padding: 6px 10px;
+  cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 11px; color: #ffd24a;
+  background: #5a3a1c; border: 2px solid #8a6a3a; border-radius: 6px; padding: 6px 9px;
 }
-#shop-close:hover { background: #ffe08a; }
-#shop-main { display: flex; gap: 14px; }
+#shop-close:hover { background: #7a4e24; border-color: #ffd24a; }
+#shop-toast {
+  min-height: 20px; text-align: center; font-size: 10px; color: #ffe08a;
+  text-shadow: 1px 1px 0 #2a1a08; opacity: 0; margin-bottom: 4px;
+}
+#shop-toast.show { opacity: 1; animation: toast-pop 0.3s ease-out; }
+@keyframes toast-pop { 0% { transform: scale(0.85); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
+#shop-main { display: flex; gap: 16px; }
 #shop-grid {
-  flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
   align-content: start;
 }
 .shop-cell {
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  background: rgba(0, 0, 0, 0.4); border: 2px solid #3a3560;
-  border-radius: 8px; padding: 10px 6px; cursor: pointer;
+  aspect-ratio: 1 / 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  background: #2a1d12; border: 2px solid #6b4a2f;
+  border-radius: 10px; padding: 10px 6px; cursor: pointer;
+  transition: transform 0.12s ease-out, border-color 0.12s, box-shadow 0.12s, background 0.12s;
 }
-.shop-cell:hover, .shop-cell.sel { border-color: #ffd24a; background: rgba(60, 50, 20, 0.5); }
-.shop-cell-icon { width: 56px; height: 56px; object-fit: contain; image-rendering: pixelated; font-size: 40px; }
-.shop-cell-name { color: #ffd9a0; font-size: 11px; text-align: center; }
+.shop-cell:hover, .shop-cell.sel {
+  transform: translateY(-4px) scale(1.03);
+  border-color: #ffd24a; background: #3a2614;
+  box-shadow: 0 0 18px rgba(255, 210, 74, 0.45);
+}
+.shop-cell-icon { width: 84px; height: 84px; object-fit: contain; image-rendering: pixelated; font-size: 56px; }
+.shop-cell-name { color: #ffd9a0; font-size: 9px; text-align: center; }
 .shop-cell-buy {
-  cursor: pointer; font: 11px/1 monospace; color: #1a1730;
-  background: #ffd24a; border: none; border-radius: 5px; padding: 6px 10px; width: 100%;
+  cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 9px; color: #1a1206;
+  background: #ffd24a; border: none; border-radius: 5px; padding: 7px 8px; width: 100%;
 }
 .shop-cell-buy:hover:not(.disabled) { background: #ffe08a; }
-.shop-cell-buy.disabled { background: #3a3560; color: #8d86b8; cursor: default; }
+.shop-cell-buy.disabled { background: #4a3a26; color: #8d7a5a; cursor: default; }
 #shop-detail {
-  width: 250px; flex: none; display: flex; flex-direction: column;
-  align-items: center; gap: 8px; text-align: center;
-  background: rgba(0, 0, 0, 0.4); border: 2px solid #6b5a2e;
-  border-radius: 8px; padding: 14px 12px;
+  width: 260px; flex: none; display: flex; flex-direction: column;
+  align-items: center; gap: 10px; text-align: center;
+  background: #241708; border: 2px solid #8a6a3a;
+  border-radius: 10px; padding: 16px 12px;
 }
-.shop-big-icon { width: 96px; height: 96px; object-fit: contain; image-rendering: pixelated; font-size: 72px; }
-.shop-detail-name { font-weight: bold; font-size: 14px; color: #ffd9a0; }
-.shop-detail-desc { font-size: 11px; color: #8d86b8; }
-.shop-detail-price { font-size: 13px; color: #fff; }
+.shop-big-icon { width: 110px; height: 110px; object-fit: contain; image-rendering: pixelated; font-size: 72px; }
+.shop-detail-name { font-weight: bold; font-size: 11px; color: #ffd24a; text-shadow: 1px 1px 0 #2a1a08; }
+.shop-detail-desc { font-size: 9px; color: #d8c49a; }
+.shop-detail-price { font-size: 12px; color: #fff; }
 .shop-buy-big {
-  cursor: pointer; font: 13px/1 monospace; color: #1a1730;
-  background: #ffd24a; border: none; border-radius: 6px; padding: 10px 16px; width: 100%;
+  cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 10px; color: #1a1206;
+  background: #ffd24a; border: none; border-radius: 6px; padding: 11px 14px; width: 100%;
 }
-.shop-buy-big:hover:not(.disabled) { background: #ffe08a; }
-.shop-buy-big.disabled { background: #3a3560; color: #8d86b8; cursor: default; }
+.shop-buy-big:hover:not(.disabled) { background: #ffe08a; box-shadow: 0 0 14px rgba(255, 210, 74, 0.6); }
+.shop-buy-big.disabled { background: #4a3a26; color: #8d7a5a; cursor: default; }
 
 /* ---- Equipment: 🔫 iron-closet button + big panel (mirrors bestiary) --------- */
 #equip-btn {

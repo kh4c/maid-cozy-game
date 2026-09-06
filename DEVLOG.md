@@ -2,6 +2,16 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Wooden-fantasy till: top-docked, pixel font, hover ticks, buy fanfare
+- Panel docks TOP (4vh) so Shop.png breathes below; cells are big squares
+  (84px icons, 1:1) on dark wood with gold trim; whole till speaks Press
+  Start 2P.
+- Hover/click lifts the cell (rise + gold glow) with a soft counter tick
+  (`release_click` pitched up, quiet).
+- Every buy answers: toast line under the head (YOURS!/bought!/Not enough
+  coins!), gold flash round the frame, coin cha-ching — shotgun racks the pump
+  on top. 30/30 green (hshop 16/16 with S7/S8).
+
 ## 2026-09-06 — Flash laid flat, TNT deaths, fullscreen Shop (shotgun 150c)
 - **Flash rotated.** Measured the art: muzzle.png's bright mass is 222×412 —
   vertical. The code aimed its X-axis, so it stood crosswise. Now +90° lays the

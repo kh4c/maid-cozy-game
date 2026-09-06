@@ -24,6 +24,20 @@ window.Shop = (() => {
   }
   function purse() { try { return window.Inventory && window.Inventory.purse ? window.Inventory.purse() : 0; } catch (e) { return 0; } }
 
+  let toastT = null;
+  function sndTick() { try { window.Sound && window.Sound.playSfx('combat', 'release_click.mp3', { rate: 1.8, volume: 0.15 }); } catch (e) {} } // wooden counter tick
+  function toast(msg) { // buy feedback line under the till head, pops + fades
+    const t = $('shop-toast'); if (!t) return;
+    t.textContent = msg;
+    try { t.classList.remove('show'); void t.offsetWidth; t.classList.add('show'); } catch (e) {}
+    try { clearTimeout(toastT); } catch (e) {}
+    toastT = setTimeout(() => { try { t.classList.remove('show'); } catch (e) {} }, 2600);
+  }
+  function flashPanel() { // gold burst round the wooden frame on every sale
+    const p = $('shop-panel'); if (!p) return;
+    try { p.classList.remove('sold-flash'); void p.offsetWidth; p.classList.add('sold-flash'); } catch (e) {}
+  }
+
   function gunDesc() {
     let stats = '2 × 6 pellets (spread) · every 1.5s · range ~390px';
     try {
@@ -53,15 +67,23 @@ window.Shop = (() => {
 
   function buy(id) {
     if (id === 'shotgun') {
-      if (ownsShotgun()) return { ok: false, why: 'owned' };
+      if (ownsShotgun()) { toast('Already yours — see 🔫 Equipment.'); return { ok: false, why: 'owned' }; }
       if (!window.Inventory || typeof window.Inventory.spend !== 'function') return { ok: false, why: 'no purse' };
-      if (!window.Inventory.spend(GUN_PRICE)) return { ok: false, why: 'too poor' };
+      if (!window.Inventory.spend(GUN_PRICE)) { toast('Not enough coins!'); return { ok: false, why: 'too poor' }; }
       owned.shotgun = true; save(); render();
       try { window.Sound && window.Sound.playSfx('combat', 'coin.ogg', { rate: 1.2, volume: 0.5 }); } catch (e) {}
+      try { window.Sound && window.Sound.playSfx('combat', 'pump_shotgun.mp3', { rate: 1.0, volume: 0.6 }); } catch (e) {} // rack it — the iron is yours
+      toast('🔫 Pump Shotgun — YOURS! EQUIP it in 🔫 Equipment.');
+      flashPanel();
       return { ok: true };
     }
     try {
-      if (window.Store && typeof window.Store.buy === 'function') { const r = window.Store.buy(id); render(); return r; }
+      if (window.Store && typeof window.Store.buy === 'function') {
+        const r = window.Store.buy(id);
+        if (r && r.ok) { const c = stock().find((x) => x.id === id); toast(`${c ? c.name : id} bought!`); flashPanel(); }
+        else toast(r && r.why === 'maxed' ? 'Sold out!' : 'Not enough coins!');
+        render(); return r;
+      }
     } catch (e) {}
     return { ok: false, why: 'no stock' };
   }
@@ -128,13 +150,13 @@ window.Shop = (() => {
           const buyBtn = t.closest ? t.closest('[data-buy]') : null;
           if (buyBtn && !buyBtn.disabled) { buy(buyBtn.getAttribute('data-buy')); return; }
           const cell = t.closest ? t.closest('[data-cell]') : null;
-          if (cell) { sel = cell.getAttribute('data-cell'); render(); }
+          if (cell) { sel = cell.getAttribute('data-cell'); render(); sndTick(); }
         } catch (_) {}
       });
-      o.addEventListener('mouseover', (e) => { // hover inspects, same as click
+      o.addEventListener('mouseover', (e) => { // hover inspects (with a tick), same as click
         try {
           const cell = e.target && e.target.closest ? e.target.closest('[data-cell]') : null;
-          if (cell && cell.getAttribute('data-cell') !== sel) { sel = cell.getAttribute('data-cell'); render(); }
+          if (cell && cell.getAttribute('data-cell') !== sel) { sel = cell.getAttribute('data-cell'); render(); sndTick(); }
         } catch (_) {}
       });
     }
