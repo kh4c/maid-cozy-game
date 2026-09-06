@@ -302,7 +302,7 @@ window.Brain = (() => {
       // asking which ones she means.
       let vis = false;
       try { const e = window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(window.__maid.x, window.__maid.y, 500) : null; vis = !!(e && e.dist != null && e.dist < 500); } catch (e2) {}
-      if (!vis) sayUnlessBusy('which-ones', {}, `*tilts her head, scanning* Which ones, master? I don't see them — walk me closer or point me at them.`);
+      if (!vis) sayUnlessBusy('which-ones', {}, fb('which-ones'));
     }
     // movement wishes start the stroll even with no direction known; a plain
     // "go wander" also releases heel (feet free again).
@@ -910,6 +910,7 @@ window.Brain = (() => {
       if (f.ordered) return `Found critters${where} — engaging as ordered!${shiny}`;
       return `Found critters${where} — holding fire, master — want them dead?${shiny}`;
     }
+    if (event === 'which-ones') return `Which ones, master? I don't see them — walk me closer or point me at them.`;
     return '';
   }
   function genLine(event, facts, fallback) {
