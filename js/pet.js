@@ -19,6 +19,7 @@ window.Pet = (() => {
   let world = null, spr = null, texBullet = null, texSpark = null;
   let bullets = [];
   let t = 0, cd = 0, dx = 0, dy = 0; // flight clock, trigger clock, smoothed feet
+  let rot = 0, lx = null, ly = null; // nose heading + last feet (art faces UP, so heading aims the nose)
   let owned = false, on = false;     // the deed + the slot
 
   function load() {
@@ -134,10 +135,18 @@ window.Pet = (() => {
     if (!dx && !dy) { dx = tx; dy = ty; } // first frame: start home, never fly in from origin
     dx += (tx - dx) * k; dy += (ty - dy) * k;
     spr.position.set(dx, dy);
-    try {
-      const vx = tx - dx;
-      if (vx < -2) spr.scale.x = -PET_SCALE;
-      else if (vx > 2) spr.scale.x = PET_SCALE;
+    try { // face travel: the art points UP, so ease the nose onto the velocity
+      if (lx === null) { lx = dx; ly = dy; }
+      const vx = dx - lx, vy = dy - ly;
+      lx = dx; ly = dy;
+      if (vx * vx + vy * vy > 0.04) { // ~0.2px/frame dead zone — no spin on the hover
+        const want = Math.atan2(vy, vx) + Math.PI / 2;
+        let dr = want - rot;
+        while (dr > Math.PI) dr -= Math.PI * 2;
+        while (dr < -Math.PI) dr += Math.PI * 2;
+        rot += dr * Math.min(1, 10 * wdt); // bank onto it, never snap
+      }
+      spr.rotation = rot;
     } catch (e) {}
     spr.zIndex = dy; // y-sort: it hangs above her head, covered like anyone standing there
     if (tgt && tgt.x !== undefined && cd <= 0 && !dead) {
