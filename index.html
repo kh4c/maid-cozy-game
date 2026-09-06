@@ -18,6 +18,7 @@
 <script src="js/tilemap.js"></script>
 <script src="js/entities.js"></script>
 <script src="js/camera.js"></script>
+<script src="js/clock.js"></script>
 <script src="js/effects.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/live2d.js"></script>
@@ -86,6 +87,7 @@
   <div id="hearts" title="9/9"></div>
   <div id="stamina-wrap"><div id="stamina-bar"><div id="stamina-fill"></div></div><span id="stamina-label"></span></div>
   <div id="goal-line" title="Her standing goal + current task">🔎 finding</div>
+  <div id="clock-line" title="Day + time — Mon-Sat, 9AM to 9PM, night from 5PM">🕰 Mon 9:00AM</div>
   <div id="boss-bar" style="display:none" title="Boss health"><span id="boss-name">DREADBOAR</span><div id="boss-track"><div id="boss-fill"></div></div></div>
   <div id="boss-banner" style="display:none"><span class="big">⚠ CAUTION ⚠</span><span class="small">DREADBOAR APPROACHES</span></div>
   <div id="kill-panel" title="Lifetime kills — critters and hunters, saved between visits"><span class="kill-group"><img id="kill-icon" src="assets/enemy.png" alt="critter" onerror="this.style.display='none'" /><span id="kill-count">0</span></span><span class="kill-group"><img id="hunter-icon" src="assets/hunter.png" alt="hunter" onerror="this.style.display='none'" /><span id="hunter-count">0</span></span></div>

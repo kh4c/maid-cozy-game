@@ -140,6 +140,7 @@ window.Settings = (() => {
 
     // WORLD tab: day/night + future world toggles
     addSlider('worldTime', 0, 1, 1, tabWorld, 'time of day', (v) => (Number(v) === 1 ? 'night 🌙' : 'day ☀️'));
+    addSlider('clockOn', 0, 1, 1, tabWorld, 'day clock (Mon-Sat 9-9)', (v) => (Number(v) === 1 ? 'running' : 'paused'));
 
     addSlider('speed', 20, 500, 10);
     addSlider('idleFps', 1, 30, 1);

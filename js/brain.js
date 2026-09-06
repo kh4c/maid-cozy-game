@@ -394,6 +394,12 @@ window.Brain = (() => {
         const d = hide ? 'none' : '';
         if (gl.style.display !== d) gl.style.display = d;
       }
+      const tb = $('thought-box'); // the tactic dialog hides with the goal-line — one toggle, both gone
+      if (tb) {
+        const hide2 = window.Settings && Number(window.Settings.settings.goalHide) === 1;
+        const d2 = hide2 ? 'none' : '';
+        if (tb.style.display !== d2) tb.style.display = d2;
+      }
     } catch (e) {}
     paintKills(false); // lifetime total onto the HUD panel (boot + every 0.5s)
   }

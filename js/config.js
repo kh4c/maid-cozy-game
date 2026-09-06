@@ -55,6 +55,7 @@ window.CONFIG = {
     chatActions: 0, // 0 = hide *action* text (pure dialogue), 1 = show highlighted (Chat-tab toggle)
     chatStatus: 'Location: open grassland, standing beside you in the field',
     worldTime: 1,       // 0 = day · 1 = night (WORLD tab in dev panel)
+    clockOn: 1,        // 1 = day clock owns worldTime (Mon-Sat 9AM-9PM, night from 5PM), 0 = hand-set time naps the clock
     // Survival brain (separate from chat): aim authority + think cadence.
     aimMode: 'ai',   // she owns the gun — cursor aim removed, always 'ai'
     gunHide: 1,       // 0 = iron always out, 1 = gun appears only while shooting

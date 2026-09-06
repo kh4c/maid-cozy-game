@@ -236,10 +236,15 @@
     if (key === 'l2dExpr' && live2d && live2d.ready) live2d.setExpr(window.Settings.settings.l2dExpr);
     if (key === 'chatActions' && window.Chat) window.Chat.rerender(); // re-render dialog with/without *actions*
     if (key === 'worldTime') {
+      try { window.Settings.settings.clockOn = 0; window.Settings.refreshControls && window.Settings.refreshControls(); } catch (e) {} // hand-set time naps the clock — manual wins
       drawNightOverlay();
       try { background && background.setNight && background.setNight(nightOn()); } catch (e) {}
     } // day/night flip, live: overlay + ground texture + Live2D tint
   });
+  try { if (window.Clock) window.Clock.onFlip = () => { // the day clock flips visuals exactly like a manual flip
+    drawNightOverlay();
+    try { background && background.setNight && background.setNight(nightOn()); } catch (e) {}
+  }; } catch (e) {}
   character.applySettings();
 
   // ---- Maid chat (local LLM; session-only history, non-fatal) --------------------
@@ -478,6 +483,7 @@
       }
     }
     camera.update(view.x, view.y, dtSec);
+    try { window.Clock && window.Clock.update && window.Clock.update(dtSec); } catch (e) {} // her week: Mon-Sat 9-9, night from 5PM (freezes with the shop pause)
     if (tripBubbleT > 0) { // the "ahh!" floats over her head, then goes away
       try {
         tripBubble.position.set(view.x - 45, view.y - 180);
