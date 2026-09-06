@@ -13,7 +13,7 @@ window.Gun = (() => {
   const W = (k, fb) => { try { const w = window.Weapons; return (w && typeof w[k] === 'function') ? w[k]() : fb; } catch (e) { return fb; } };
   const HIT_R = 44;                    // bullet splash vs critters (they're big)
   function setDamage(d) { try { if (window.Weapons) window.Weapons.setActiveDamage(d); } catch (e) {} } // store upgrades ride the active weapon row
-  const RECOIL_DIST = 13, RECOIL_TILT = 0.38;
+  const RECOIL_DIST = 44, RECOIL_TILT = 0.22, RECOIL_LIFT = 4; // the whole iron LAUNCHES back along the aim — slide first, muzzle-flip second
   const GUN_SCALE = 1.8;               // big iron (was 1.15)
 
   let world = null, app = null, camera = null;
@@ -295,7 +295,7 @@ window.Gun = (() => {
     px = cx; py = cy;
     bobT += dt;
     cd -= dt;
-    recoil *= Math.exp(-11 * dt);
+    recoil *= Math.exp(-5.5 * dt); // the slide lingers ~0.45s — long enough to read, quick enough to reset
     if (flashT > 0) { flashT -= dt; if (flashT <= 0) flash.visible = false; }
 
     const blocked = (window.EditMode && window.EditMode.active) ||
@@ -330,11 +330,12 @@ window.Gun = (() => {
     const aim = Math.atan2(aimWY - (py + HOVER_Y), aimWX - (px + HOVER_X));
     const ca = Math.cos(aim), sa = Math.sin(aim);
 
-    // hover beside her + bob, kicked back along the aim while recoiling
+    // hover beside her + bob; the shot LAUNCHES the whole iron backward along
+    // the aim and lifts it a touch — slide first, muzzle-flip second.
     const bob = Math.sin(bobT * BOB_FREQ) * BOB_AMP;
     rig.position.set(
       px + HOVER_X - ca * RECOIL_DIST * recoil,
-      py + HOVER_Y + bob - sa * RECOIL_DIST * recoil);
+      py + HOVER_Y + bob - sa * RECOIL_DIST * recoil - RECOIL_LIFT * recoil);
     rig.zIndex = py + 2; // the iron stays in HER hands, above her sprite
     gunSpr.rotation = aim - RECOIL_TILT * recoil; // muzzle jumps up
     gunSpr.scale.y = GUN_SCALE * (ca < 0 ? -1 : 1); // no upside-down gun aiming left
