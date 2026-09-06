@@ -161,6 +161,14 @@
     reportError('enemies failed: ' + err.message);
   }
 
+  // ---- Hometown (walk-to district east of spawn; decor sits under the cast) --
+  try {
+    window.Town && window.Town.init && await window.Town.init(world);
+    world.setChildIndex(window.Town.layer || world.children[world.children.length - 1], 1);
+  } catch (err) {
+    reportError('town failed: ' + err.message);
+  }
+
   // ---- M1 companion gun (Brotato-style hover rig, mouse aim + click fire) ----
   try {
     window.Gun && await window.Gun.init(world, app, camera);
@@ -335,6 +343,11 @@
     if (window.Enemies) {
       try { window.Enemies.update(wdt, view.x, view.y); }
       catch (err) { /* one bad tick must not kill the loop */ }
+    }
+    // hometown: wanderers, bubbles, pending talks, first-arrival wonder
+    if (window.Town) {
+      try { window.Town.update(wdt, view.x, view.y); }
+      catch (err) { /* town nap */ }
     }
     // hover gun: the maid always aims/fires herself now (cursor aim removed)
     if (window.Gun) {

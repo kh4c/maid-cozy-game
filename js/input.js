@@ -73,7 +73,10 @@ window.Input = (() => {
         const cam = window.__maidCamera;
         if (!cam || typeof cam.toWorld !== 'function') return;
         const w = cam.toWorld(e.clientX, e.clientY);
-        if (w) clickTo(w.x, w.y);
+        if (w) {
+          try { if (window.Town && window.Town.tryTalk && window.Town.tryTalk(w.x, w.y)) return; } catch (err) {} // an NPC ate the click — talk, don't walk
+          clickTo(w.x, w.y);
+        }
       } catch (err) { /* a bad click walks nowhere */ }
     });
   }

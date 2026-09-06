@@ -786,6 +786,7 @@ window.Brain = (() => {
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
       if (!p || !p.enemies) return;
+      if (p.inTown) return; // safe streets — heel, no finding, no opportunistic shinies
       if (following) { switchWatch(p); return; } // shadowing A: only a clearly closer pack interrupts (below)
       const avail = findAvail(p);
       // dismissed groups don't count — first non-dismissed critter in reach.
@@ -937,6 +938,7 @@ window.Brain = (() => {
     if (playerOnFeet()) return; // master's order owns her feet — shadowing waits
     try {
       const p = window.Situation && window.Situation.snapshot ? window.Situation.snapshot() : null;
+      if (p && p.inTown) { stopFollow(); return; } // town streets — heel, she doesn't shadow here
       const list = (p && p.enemies && p.enemies.list) || [];
       // identity first: HER pack by id, wherever on screen — never the nearest stranger.
       // No identity pinned (legacy entries) → nearest, like before.

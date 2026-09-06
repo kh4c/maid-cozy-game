@@ -2,6 +2,20 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Hometown: a walk-to district with talkable NPCs
+- **Same world, east on foot.** Town square at (3600, 0) in the endless grassland —
+  dirt road from spawn, signpost, gate arch, plaza, 5 houses, a well, lamp posts.
+  No scene system, no loading: chunks stream there like anywhere else.
+- **Safe streets.** Spawner rests inside 1000px, packs that follow her in get the
+  dismiss tag (wander off, never trail), and the brain heels (no finding/shadowing).
+  Both minds read it: snapshot carries `inTown` + a Town line, and always knows the
+  road east otherwise — "where is town?" has an answer.
+- **Four townsfolk, scripted bubbles.** Marta (shop — clicking her opens your 🛒),
+  Old Bram (field lore: doubt critters, never hunters), Pip (wandering kid),
+  Sister Wren (heals free when hurt). Greet once, then rotating lines, 6s bubbles.
+  Click an NPC: she walks over if far, speaks on arrival; empty clicks walk as before.
+- New htown (20 checks). Suite 29/29 green.
+
 ## 2026-09-06 — Words-not-pixels, prompt diet, face-the-enemy, plant-feet
 - **Tactic sees words, not pixels.** Snapshot enemy entries are direction + close/far
   bands tied to the trigger (hostile 650 / calm 500) — no px, hp, or prices per entry.

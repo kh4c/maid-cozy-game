@@ -189,9 +189,12 @@ window.Enemies = (() => {
     if (!frames) return;
     const playerDead = !!(window.Health && window.Health.dead);
     const now = performance.now() / 1000;
+    // town streets are safe: the spawner rests while she's in town
+    let townSafe = false;
+    try { townSafe = !!(window.Town && window.Town.isInTown && window.Town.isInTown(px, py)); } catch (e) {}
 
-    // spawner tick — never while she's down
-    if (!playerDead) {
+    // spawner tick — never while she's down, never on safe streets
+    if (!playerDead && !townSafe) {
       spawnAcc += dt;
       if (spawnAcc >= SPAWN_EVERY) {
         spawnAcc = 0;
@@ -210,6 +213,11 @@ window.Enemies = (() => {
 
       // left far behind -> despawn the whole pack
       if (ad > DESPAWN_R) { destroyPack(g); continue; }
+
+      // pack followed her onto safe streets -> tag it dismissed: wanders off, never trails
+      try {
+        if (!g.dismissedAt && window.Town && window.Town.isInTown && window.Town.isInTown(g.anchor.x, g.anchor.y)) g.dismissedAt = now;
+      } catch (e) {}
 
       // dismissed ("not interested") -> wanders off soon after, never trails her
       if (g.dismissedAt && now - g.dismissedAt > DISMISS_AFTER) { destroyPack(g); continue; }

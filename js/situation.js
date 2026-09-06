@@ -95,6 +95,10 @@ window.Situation = (() => {
     const night = !!(window.Settings && Number(window.Settings.settings.worldTime) === 1);
     lines.push(`Time: ${night ? 'NIGHT — dark out, visibility is poorer, the field feels different' : 'daytime — clear light over the field'}.`);
     lines.push(`Position: world (${p.x}, ${p.y}) — infinite grassland, no walls or cover.`);
+    let inTown = false;
+    try { inTown = !!(window.Town && window.Town.isInTown && window.Town.isInTown(p.x, p.y)); } catch (e) {}
+    if (inTown) lines.push('Town: safe HOMETOWN streets — heel, no hunting, no finding; Marta / Bram / Pip / Wren to talk to.');
+    else { try { if (window.Town && window.Town.describe) lines.push(window.Town.describe()); } catch (e) {} }
     lines.push(`Health: ${hp}/${max} — HERS, the maid's body (master has no health bar)${dead ? '; FAINTED (no actions possible until respawn)' : ''}.`);
     lines.push(staminaTxt);
     lines.push(`Weapon: ${weaponTxt}.`);
@@ -138,7 +142,7 @@ window.Situation = (() => {
       const ot = window.Brain && typeof window.Brain.getObjectiveText === 'function' ? window.Brain.getObjectiveText() : '';
       if (ot) lines.push('Objective: ' + ot);
     } catch (e) { /* no orders standing */ }
-    return { px: p.x, py: p.y, hp, max, dead, weapon, enemies, text: lines.join('\n') };
+    return { px: p.x, py: p.y, hp, max, dead, weapon, enemies, inTown, text: lines.join('\n') };
   }
 
   // one-line HUD readout
