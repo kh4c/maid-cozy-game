@@ -136,5 +136,5 @@ window.Inventory = (() => {
     renderCount();
   }
 
-  return { init, update, drop, state, dropsNear, reset, render, purse, spend, magnetR, setMagnetBonus };
+  return { init, update, drop, state, dropsNear, reset, render, purse, spend, refund: addCoins, magnetR, setMagnetBonus };
 })();

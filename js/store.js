@@ -68,6 +68,21 @@ window.Store = (() => {
     return { ok: true };
   }
 
+  function ownedRefund() {
+    return STOCK.reduce((t, s) => (s.id === 'heal' ? t : t + s.price * (levels[s.id] || 0)), 0);
+  }
+
+  function resetUpgrades() { // ↺ button: full refund, muscles back to base, persistent save cleared
+    const refund = ownedRefund();
+    if (refund <= 0) return { ok: false, why: 'nothing to reset' };
+    levels = { stamina: 0, damage: 0, magnet: 0, speed: 0 };
+    saveLevels();
+    try { window.Inventory && window.Inventory.refund && window.Inventory.refund(refund); } catch (e) {}
+    applyAll(); // base stats back: tank 100, damage base, magnet base
+    render();
+    return { ok: true, refund };
+  }
+
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   }
@@ -94,6 +109,8 @@ window.Store = (() => {
         `<button class="store-buy${dis}" data-buy="${s.id}"${dis ? ' disabled' : ''}>${tag}</button>` +
       '</div>';
     }).join('');
+    const back = ownedRefund();
+    if (back > 0) box.innerHTML += `<div class="store-row store-reset"><span class="store-blurb">changed your mind? full refund, muscles back to base</span><button class="store-buy" data-reset="1">↺ reset +${back}c</button></div>`;
   }
 
   function setOpen(v) {
@@ -116,11 +133,13 @@ window.Store = (() => {
     if (btn) btn.addEventListener('click', (e) => { try { e.stopPropagation(); } catch (_) {} setOpen(!open); });
     const box = $('store-list');
     if (box) box.addEventListener('click', (e) => {
+      const r = e.target && e.target.closest ? e.target.closest('[data-reset]') : null;
+      if (r) { resetUpgrades(); return; }
       const b = e.target && e.target.closest ? e.target.closest('[data-buy]') : null;
       if (!b || b.disabled) return;
       buy(b.getAttribute('data-buy'));
     });
   }
 
-  return { init, setOpen, isOpen, render, buy, describe, speedMult, levels: () => Object.assign({}, levels) };
+  return { init, setOpen, isOpen, render, buy, resetUpgrades, describe, speedMult, levels: () => Object.assign({}, levels) };
 })();
