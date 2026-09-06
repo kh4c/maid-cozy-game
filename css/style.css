@@ -345,7 +345,7 @@ canvas { display: block; }
   background: #0f1440; border: 2px solid #4de3ff;
   border-radius: 10px; padding: 10px 12px;
 }
-.equip-hand-icon { width: 64px; height: 64px; flex: none; object-fit: contain; image-rendering: pixelated; }
+.equip-hand-icon { width: 104px; height: 104px; flex: none; object-fit: contain; image-rendering: pixelated; }
 .equip-hand-body { display: flex; flex-direction: column; gap: 3px; }
 .equip-inhand { font-size: 15px; color: #4de3ff; letter-spacing: 1px; }
 .equip-hand-name { font-size: 18px; color: #ffd24a; }
