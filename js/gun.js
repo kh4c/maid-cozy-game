@@ -128,11 +128,11 @@ window.Gun = (() => {
     const mx = px + HOVER_X + ax * 34, my = py + HOVER_Y + ay * 34; // barrel tip
     const spr = new Sprite(texBullet);
     spr.anchor.set(0.5, 0.5);
-    spr.scale.set(W('slugScale', 0.7)); // heavy slug, not a pellet
+    spr.scale.set(W('slugScale', 0.3)); // fast needle, not a lobbed slug
     spr.rotation = Math.atan2(ay, ax);
     spr.position.set(mx, my);
     world.addChild(spr);
-    bullets.push({ spr, vx: ax * W('projSpeed', 700), vy: ay * W('projSpeed', 700), life: W('projLife', 1.2) });
+    bullets.push({ spr, vx: ax * W('projSpeed', 1400), vy: ay * W('projSpeed', 1400), life: W('projLife', 0.6) });
 
     // muzzle flash: random size + mirror flip, gone in a blink
     flash.position.set(ax * 30 + 6, ay * 30);

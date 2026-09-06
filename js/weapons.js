@@ -8,8 +8,8 @@
 window.Weapons = (() => {
   const KEY = 'cosette.weapon';
   const TABLE = {
-    rifle: { name: 'M1 Rifle', kind: 'gun', desc: 'Slow, heavy slug — one loud word at a time.',
-      cd: 0.85, dmg: 4, base: 4, speed: 700, life: 1.2, slug: 0.7, recoil: 1.5,
+    rifle: { name: 'M1 Rifle', kind: 'gun', desc: 'Slow trigger, fast needle — one loud word at a time.',
+      cd: 0.85, dmg: 4, base: 4, speed: 1400, life: 0.6, slug: 0.3, recoil: 1.5,
       sfx: 'gunshot.wav', rate: 0.55 },
   };
   let active = 'rifle';
@@ -33,10 +33,10 @@ window.Weapons = (() => {
   function damage() { return Math.max(1, Math.round(Number(row().dmg) || 1)); }
   function baseDamage() { return Math.max(1, Math.round(Number(row().base) || Number(row().dmg) || 1)); }
   function setActiveDamage(d) { row().dmg = Math.max(1, Math.round(Number(d) || 1)); }
-  function projSpeed() { return row().speed || 700; }
-  function projLife() { return row().life || 1.2; }
+  function projSpeed() { return row().speed || 1400; }
+  function projLife() { return row().life || 0.6; }
   function rangePx() { return Math.round(projSpeed() * projLife()); }
-  function slugScale() { return row().slug || 0.7; }
+  function slugScale() { return row().slug || 0.3; }
   function recoilMul() { return row().recoil || 1; }
   function shotSfx() { return row().sfx || 'gunshot.wav'; }
   function shotRate() { return row().rate == null ? 0.55 : row().rate; }
