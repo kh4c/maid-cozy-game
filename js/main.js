@@ -505,7 +505,7 @@
       const sh = window.Health.shakeAmount();
       if (sh) camera.shake(sh);
     }
-    // combat music: battle while any critter is engaged, cozy 3s after calm
+    // combat music: battle while any critter is engaged, day/night loop 3s after calm
     // (hysteresis so it doesn't flicker when one coward wavers)
     if (window.Sound && window.Sound.setBgmMood && window.Enemies) {
       let hot = 0;
@@ -513,7 +513,7 @@
       if (hot > 0) { battleCalmFor = 0; window.Sound.setBgmMood('battle'); }
       else {
         battleCalmFor += dtSec;
-        if (battleCalmFor > 3) window.Sound.setBgmMood('cozy');
+        if (battleCalmFor > 3) { try { window.Sound.setBgmMood(nightOn() ? 'night' : 'cozy'); } catch (e) { window.Sound.setBgmMood('cozy'); } }
       }
     }
     camera.update(view.x, view.y, dtSec);

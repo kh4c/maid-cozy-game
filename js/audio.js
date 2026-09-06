@@ -11,10 +11,10 @@ window.Sound = (() => {
   let masterGain = null;
   const buses = {};       // name -> GainNode
   let bgmSource = null;   // looping BufferSource for the current track
-  let bgmName = 'cozy';   // current mood: 'cozy' | 'battle'
+  let bgmName = 'cozy';   // current mood: 'cozy' | 'battle' | 'night'
   let bgmToken = 0;       // races between slow decodes and fast mood flips
   let bgmPending = null;  // mood currently being decoded — repeat calls wait
-  const BGM_URLS = { cozy: 'assets/Cozy1.mp3', battle: 'assets/battle1.mp3' };
+  const BGM_URLS = { cozy: 'assets/Cozy1.mp3', battle: 'assets/battle1.mp3', night: 'assets/Cozy1_night.mp3' };
   const bgmCache = {};    // mood -> AudioBuffer (switching never re-decodes)
   let started = false;    // first user gesture handled
 
@@ -99,16 +99,18 @@ window.Sound = (() => {
 
   async function startBgm() {
     if (bgmSource) return;
+    try { if (bgmName === 'cozy' && window.Settings && Number(window.Settings.settings.worldTime) === 1) bgmName = 'night'; } catch (e) {} // boot at night, start at night
     const buffer = await loadBgm(BGM_URLS[bgmName] || BGM_URLS.cozy);
     bgmCache[bgmName] = buffer;
     bgmSource = startTrack(buffer); // swells in like a switch
   }
 
   // Combat music: main loop calls setBgmMood('battle') while any pack is
-  // hostile, ('cozy') after calm. Old track ducks out under the new one over
-  // BGM_XF. Same bus/slider, no-op on repeat, stale decodes token-guarded.
+  // hostile, ('cozy')/('night') after calm (day/night pick). Old track ducks
+  // out under the new one over BGM_XF. Same bus/slider, no-op on repeat,
+  // stale decodes token-guarded.
   async function setBgmMood(mood) {
-    if (!ctx || (mood !== 'cozy' && mood !== 'battle')) return;
+    if (!ctx || (mood !== 'cozy' && mood !== 'battle' && mood !== 'night')) return;
     // same mood playing OR already decoding it -> do nothing (the game loop
     // calls this every frame; without the pending guard it would stack a
     // fresh 5MB fetch+decode per frame and tank combat fps)
@@ -131,11 +133,14 @@ window.Sound = (() => {
     finally { if (bgmPending === mood) bgmPending = null; }
   }
 
-  // Decode the battle track in the background after first gesture, so the
-  // first real switch mid-fight has zero decode hitch.
+  // Decode the off-moods in the background after first gesture, so the
+  // first real switch mid-fight (or at dusk) has zero decode hitch.
   function warmBgmCache() {
-    if (!ctx || bgmCache.battle) return;
-    loadBgm(BGM_URLS.battle).then((b) => { bgmCache.battle = b; }).catch(() => {});
+    if (!ctx) return;
+    for (const m of ['battle', 'night']) {
+      if (bgmCache[m]) continue;
+      loadBgm(BGM_URLS[m]).then((b) => { bgmCache[m] = b; }).catch(() => {});
+    }
   }
 
   // ---- first-gesture start -----------------------------------------------------
