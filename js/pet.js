@@ -134,12 +134,17 @@ window.Pet = (() => {
     if (!dx && !dy) { dx = tx; dy = ty; } // first frame: start home, never fly in from origin
     dx += (tx - dx) * k; dy += (ty - dy) * k;
     spr.position.set(dx, dy);
-    try { // face travel: the art points UP, so ease the nose onto the velocity
+    try { // face travel — but in range the nose locks onto the victim, not the flight path
       if (lx === null) { lx = dx; ly = dy; }
       const vx = dx - lx, vy = dy - ly;
       lx = dx; ly = dy;
-      if (vx * vx + vy * vy > 0.04) { // ~0.2px/frame dead zone — no spin on the hover
-        const want = Math.atan2(vy, vx) + Math.PI / 2;
+      let want = null;
+      if (tgt && tgt.x !== undefined && Math.hypot(tgt.x - dx, (tgt.y - 10) - dy) < PET_SPD * PET_LIFE) {
+        want = Math.atan2((tgt.y - 10) - dy, tgt.x - dx) + Math.PI / 2; // attacking: stare it down
+      } else if (vx * vx + vy * vy > 0.04) { // ~0.2px/frame dead zone — no spin on the hover
+        want = Math.atan2(vy, vx) + Math.PI / 2;
+      }
+      if (want !== null) {
         let dr = want - rot;
         while (dr > Math.PI) dr -= Math.PI * 2;
         while (dr < -Math.PI) dr += Math.PI * 2;
