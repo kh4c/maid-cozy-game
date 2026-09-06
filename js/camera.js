@@ -11,7 +11,7 @@ window.Camera = (() => {
   const BLEND_CALM = 0.55;  // normal focus: meet the target partway
   const BLEND_SLOW = 0.8;   // slow-mo focus: lean almost all the way in
   const ZOOM_CALM = 1;      // leaning in close on quiet grass
-  const ZOOM_COMBAT = 0.8;  // the fight breathes out — ~25% more field on screen
+  const ZOOM_COMBAT = 0.7;  // the fight breathes out — ~40% more field on screen
   const ZOOM_EASE = 2.2;    // eased both ways, never a snap-cut
   const ZOOM_HOLD = 4;      // the lens stays out this long after the last hostile drops
   let combatOn = false, holdT = 0; // live combat flag + the linger timer

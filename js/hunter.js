@@ -10,17 +10,21 @@ window.Hunter = (() => {
   const HOVER_WX = 1.1, HOVER_WY = 1.7;
   const HUNTER_SCALE = 1.5, ANIM_SPD = 0.35;          // same rotor flicker
   const SEE_R = 560;      // it guards HER circle, like the scout
-  const CD = 2.4, DMG = 5, BLAST_R = 75; // one fat boom every 2.4s
+  const CD = 2.4, DMG = 5, BLAST_R = 75; // one fat ringed boom every 2.4s
   const COLD_T = 0.35, COLD_SPD = 320;   // straight up off the rail, no steering
-  const CRUISE_SPD = 520, TURN = 4.5;    // then the pitch-over into the seek (rad/s)
-  const LIFE = 3.0, MAX_ALOFT = 3;       // old rockets burst overhead rather than fly forever
+  const OVER_T = 0.25, OVER_TURN = 7;    // the 90° tip-over — fast bank onto its dash bearing
+  const STRAIGHT_T = 0.45, STRAIGHT_SPD = 420; // the straight dash — dumb iron, running start
+  const SEEK_ACCEL = 700, CRUISE_SPD = 560, TURN = 4.5; // then the seek wakes: re-aims + runs up to cruise
+  const LIFE = 3.5, MAX_ALOFT = 3;       // old rockets burst overhead rather than fly forever
   const FUSE_R = 30;      // the nose kisses this close and it all goes up
   const DROP = 70;        // shadow hangs 70px under its feet — the mouth-center rule, no iron above it
   const EASE = 5;         // flight smoothing — eased, never teleported
   const OWN_KEY = 'cosette.hunter';
 
   let world = null, spr = null, texBullet = null, texSpark = null, texPuff = null;
-  let missiles = []; // { spr, flame, x, y, vx, vy, age }
+  let missiles = []; // { spr, flame, x, y, vx, vy, spd, hx, hy, age, tx, ty }
+  let rings = [];    // blast-radius reads: { g, life, max }
+  let booms = 0;     // explosions so far — the harness counts them
   let puffs = [];    // launch smoke + trail: { spr, life, max }
   let sh = null;     // blob shadow on the grass below — altitude you can read
   let t = 0, cd = 0, dx = 0, dy = 0; // flight clock, launch clock, smoothed feet
@@ -53,7 +57,7 @@ window.Hunter = (() => {
   function known(id) { return id === 'hunter'; }
 
   function describe() {
-    return `Hunter Drone ${PRICE}c (🏪 shop, 🎒 PETS tab): rides a high oval and cold-launches homing missiles (up off the rail, 90° pitch-over, then the seek) at anything in her 560px circle — 5dmg blast every 2.4s. Kills pay full coins. Owned: ${owned ? 'yes' : 'no'}. Flying: ${equipped() ? 'yes' : 'benched'}.`;
+    return `Hunter Drone ${PRICE}c (🏪 shop, 🎒 PETS tab): rides a high oval and cold-launches homing missiles (up off the rail, 90° tip-over, a straight dash, then the seek) at anything in her 560px circle — 5dmg ringed blast every 2.4s. Kills pay full coins. Owned: ${owned ? 'yes' : 'no'}. Flying: ${equipped() ? 'yes' : 'benched'}.`;
   }
 
   async function init(w) {
@@ -109,15 +113,28 @@ window.Hunter = (() => {
       let flame = null;
       try {
         flame = new Sprite(texSpark);
-        flame.anchor.set(0.5, 0.5); flame.blendMode = 'add'; flame.tint = 0xffc46b;
-        flame.scale.set(0.12); flame.position.set(dx, dy + 8);
+        flame.anchor.set(0.5, 0.5); flame.blendMode = 'add'; flame.tint = 0xffc46b; flame.alpha = 0.9;
+        flame.scale.set(0.05, 0.02); flame.rotation = -Math.PI / 2; // a tongue, not an orb — long axis down the rail
+        flame.position.set(dx, dy + 8);
         flame.zIndex = 1e9;
         world.addChild(flame);
       } catch (e) {}
-      missiles.push({ spr: s, flame, x: dx, y: dy, vx: 0, vy: -COLD_SPD, age: 0, tx, ty });
+      missiles.push({ spr: s, flame, x: dx, y: dy, vx: 0, vy: -COLD_SPD, spd: COLD_SPD, age: 0, tx, ty });
       puff(dx, dy + 10, true); puff(dx, dy + 10, true); // the rail coughs twice
-      try { window.Sound && window.Sound.playSfx('combat', 'pistol_real.wav', { rate: 1.6, volume: 0.2 }); } catch (e) {} // the cold pop
+      try { window.Sound && window.Sound.playSfx('combat', 'gunshot.wav', { rate: 2.0, volume: 0.22 }); } catch (e) {} // the bottle-open pop
     } catch (e) { /* a silent rail still flies */ }
+  }
+
+  function blastRing(x, y) { // the boom draws its own radius — one ring out to BLAST_R, gone in 0.4s
+    try {
+      const g = new PIXI.Graphics();
+      g.circle(0, 0, BLAST_R).stroke({ color: 0xffd9a0, width: 3 });
+      g.circle(0, 0, 8).fill({ color: 0xfff2cf });
+      g.position.set(x, y);
+      g.zIndex = 1e9;
+      world.addChild(g);
+      rings.push({ g, life: 0, max: 0.4 });
+    } catch (e) { /* an unrung boom still pays */ }
   }
 
   function explode(m) { // the seek ends — boom, debris, lamp, payout
@@ -131,6 +148,7 @@ window.Hunter = (() => {
       try { window.Gun && window.Gun.blip && window.Gun.blip(m.x, m.y, 1.6); } catch (e) {} // thunder files its light
       try { window.Sound && window.Sound.playSfx('combat', 'shotgun_real.wav', { rate: 0.6, volume: 0.5 }); } catch (e) {} // the deep boom
     } catch (e) {}
+    booms++; blastRing(m.x, m.y); // the edge runs out to BLAST_R — the radius reads once
     try { world.removeChild(m.spr); m.spr.destroy(); } catch (e) {}
     try { if (window.Gun && window.Gun.trailDone) window.Gun.trailDone(m); } catch (e) {} // the comet winks out with it, never orphaned
     try { if (m.flame) { world.removeChild(m.flame); m.flame.destroy(); } } catch (e) {}
@@ -141,26 +159,42 @@ window.Hunter = (() => {
       const m = missiles[i];
       m.age += dt;
       if (m.age < COLD_T) { // cold phase — locked vertical, coughing smoke
-        m.vx = 0; m.vy = -COLD_SPD;
+        m.vx = 0; m.vy = -COLD_SPD; m.spd = COLD_SPD;
         if (Math.random() < 0.6) puff(m.x, m.y + 8, false);
-      } else { // the 90° pitch-over into the seek — banked, never snapped
-        let tgt = null;
-        try { tgt = window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(m.x, m.y, SEE_R * 1.5) : null; } catch (e) {}
-        if (tgt && tgt.x !== undefined) { m.tx = tgt.x; m.ty = tgt.y; } // re-seeks every tick — dead locks don't fly on
-        const want = Math.atan2(m.ty - m.y, m.tx - m.x);
-        let cur = Math.atan2(m.vy, m.vx);
-        let dr = want - cur;
-        while (dr > Math.PI) dr -= Math.PI * 2;
-        while (dr < -Math.PI) dr += Math.PI * 2;
-        const turn = Math.max(-TURN * dt, Math.min(TURN * dt, dr)); // capped bank — the missile arcs, never corners
-        cur += turn;
-        m.vx = Math.cos(cur) * CRUISE_SPD; m.vy = Math.sin(cur) * CRUISE_SPD;
-        try { m.spr.rotation = cur + Math.PI / 2; } catch (e) {}
+      } else { // the 90° tip-over, the straight dash, then the seek
+        if (m.hx === undefined) { // frozen at rail-exit — dumb iron till the dash ends
+          const dx0 = m.tx - m.x, dy0 = m.ty - m.y, d0 = Math.hypot(dx0, dy0) || 1;
+          m.hx = dx0 / d0; m.hy = dy0 / d0;
+        }
+        if (m.age < COLD_T + OVER_T) { // the tip-over — fast bank onto the dash bearing, no chase yet
+          const want = Math.atan2(m.hy, m.hx);
+          let cur = Math.atan2(m.vy, m.vx);
+          let dr = want - cur;
+          while (dr > Math.PI) dr -= Math.PI * 2;
+          while (dr < -Math.PI) dr += Math.PI * 2;
+          cur += Math.max(-OVER_TURN * dt, Math.min(OVER_TURN * dt, dr));
+          m.vx = Math.cos(cur) * m.spd; m.vy = Math.sin(cur) * m.spd;
+        } else if (m.age < COLD_T + OVER_T + STRAIGHT_T) { // the straight dash — fixed line, running start
+          m.spd = STRAIGHT_SPD; m.vx = m.hx * m.spd; m.vy = m.hy * m.spd;
+        } else { // the seek wakes — re-aims every tick and runs up to cruise, banked never snapped
+          let tgt = null;
+          try { tgt = window.Enemies && window.Enemies.nearest ? window.Enemies.nearest(m.x, m.y, SEE_R * 1.5) : null; } catch (e) {}
+          if (tgt && tgt.x !== undefined) { m.tx = tgt.x; m.ty = tgt.y; } // dead locks don't fly on
+          const want = Math.atan2(m.ty - m.y, m.tx - m.x);
+          let cur = Math.atan2(m.vy, m.vx);
+          let dr = want - cur;
+          while (dr > Math.PI) dr -= Math.PI * 2;
+          while (dr < -Math.PI) dr += Math.PI * 2;
+          cur += Math.max(-TURN * dt, Math.min(TURN * dt, dr)); // capped bank — the missile arcs, never corners
+          m.spd = Math.min(CRUISE_SPD, m.spd + SEEK_ACCEL * dt);
+          m.vx = Math.cos(cur) * m.spd; m.vy = Math.sin(cur) * m.spd;
+        }
+        try { m.spr.rotation = Math.atan2(m.vy, m.vx) + Math.PI / 2; } catch (e) {}
         if (Math.random() < 0.8) puff(m.x - m.vx * 0.02, m.y - m.vy * 0.02, false); // smoke trails the tail
       }
       m.x += m.vx * dt; m.y += m.vy * dt;
       try { m.spr.position.set(m.x, m.y); } catch (e) {}
-      try { if (m.flame) { m.flame.position.set(m.x - m.vx * 0.015, m.y - m.vy * 0.015); m.flame.scale.set(0.1 + Math.random() * 0.06); } } catch (e) {} // the flame dances
+      try { if (m.flame) { m.flame.position.set(m.x - m.vx * 0.022, m.y - m.vy * 0.022); m.flame.rotation = m.spr.rotation; m.flame.scale.set(0.05 + Math.random() * 0.02, 0.02); } } catch (e) {} // a tongue, not an orb — long axis down the rail
       try { if (window.Gun && window.Gun.trailStep) window.Gun.trailStep(m); } catch (e) {} // her comet style, on loan — reposed per tick, never shed
       let dead = m.age > LIFE;
       if (!dead) {
@@ -178,6 +212,16 @@ window.Hunter = (() => {
         p.spr.position.y -= 30 * dt;
         p.spr.scale.set(p.spr.scale.x + dt * 0.4);
         p.spr.alpha = 0.5 * (1 - k);
+      } catch (e) {}
+    }
+    for (let i = rings.length - 1; i >= 0; i--) { // the radius reads once, then gone
+      const rg = rings[i];
+      rg.life += dt;
+      if (rg.life > rg.max) { try { world.removeChild(rg.g); rg.g.destroy(); } catch (e) {} rings.splice(i, 1); continue; }
+      try {
+        const k = rg.life / rg.max;
+        rg.g.scale.set(0.15 + 0.85 * k); // the edge runs out to exactly BLAST_R as it fades
+        rg.g.alpha = 0.95 * (1 - k);
       } catch (e) {}
     }
   }
@@ -216,5 +260,5 @@ window.Hunter = (() => {
 
   function grant() { owned = true; save(); return true; } // dev-panel free deed — testing skips the till
   return { init, update, buy, grant, equip, unequip, toggle, known, owns, equipped, price, describe,
-    debug: () => ({ x: dx, y: dy, gx: dx, gy: dy + DROP, sh, aloft: missiles.length, shots: missiles.map((m) => ({ x: m.x, y: m.y, vx: m.vx, vy: m.vy, age: m.age })) }) };
+    debug: () => ({ x: dx, y: dy, gx: dx, gy: dy + DROP, sh, aloft: missiles.length, booms, shots: missiles.map((m) => ({ x: m.x, y: m.y, vx: m.vx, vy: m.vy, age: m.age })) }) };
 })();
