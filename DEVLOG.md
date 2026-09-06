@@ -2,6 +2,28 @@
 
 Chronological record of what was built and why. Newest entries at the top.
 
+## 2026-09-06 — Words-not-pixels, prompt diet, face-the-enemy, plant-feet
+- **Tactic sees words, not pixels.** Snapshot enemy entries are direction + close/far
+  bands tied to the trigger (hostile 650 / calm 500) — no px, hp, or prices per entry.
+  Code keeps the numbers; the model doesn't. New hsight guard.
+- **Prompt diet + a real bug.** Think sys 6687 → 4468 chars (−33%), zero rules lost; new
+  hprompt pins all 40 must-survive phrases under a 6000 budget. The diet caught a
+  pre-existing unary-plus (`+ combatCard() +`) that had been sending `NaN` instead of
+  the weapon/price cards — she was thinking without her rifle facts. Fixed + NaN assert;
+  the fallback now reads live gun numbers, never a frozen copy.
+- **Face the enemy (two halves).** The gun always rotated, but she stayed frontal. Now:
+  Live2D head-turn + eye-glance toward the target's side while latched (overlay can't
+  spin — `FACE_SIGN` flips it if the rig mirrors), AND the world sprite flips to the
+  gun's side (`aimSide()` → attack-face override in `character.update`), movement flip
+  otherwise. Art faces right at +scale. New hface (8) + hsprite (9).
+- **Stop and shoot.** Trigger latched → feet plant (movement zeroed in main.js, brain
+  untouched). Consequence, as ordered: flee and coin-scooping only happen when she's not
+  firing — `[cease]` to run.
+- **Purse-balance-only.** `packValue()` deleted; all three `~X coins` amounts cut from
+  Recent events + thought chips. The tactic sees `Coins: N in her purse`, nothing else.
+  Rare+ voice price quotes stay (chat, not tactic). brain.js 1253 → 1251 — shrinks.
+- Tests: hprompt (40), hface, hsprite, hplant (6). 25/25 suites green.
+
 ## 2026-09-06 — Phase-1 rebuild: posture + trigger doctrine, auto-defend unconditional
 - **The narrowed contract is live.** Think's whole vocabulary: `[mode:find|hunt|heel]`
   (only from idleness — a standing posture ignores think's mode votes), `[fire:secs]`,
