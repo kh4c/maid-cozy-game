@@ -53,6 +53,7 @@
     return Texture.from(c);
   }
   let vignette = null;
+  let vigScale = 2; // eased: 2x tight on her, 3x while a pan holds (ring stays off-frame)
   function nightOn() { return (window.Settings && Number(window.Settings.settings.worldTime) === 1); }
   function applyNightBg(on) {
     try { app.renderer.background.color = on ? 0x04040c : 0x1a1730; } catch (e) { /* cosmetic */ }
@@ -76,6 +77,17 @@
   }
   drawNightOverlay();
   window.addEventListener('resize', () => setTimeout(drawNightOverlay, 0));
+  // URGE BUTTON: bare "keep going!" on a click — the same trio as typing it
+  // (pushed cover 6s + rest latch drop + brain note), no words needed.
+  try {
+    const ub = document.getElementById('urge-btn');
+    if (ub) ub.addEventListener('click', () => {
+      try { window.Input && window.Input.pushFor && window.Input.pushFor(6); } catch (e) {}
+      try { window.Stamina && window.Stamina.kick && window.Stamina.kick(); } catch (e) {}
+      try { window.Brain && window.Brain.note && window.Brain.note('urged'); } catch (e) {}
+      try { ub.classList.add('poked'); setTimeout(() => ub.classList.remove('poked'), 180); } catch (e) {}
+    });
+  } catch (e) {}
 
   // Spotlight follows THE MAID: center the vignette's clear hole on her screen
   // position every frame (world -> screen via the camera-shifted world container).
@@ -84,7 +96,10 @@
     if (!vignette || !vignette.visible || !charView) return;
     try {
       let wx = charView.x, wy = charView.y; // her, by default
-      try { const s = camera && camera.spot ? camera.spot() : null; if (s) { wx = s.x; wy = s.y; } } catch (e) {} // a pan holds: light what the camera shows, not her
+      let panHolds = false;
+      try { const s = camera && camera.spot ? camera.spot() : null; if (s) { wx = s.x; wy = s.y; panHolds = true; } } catch (e) {} // a pan holds: light what the camera shows, not her
+      vigScale += ((panHolds ? 3 : 2) - vigScale) * 0.1; // breathe bigger on pans so the dark ring never enters the frame
+      try { vignette.width = app.screen.width * vigScale; vignette.height = app.screen.height * vigScale; } catch (e) {}
       const sx = world.x + wx;
       const sy = world.y + wy;
       vignette.x = sx - vignette.width / 2;
